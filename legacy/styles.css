@@ -1,0 +1,300 @@
+:root {
+    --bg-color: #121212;
+    --sidebar-bg: #1e1e1e;
+    --topbar-bg: #1e1e1e;
+    --card-bg: #2a2a2a;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --accent-color: #4CAF50;
+    --accent-hover: #45a049;
+    --border-color: #333333;
+    --progress-bg: #444444;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app-container {
+    display: flex;
+    height: 100%;
+}
+
+/* Sidebar */
+#sidebar {
+    width: 250px;
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.nav-links {
+    list-style: none;
+    padding: 20px 0;
+}
+
+.nav-links li a {
+    display: block;
+    padding: 15px 20px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s;
+    font-weight: 500;
+}
+
+.nav-links li a:hover, .nav-links li a.active {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border-left: 4px solid var(--accent-color);
+}
+
+/* Main Content */
+#main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Topbar */
+#topbar {
+    height: 60px;
+    background-color: var(--topbar-bg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 30px;
+    justify-content: flex-end;
+}
+
+.resource-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--card-bg);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    border: 1px solid var(--border-color);
+}
+
+.resource-icon {
+    margin-right: 8px;
+}
+
+.resource-label {
+    margin-right: 5px;
+    color: var(--text-secondary);
+}
+
+/* Views */
+#views {
+    padding: 30px;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.view {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.view.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+h1 {
+    margin-bottom: 20px;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+/* Action Areas */
+.skill-info {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.skill-info p {
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+.action-area {
+    background-color: var(--card-bg);
+    padding: 30px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.action-btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    font-weight: bold;
+}
+
+.action-btn:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+}
+
+.action-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.action-btn:disabled {
+    background-color: var(--border-color);
+    cursor: not-allowed;
+    color: var(--text-secondary);
+}
+
+/* Progress Bar */
+.progress-container {
+    width: 100%;
+    max-width: 400px;
+    height: 20px;
+    background-color: var(--progress-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background-color: var(--accent-color);
+}
+
+/* Inventory */
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px;
+}
+
+.inventory-item {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s;
+}
+
+.inventory-item:hover {
+    transform: translateY(-5px);
+}
+
+.item-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.item-name {
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.item-amount {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* UI Updates from Milestone 4 */
+.separator {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 10px 20px;
+}
+
+.target-select {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 6px;
+    width: 200px;
+    font-size: 16px;
+}
+
+.view-desc {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.market-grid, .buildings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.building-item h3 {
+    font-size: 18px;
+}
+
+.target-info { 
+    margin-top: 10px; 
+    margin-bottom: 10px; 
+    padding: 10px; 
+    background-color: var(--bg-color); 
+    border: 1px dashed var(--border-color); 
+    border-radius: 6px; 
+    font-size: 14px; 
+    color: var(--text-secondary); 
+    width: 250px; 
+    text-align: left; 
+}
+.target-info b { font-weight: normal; }
+
+.inventory-item { cursor: pointer; }
+.inventory-item.selected { border-color: var(--accent-color); background-color: rgba(76, 175, 80, 0.1); }
+
+.toast { 
+    background-color: #ef4444; 
+    color: white; 
+    padding: 15px 25px; 
+    border-radius: 6px; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+    animation: fadeOut 3s forwards; 
+}
+@keyframes fadeOut { 
+    0% { opacity: 1; transform: translateY(20px); } 
+    10% { opacity: 1; transform: translateY(0); }
+    80% { opacity: 1; } 
+    100% { opacity: 0; } 
+}

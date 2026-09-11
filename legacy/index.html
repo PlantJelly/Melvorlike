@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>멜버라이크 왕국 재건</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="toast-container" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+
+    <!-- Offline Modal -->
+    <div id="offline-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
+        <div style="background:var(--card-bg); padding:30px; border-radius:12px; border:2px solid var(--accent-color); max-width:500px; width:90%; color:white; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+            <h2 style="color:var(--accent-color); margin-top:0; border-bottom:1px solid var(--border-color); padding-bottom:10px;">환영합니다! (오프라인 보상)</h2>
+            <p id="offline-time-text" style="color:var(--text-secondary); margin-bottom:20px;">당신이 자리를 비운 <b style="color:white;">0시간 0분 0초</b> 동안 왕국은 계속 일했습니다.</p>
+            
+            <div id="offline-results-content" style="background:var(--bg-color); padding:15px; border-radius:8px; max-height:300px; overflow-y:auto; font-size:14px; line-height:1.6;">
+                <!-- Injected via JS -->
+            </div>
+            
+            <button class="action-btn" style="width:100%; margin-top:20px; font-size:16px; padding:10px;" onclick="closeOfflineModal()">보상 확인 및 게임 시작</button>
+        </div>
+    </div>
+
+    <div id="app-container">
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="sidebar-header">
+                <h2>왕국 재건</h2>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#" class="active" data-target="logging-view">벌목 (Logging)</a></li>
+                <li><a href="#" data-target="mining-view">채광 (Mining)</a></li>
+                <li><a href="#" data-target="fishing-view">낚시 (Fishing)</a></li>
+                <li><a href="#" data-target="blacksmithing-view">대장작업 (Smithing)</a></li>
+                <li class="separator"></li>
+                <li><a href="#" data-target="equipment-view">장비 및 강화 (Gear)</a></li>
+                <li><a href="#" data-target="guild-view">길드 상점 (Market)</a></li>
+                <li><a href="#" data-target="estate-view">영지 건물 (Estate)</a></li>
+                <li class="separator"></li>
+                <li><a href="#" data-target="inventory-view">인벤토리 (Inventory)</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Topbar -->
+            <header id="topbar">
+                <button class="action-btn" onclick="applyCheat()" style="font-size: 12px; padding: 5px 10px; margin-right: auto; margin-left: 20px; background-color: #a855f7;">[테스트] 만렙/자원 MAX</button>
+                <div class="resource-item">
+                    <span class="resource-icon">🪙</span>
+                    <span class="resource-label">골드:</span>
+                    <span id="gold-amount" class="resource-value">0</span>
+                </div>
+            </header>
+
+            <!-- Views -->
+            <div id="views">
+                <!-- Logging View -->
+                <section id="logging-view" class="view active">
+                    <h1>벌목 (Logging)</h1>
+                    <div class="skill-info">
+                        <p>레벨: <span id="logging-level">1</span></p>
+                        <p>경험치: <span id="logging-exp">0</span> / <span id="logging-max-exp">100</span></p>
+                    </div>
+                    <div class="action-area">
+                        <select id="logging-target" class="target-select"></select>
+                        <div id="logging-target-info" class="target-info"></div>
+                        <button id="btn-chop-wood" class="action-btn">벌목 시작</button>
+                        <div class="progress-container">
+                            <div id="logging-progress" class="progress-bar"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Mining View -->
+                <section id="mining-view" class="view">
+                    <h1>채광 (Mining)</h1>
+                    <div class="skill-info">
+                        <p>레벨: <span id="mining-level">1</span></p>
+                        <p>경험치: <span id="mining-exp">0</span> / <span id="mining-max-exp">100</span></p>
+                    </div>
+                    <div class="action-area">
+                        <select id="mining-target" class="target-select"></select>
+                        <div id="mining-target-info" class="target-info"></div>
+                        <button id="btn-mine-stone" class="action-btn">채광 시작</button>
+                        <div class="progress-container">
+                            <div id="mining-progress" class="progress-bar"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Fishing View -->
+                <section id="fishing-view" class="view">
+                    <h1>낚시 (Fishing)</h1>
+                    <div class="skill-info">
+                        <p>레벨: <span id="fishing-level">1</span></p>
+                        <p>경험치: <span id="fishing-exp">0</span> / <span id="fishing-max-exp">100</span></p>
+                    </div>
+                    <div class="action-area">
+                        <select id="fishing-target" class="target-select"></select>
+                        <div id="fishing-target-info" class="target-info"></div>
+                        <button id="btn-fish" class="action-btn">낚시 시작</button>
+                        <div class="progress-container">
+                            <div id="fishing-progress" class="progress-bar"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Blacksmithing View -->
+                <section id="blacksmithing-view" class="view">
+                    <h1>대장작업 (Smithing)</h1>
+                    <p class="view-desc">채광물 등을 소모하여 더 가치 있는 주괴나 벽돌로 가공합니다.</p>
+                    <div class="skill-info">
+                        <p>레벨: <span id="blacksmithing-level">1</span></p>
+                        <p>경험치: <span id="blacksmithing-exp">0</span> / <span id="blacksmithing-max-exp">100</span></p>
+                    </div>
+                    <div class="action-area">
+                        <select id="blacksmithing-target" class="target-select"></select>
+                        <div id="blacksmithing-target-info" class="target-info"></div>
+                        <button id="btn-blacksmith" class="action-btn">가공 시작</button>
+                        <div class="progress-container">
+                            <div id="blacksmithing-progress" class="progress-bar"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Equipment View (V7 Mastery) -->
+                <section id="equipment-view" class="view">
+                    <h1>장비 및 강화 (Equipment & Mastery)</h1>
+                    <p class="view-desc">부위별로 1개의 장비만 장착합니다. 확정으로 전설 옵션을 선택하고, 동일한 기본 장비를 대량으로 제물로 바쳐 옵션 레벨을 올리세요.</p>
+                    
+                    <div style="display: flex; gap: 30px; height: calc(100vh - 200px);">
+                        <!-- Left: Equipped Gear Panels -->
+                        <div id="equipped-panels" style="flex: 2; overflow-y:auto; display:flex; flex-direction:column; gap:15px; padding-right:10px;">
+                            <!-- Injected by JS -->
+                        </div>
+
+                        <!-- Right: Crafting / Feeding Stock -->
+                        <div style="flex: 1; background-color: var(--card-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); display:flex; flex-direction:column;">
+                            <h2>기본 장비 제작 (제물용)</h2>
+                            <p style="font-size:13px; color:var(--text-secondary); margin-bottom: 15px;">장착 및 강화를 위해 기본 장비를 대량으로 제작합니다.</p>
+                            
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                                <span style="font-size:14px; color:var(--text-secondary);">제작할 재질:</span>
+                                <select id="eq-craft-tier-select" class="target-select" style="width:120px; padding:5px; font-size:14px;"></select>
+                            </div>
+
+                            <div id="eq-craft-cost-info" style="font-size:13px; color:var(--accent-color); margin-bottom:15px; padding:10px; background:var(--bg-color); border-radius:4px;">
+                                <!-- Injected -->
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 20px;">
+                                <button class="action-btn" onclick="craftBaseEquip('axe')" style="font-size:14px;">🪓 도끼</button>
+                                <button class="action-btn" onclick="craftBaseEquip('pickaxe')" style="font-size:14px;">⛏️ 곡괭이</button>
+                                <button class="action-btn" onclick="craftBaseEquip('rod')" style="font-size:14px;">🎣 낚싯대</button>
+                                <button class="action-btn" onclick="craftBaseEquip('hammer')" style="font-size:14px;">🔨 망치</button>
+                            </div>
+
+                            <hr class="separator" style="width:100%; margin:0 0 15px 0;">
+                            <h2>기본 장비 보유량 (Stock)</h2>
+                            <div id="eq-stock-grid" style="display:flex; flex-direction:column; gap:10px; overflow-y:auto; font-size:13px;">
+                                <!-- Injected -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Guild Market View -->
+                <section id="guild-view" class="view">
+                    <h1>길드 상점 (Guild Market)</h1>
+                    <p class="view-desc">특가 상품을 거래하거나, 보유 스킬로 채집 가능한 하위 자원을 구매합니다. (판매는 인벤토리에서 진행)</p>
+                    
+                    <div class="market-section" style="margin-bottom: 40px; padding: 20px; background: rgba(255,215,0,0.05); border: 1px solid rgba(255,215,0,0.3); border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div style="display:flex; align-items:center; gap:15px;">
+                                <h2 style="margin:0; color: #ffd700;">시간 한정 특가 (Special Deals)</h2>
+                                <button class="action-btn" onclick="generateSpecialDeals()" style="font-size:12px; padding: 4px 8px; background:rgba(255,255,255,0.1);">[테스트] 즉시 갱신</button>
+                            </div>
+                            <span id="special-deal-timer" style="font-size: 14px; font-weight: bold; color: var(--accent-color);">갱신까지: 04:00:00</span>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">무작위 아이템들이 랜덤한 배율로 매입/판매됩니다. (배율 범위: 0.25x ~ 2.0x)</p>
+                        
+                        <div style="display: flex; gap: 20px;">
+                            <div style="flex: 1;">
+                                <h3 style="color:#3b82f6; margin-bottom:10px; font-size:14px;">[ 특가 매입 (플레이어가 구매) ]</h3>
+                                <div id="market-special-buy-grid" class="market-grid" style="grid-template-columns: 1fr;"></div>
+                            </div>
+                            <div style="flex: 1;">
+                                <h3 style="color:#ef4444; margin-bottom:10px; font-size:14px;">[ 특가 매각 (플레이어가 판매) ]</h3>
+                                <div id="market-special-sell-grid" class="market-grid" style="grid-template-columns: 1fr;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="market-section">
+                        <h2>하위 자원 일반 구매 (Buy)</h2>
+                        <div id="market-buy-grid" class="market-grid"></div>
+                    </div>
+                </section>
+
+                <!-- Estate Buildings View -->
+                <section id="estate-view" class="view">
+                    <h1>영지 건물 (Estate)</h1>
+                    <p class="view-desc">골드와 자원을 투자해 건물을 재건하고 생산 효율(작업 속도 향상)을 높이세요.</p>
+                    <div id="buildings-grid" class="buildings-grid"></div>
+                </section>
+
+                <!-- Inventory View -->
+                <section id="inventory-view" class="view">
+                    <h1>인벤토리</h1>
+                    <p class="view-desc">가진 아이템을 확인하고 판매할 수 있습니다.</p>
+                    <div style="display: flex; gap: 30px; height: calc(100vh - 200px);">
+                        <div id="inventory-grid" class="inventory-grid" style="flex: 2; align-content: start; overflow-y: auto;"></div>
+                        
+                        <div id="inventory-detail-panel" style="flex: 1; background-color: var(--card-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); display: none; flex-direction: column;">
+                            <div style="text-align: center; margin-bottom: 20px;">
+                                <div id="inv-detail-icon" style="font-size: 60px; margin-bottom: 10px;"></div>
+                                <h2 id="inv-detail-name">아이템 이름</h2>
+                                <p style="color: var(--text-secondary); font-size: 14px;">기본 판매가: <span id="inv-detail-price" style="color:gold;"></span> 골드</p>
+                            </div>
+                            
+                            <hr class="separator" style="width: 100%; margin: 0 0 20px 0;">
+                            
+                            <div style="background-color: var(--bg-color); padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                                <p style="margin-bottom: 10px; font-size: 14px;">보유 수량: <b id="inv-detail-amount" style="font-size: 18px; color: var(--accent-color);"></b></p>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <input type="number" id="inv-sell-input" value="1" min="1" style="width: 80px; padding: 5px; background: var(--card-bg); color: white; border: 1px solid var(--border-color); border-radius: 4px;">
+                                    <button class="action-btn" id="btn-sell-custom" style="padding: 5px 15px; font-size: 14px;">지정 갯수 판매</button>
+                                </div>
+                                <button class="action-btn" id="btn-sell-all" style="width: 100%; margin-top: 10px; padding: 5px; font-size: 14px; background-color: #3b82f6;">전부 판매</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

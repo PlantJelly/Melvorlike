@@ -1,0 +1,23 @@
+import { For, Show, createSignal } from 'solid-js';
+import { ResourceDB, playable, skillNames, toolNames, toolTiers } from './content/resources';
+import type { SkillId } from './content/types';
+import { initGameLoop } from './engine/gameLoop';
+import { state } from './state/gameState';
+import { afford, duration } from './engine/model';
+import { startAction, stopAction, craftTool, sellItem } from './engine/actions';
+const fmt = (n: number) => n.toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+function App() {
+    initGameLoop();
+    const [page, setPage] = createSignal<SkillId | 'inventory' | 'tools'>('logging');
+    const active = () => state().currentAction;
+    const resource = () => active() ? ResourceDB[active()!.resourceId] : null;
+    const costText = (cost: Record<string, number>) => Object.entries(cost).map(([id, n]) => `${ResourceDB[id].name} ${n} (보유 ${state().inventory[id] ?? 0})`).join(' · ');
+    return <div id="app"><aside><div class="brand">🌿<div>왕국 재건<small>작은 작업에서 시작하는 정착</small></div></div><span class="label">생산 기술</span><For each={playable}>{id => <button classList={{ selected: page() === id }} onClick={() => setPage(id)}>{skillNames[id]} <span>Lv.{state().skills[id].level}</span></button>}</For><span class="label">작업실</span><button classList={{ selected: page() === 'tools' }} onClick={() => setPage('tools')}>도구 제작</button><button classList={{ selected: page() === 'inventory' }} onClick={() => setPage('inventory')}>보관함</button><p class="aside-note">첫 목표<br />나무 5개와 돌 6개를 모아 벽돌 3개를 만들고, 돌 도구를 제작해보세요.</p></aside>
+ <main><header><span>첫 정착 · 개발 중</span><strong>🪙 {fmt(state().gold)} G</strong></header><Show when={state().notice}><p role="status" class="notice">{state().notice}</p></Show>
+ <section class="current"><div><span class="label">현재 작업</span><h2>{resource() ? `${resource()!.icon} ${resource()!.name}` : '작업을 선택하세요'}</h2></div><Show when={active()}><button onClick={stopAction}>작업 중지</button></Show><progress aria-label="현재 작업 진행률" max="100" value={active() ? Math.min(100, active()!.progressMs / duration(state(), active()!.resourceId) * 100) : 0}/><small>{resource() ? `${(duration(state(), resource()!.id) / 1000).toFixed(1)}초마다 1개 · 화면을 바꿔도 계속 진행됩니다` : '한 번에 하나의 작업이 진행됩니다.'}</small></section>
+ <Show when={playable.includes(page() as SkillId)}><h1>{skillNames[page() as SkillId]}</h1><p class="muted">레벨 {state().skills[page() as SkillId]?.level} · 경험치 {fmt(state().skills[page() as SkillId]?.exp ?? 0)} / {fmt(state().skills[page() as SkillId]?.maxExp ?? 0)}</p><div class="cards"><For each={Object.values(ResourceDB).filter(r => r.skill === page())}>{r => <article><div class="item-icon">{r.icon}</div><h2>{r.name}</h2><p>보유 <strong>{fmt(state().inventory[r.id] ?? 0)}</strong></p><p class="muted">{(duration(state(), r.id) / 1000).toFixed(1)}초 · 경험치 +{r.exp}</p><Show when={r.recipe}><p class="recipe">{costText(r.recipe!)}</p></Show><button disabled={state().skills[r.skill].level < r.reqLevel || !afford(state(), r.recipe ?? {}) || active()?.resourceId === r.id} onClick={() => startAction(r.skill, r.id)}>{state().skills[r.skill].level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : active()?.resourceId === r.id ? '진행 중' : r.recipe ? '제작 시작' : '채집 시작'}</button></article>}</For></div></Show>
+ <Show when={page() === 'tools'}><h1>도구 제작</h1><p class="muted">도구는 제작 즉시 적용되며, 각 기술에 영구적으로 남습니다.</p><div class="cards"><For each={playable}>{id => { const next = () => toolTiers[state().tools[id] + 1]; return <article><h2>{skillNames[id]} · {toolNames[id]}</h2><p>{toolTiers[state().tools[id]].name} · 속도 +{fmt(toolTiers[state().tools[id]].bonus * 100)}%</p><Show when={next()} fallback={<p>현재 최고 단계입니다.</p>}><h3>다음: {next()!.name} {toolNames[id]}</h3><p>속도 +{fmt(next()!.bonus * 100)}% · {skillNames[id]} Lv.{next()!.level}</p><p class="recipe">{costText(next()!.cost)}</p><button disabled={state().skills[id].level < next()!.level || !afford(state(), next()!.cost)} onClick={() => craftTool(id)}>제작하고 적용</button></Show></article>; }}</For></div></Show>
+ <Show when={page() === 'inventory'}><h1>보관함</h1><p class="muted">제작에 필요한 재료를 남겨두고 여유분을 판매하세요.</p><div class="inventory"><For each={Object.values(ResourceDB).filter(r => (state().inventory[r.id] ?? 0) > 0)} fallback={<p>채집을 시작하면 이곳에 재료가 쌓입니다.</p>}>{r => <article><div><h2>{r.icon} {r.name}</h2><small>개당 {r.sell} G</small></div><strong>{fmt(state().inventory[r.id])}개</strong><button onClick={() => sellItem(r.id, 1)}>1개 판매</button><button disabled={state().inventory[r.id] < 10} onClick={() => sellItem(r.id, 10)}>10개 판매</button></article>}</For></div></Show>
+ </main></div>;
+}
+export default App;
