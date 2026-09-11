@@ -11,10 +11,11 @@ import { InventoryView } from './ui/InventoryView';
 import { MealStatus } from './ui/Food';
 import { FarmingView, FarmStatus } from './ui/FarmingView';
 import { RanchingView, RanchStatus } from './ui/RanchingView';
+import { GuildView } from './ui/GuildView';
 
 function App() {
   initGameLoop();
-  const [page, setPage] = createSignal<SkillId | 'inventory' | 'tools'>('logging');
+  const [page, setPage] = createSignal<SkillId | 'inventory' | 'tools' | 'guild'>('logging');
   const active = () => state().currentAction;
   const resource = () => active() ? ResourceDB[active()!.resourceId] : null;
   return <div id="app">
@@ -25,6 +26,7 @@ function App() {
       <span class="label">작업실</span>
       <button classList={{selected: page() === 'tools'}} onClick={() => setPage('tools')}>도구 제작</button>
       <button classList={{selected: page() === 'inventory'}} onClick={() => setPage('inventory')}>보관함</button>
+      <button classList={{selected: page() === 'guild'}} onClick={() => setPage('guild')}>길드</button>
       <p class="aside-note">첫 목표<br/>나무 5개와 돌 6개로 돌 도구를 제작해보세요.<br/><br/>다음 목표<br/>피라미를 잡아 구운 생선을 만들고, 낚시 속도를 높여보세요.</p>
     </aside>
     <main>
@@ -44,6 +46,7 @@ function App() {
       <Show when={page() === 'ranching'}><RanchingView/></Show>
       <Show when={page() === 'tools'}><ToolsView/></Show>
       <Show when={page() === 'inventory'}><InventoryView/></Show>
+      <Show when={page() === 'guild'}><GuildView/></Show>
     </main>
   </div>;
 }
