@@ -25,10 +25,11 @@
 - 08c37b0: 병합 완료 상태를 HANDOFF/PROGRESS에 기록, origin/main 푸시·원격 SHA 일치 확인.
 
 - 목장 최소 루프(feature/ranching-loop): 동물 3종(닭 Lv1/500G, 양 Lv15/2,000G, 소 Lv30/5,000G) 구매 → 사료(밀/당근, 농사 산출물 재사용) 보유 시 접속 여부와 무관하게 주기마다(30/45/60분) 자동 산출, 수동 확정 없음 → 사료 부족 시 주기 1회분에서 대기(적체·손해 없음), 보충 시 즉시 재개. 저장 v5로 사육 상태 포함, v1~v4 이전 지원. `farming`/`ranching`을 아우르는 `passiveSkills` 목록으로 begin()/저장 검증/화면 라우팅을 일반화(농사 리뷰 finding 6과 같은 부류의 문제를 사전에 차단). 상세는 docs/implementation_status.md, 설계 근거는 DECISIONS.md D007/D008 참고.
+- 독립 리뷰 1라운드(자체 리뷰, code-review 스킬 high): 비블로킹 3건(부분 사료 감당 분기 테스트 공백, 사료 공유 시 중복 소비 방지 미검증 — 이 작업의 수용 기준에 명시된 항목, UI 중복 계산). 전부 수정: 두 시나리오를 손으로 계산해 테스트로 고정(47/47 통과, 수식 일치 확인), `RanchingView`의 `ranchStarved` 중복 호출을 단일 접근자로 통합.
 
 ## In progress
 
-- 목장 최소 루프 구현 완료 상태의 체크포인트: 독립 리뷰 진행 예정, PASS 시 main 병합.
+- 목장 최소 루프 1라운드 수정 완료 상태의 체크포인트: 2라운드 재리뷰 진행 예정, PASS 시 main 병합.
 
 ## Planned
 

@@ -44,6 +44,32 @@ describe('목장: 동물 구매 → 사료 소비 → 산출', () => {
     expect(ranchStarved(s, 'chicken')).toBe(false);
   });
 
+  it('경과한 주기 중 일부만 감당할 사료가 있으면 감당하는 만큼만 산출하고, 남은 진행은 한 주기 분에서 대기한다', () => {
+    const s = initial(0);
+    buyAnimal(s, 'chicken');
+    s.inventory.wheat = 12; // 2주기 분(10개)만 감당 가능, 3주기 시간이 지남
+    advance(s, 5400000);
+    expect(s.inventory.egg).toBe(2);
+    expect(s.inventory.wheat).toBe(2);
+    expect(s.ranch.chicken).toBe(1800000); // 0도, 남은 소수 시간도 아닌 한 주기 분 대기
+    expect(ranchStarved(s, 'chicken')).toBe(true);
+  });
+
+  it('사료를 공유하는 두 동물은 중복 소비 없이, 산 순서대로 감당하는 만큼만 소비한다', () => {
+    const s = initial(0);
+    s.gold = 10000;
+    s.skills.ranching.level = 15;
+    expect(buyAnimal(s, 'chicken')).toBe(true); // 밀 5개/주기, 30분
+    expect(buyAnimal(s, 'sheep')).toBe(true); // 밀 10개/주기, 45분
+    s.inventory.wheat = 12; // 둘을 동시에 감당하기엔 부족
+    advance(s, 2700000); // 45분: 닭 1.5주기, 양 1주기
+    expect(s.inventory.wheat).toBe(7); // 닭이 5개를 먼저 가져가고, 남은 7개로는 양(10개 필요)을 못 먹인다
+    expect(s.inventory.egg).toBe(1);
+    expect(s.inventory.wool).toBeUndefined();
+    expect(ranchStarved(s, 'sheep')).toBe(true);
+    expect(ranchStarved(s, 'chicken')).toBe(false);
+  });
+
   it('여러 동물이 독립적으로 병행 진행된다', () => {
     const s = initial(0);
     s.gold = 10000;

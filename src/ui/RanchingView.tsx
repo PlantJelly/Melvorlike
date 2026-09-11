@@ -36,6 +36,7 @@ export function RanchingView() {
         const p = () => ResourceDB[a.productId];
         const locked = () => skill().level < p().reqLevel;
         const feedStock = () => state().inventory[a.feedId] ?? 0;
+        const starved = () => ranchStarved(state(), a.id);
         return <article>
           <div class="item-icon">{a.icon}</div>
           <h2>{a.name}</h2>
@@ -43,13 +44,11 @@ export function RanchingView() {
           <Show when={!owned(a.id)} fallback={
             <>
               <p>보유 중 · {ResourceDB[a.feedId].name} {fmt(feedStock())}개 보유</p>
-              <Show when={ranchStarved(state(), a.id)} fallback={
+              <Show when={starved()} fallback={<>
                 <progress aria-label={`${a.name} 산출 진행률`} max="100" value={state().ranch[a.id] / p().baseDurationMs * 100}/>
-              }>
-                <p class="notice">사료가 부족해 대기 중입니다 · {ResourceDB[a.feedId].name}을(를) 채우면 바로 재개됩니다.</p>
-              </Show>
-              <Show when={!ranchStarved(state(), a.id)}>
                 <small>{minutes(ranchRemainingMs(state(), a.id))}분 후 산출 · 화면을 바꿔도 계속 진행됩니다</small>
+              </>}>
+                <p class="notice">사료가 부족해 대기 중입니다 · {ResourceDB[a.feedId].name}을(를) 채우면 바로 재개됩니다.</p>
               </Show>
             </>
           }>
