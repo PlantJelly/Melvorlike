@@ -16,9 +16,11 @@
 - 검증: 2026-09-11 18:10 KST, c44ea7e 코드/설정에 npm test 25/25 PASS, npm run build PASS.
 - 기존 브라우저 검증 기록: 음식 섭취 시 낚시 3.5초→3.2초, 재접속 복원, 음식 5개로 50분 연장. 이번 문서 작업에서는 재실행하지 않음.
 
+- 07b6f9a: Development Workflow 1.1.0 적용 완료. 다섯 운영 문서와 README 연결 검증 PASS, 원격 보존 확인(2026-09-11 18:15 KST).
+
 ## In progress
 
-- 원자 작업 W1: feature/development-workflow에서 운영 문서 초기 적용. 다섯 문서와 README 연결 검증 PASS. Stable 체크포인트로 커밋·푸시·원격 SHA 확인을 마무리한다. 결과 커밋은 git log -1 -- HANDOFF.md로 찾는다.
+- 요청된 체크포인트: 초기 적용 완료 상태를 HANDOFF/PROGRESS에 반영하고 커밋·푸시·원격 일치를 확인한다. 진행 중인 게임 구현은 없다.
 - 독립 리뷰 및 main 병합은 이번 초기화 범위에 포함하지 않는다.
 
 ## Planned
@@ -36,5 +38,5 @@
 
 - 첫 생산 루프: 구현 완료, 전체 게임 완료 아님.
 - 낚시·요리 루프: 구현 완료, 수치 임시.
-- Development Workflow: 초기화 체크포인트 준비; 원격 보존은 HANDOFF의 설명에 따라 실제 SHA 확인.
+- Development Workflow: 초기 적용 완료(07b6f9a); 독립 리뷰 및 main 병합은 별도 요청 대상.
 - 농사/목장, 길드, 마법/장신구, 도감/업적: 미구현.

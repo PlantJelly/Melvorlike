@@ -1,16 +1,16 @@
 # Current handoff
 
-- Current goal: Development Workflow 1.1.0 initial adoption for this existing game repository. Game implementation is unchanged.
-- Feature branch: `feature/development-workflow`. Configured remote: `origin` (`https://github.com/PlantJelly/Melvorlike.git`). Intended feature upstream after first push: `origin/feature/development-workflow`; it did not exist at baseline.
+- Current goal: requested checkpoint confirming completed Development Workflow 1.1.0 adoption. Game implementation is unchanged.
+- Feature branch: `feature/development-workflow`. Configured remote: `origin` (`https://github.com/PlantJelly/Melvorlike.git`). Verified upstream: `origin/feature/development-workflow`.
 - Checkpoint type: Stable for the workflow-document task: five-document/import/version/portable-rule/README-link/whitespace validation PASS. Commit/push verification follows this snapshot; do not infer remote success from prose.
-- Baseline observed 2026-09-11 18:10:28 +09:00: local HEAD and live origin/main both `c44ea7e784471a2da0ea52215642f3ea8ae46e48`, ahead/behind 0/0. Working tree/index were clean. Local main upstream was origin/main. Feature remote ref explicitly absent, not an auth/fetch failure.
-- Known latest commit before this snapshot / pre-checkpoint parent: `c44ea7e784471a2da0ea52215642f3ea8ae46e48`. This anchor is the parent, not the snapshot's future SHA.
+- Baseline observed 2026-09-11 18:15 +09:00: local HEAD and live origin/feature/development-workflow both `07b6f9a8bc0012d9d83d7878930a833c32f1dc81`, ahead/behind 0/0; clean working tree/index. Live origin/main remains `c44ea7e784471a2da0ea52215642f3ea8ae46e48`.
+- Known latest commit before this snapshot / pre-checkpoint parent: `07b6f9a8bc0012d9d83d7878930a833c32f1dc81`. This anchor is the parent, not the future snapshot SHA.
 - Snapshot commit: resolve with `git log -1 -- HANDOFF.md` and verify ancestry from the parent above.
-- Last verified stable code checkpoint: `c44ea7e784471a2da0ea52215642f3ea8ae46e48`; live remote equality confirmed at baseline; code checked again 2026-09-11 18:10 KST.
-- Completed: first production loop; fishing/cooking and food expiry; save v3 migration. Workflow documents prepared: AGENTS, CLAUDE import, HANDOFF, PROGRESS, DECISIONS; README gets a short usage section.
-- In progress at snapshot: explicit staging, workflow commit, immediate pre-push freshness comparison and live remote verification. Document validation passed; no application implementation remains in this task.
+- Last verified Stable checkpoint: `07b6f9a8bc0012d9d83d7878930a833c32f1dc81`, workflow adoption; live remote equality reverified at baseline. Application code/config remain identical to tested `c44ea7e784471a2da0ea52215642f3ea8ae46e48`.
+- Completed: first production loop; fishing/cooking and food expiry; save v3 migration. Workflow documents installed and remotely preserved in 07b6f9a: AGENTS, CLAUDE import, HANDOFF, PROGRESS, DECISIONS and README usage section.
+- In progress at snapshot: checkpoint of the verified completion status; no development task remains active. Commit/push and live remote equality verification follow this snapshot.
 - Incomplete: independent review and main merge (not requested); future farming/ranch, guild, accessories and other planned game systems. See PROGRESS.
-- Tests: `npm test` PASS 25/25; `npm run build` PASS including typecheck, on c44ea7e code/config with documentation-only changes, 2026-09-11 18:10 KST. No application code/config changes after those checks.
+- Tests: `npm test` PASS 25/25; `npm run build` PASS including typecheck, on c44ea7e code/config with documentation-only changes, 2026-09-11 18:10 KST. No application code/config changes after those checks; git diff c44ea7e HEAD on source/manifests/test/build config is empty. Reused evidence, not a new test run. Document/import/anchor/diff checks are performed for this checkpoint.
 - Checks not run: browser replay unnecessary for workflow-only files; prior UI evidence is in docs/implementation_status.md. No lint script or tracked Actions config. Live GitHub required-check/branch protection policy is UNKNOWN, not certified NOT CONFIGURED; inspect before review/merge. No independent review PASS exists.
 - Failed tests/core error: none observed in the executed checks.
 - Known issues: multi-tab save contention unsupported; backup/recovery UI absent; balance provisional; historical design docs include unconfirmed suggestions. No application fixes in workflow scope.
