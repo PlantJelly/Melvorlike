@@ -16,7 +16,17 @@ function downloadBackup() {
 
 export function SettingsView() {
   const [restoreMessage, setRestoreMessage] = createSignal('');
+  const [copyMessage, setCopyMessage] = createSignal('');
   let fileInput: HTMLInputElement | undefined;
+
+  async function copyBackup() {
+    try {
+      await navigator.clipboard.writeText(exportSave());
+      setCopyMessage('클립보드에 복사했습니다.');
+    } catch {
+      setCopyMessage('클립보드 복사에 실패했습니다. 이 브라우저/환경에서는 지원하지 않을 수 있습니다.');
+    }
+  }
 
   async function onFileChosen(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
@@ -33,8 +43,12 @@ export function SettingsView() {
     <h1>설정</h1>
     <p class="intro-note">저장은 이 브라우저에만 보관됩니다. 다른 기기로 옮기거나 저장 손상에 대비하려면 백업 파일을 내려받아 두세요.</p>
     <h2 class="section-title">백업 다운로드</h2>
-    <p class="muted">현재 진행 상황을 JSON 파일로 내려받습니다.</p>
-    <button onClick={downloadBackup}>백업 파일 다운로드</button>
+    <p class="muted">현재 진행 상황을 JSON 파일로 내려받거나, 브라우저 다운로드 대화상자 없이 클립보드로 복사할 수 있습니다.</p>
+    <div class="button-row">
+      <button onClick={downloadBackup}>백업 파일 다운로드</button>
+      <button onClick={copyBackup}>클립보드에 복사</button>
+    </div>
+    <Show when={copyMessage()}><p role="status" class="notice">{copyMessage()}</p></Show>
     <h2 class="section-title">백업 복원</h2>
     <p class="muted">백업 파일을 선택하면 현재 저장을 덮어씁니다. 형식이 올바르지 않은 파일은 적용되지 않습니다.</p>
     <input ref={fileInput} type="file" accept="application/json,.json" onChange={onFileChosen}/>

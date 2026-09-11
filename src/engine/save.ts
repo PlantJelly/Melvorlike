@@ -6,8 +6,32 @@ import { guildTiers } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 export const SAVE_KEY = 'melvorlike_save';
 
+// 키를 정렬해 직렬화한다 — 인코딩 시점과 디코딩 시점의 JS 객체 키 순서가 달라도
+// 체크섬이 항상 같은 문자열을 해시하도록 보장한다.
+function canonical(value: unknown): string {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    const keys = Object.keys(value as Record<string, unknown>).sort();
+    return `{${keys.map(k => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`).join(',')}}`;
+  }
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  return JSON.stringify(value);
+}
+
+// 암호학적 서명이 아니라, 텍스트 편집기로 값을 슬쩍 바꾸고 그대로 복원하는 것을
+// 막기 위한 무결성 체크섬(FNV-1a)이다. 알고리즘이 클라이언트 코드에 그대로 들어있으므로
+// 체크섬까지 다시 계산해 넣는 조작은 막지 못한다 — 목적은 그 정도 마찰이지 보안이 아니다.
+function checksum(value: unknown): string {
+  const text = canonical(value);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+
 export function encodeSave(s: Model): string {
-  return JSON.stringify(s);
+  return JSON.stringify({...s, checksum: checksum(s)});
 }
 
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
@@ -17,6 +41,11 @@ export function decodeSave(text: string): Model {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
   if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  // 체크섬은 v7 이전 저장에는 없었으므로 있을 때만 검증한다(있는데 값이 다르면만 거부).
+  if (typeof raw.checksum === 'string') {
+    const {checksum: saved, ...rest} = raw;
+    if (checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
+  }
   const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   const s = initial(raw.lastSaveTime);

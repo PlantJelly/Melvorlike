@@ -37,4 +37,17 @@ describe('백업 내보내기/복원', () => {
     expect(() => decodeSave('{not json')).toThrow('저장 파일 형식이 올바르지 않습니다');
     expect(() => decodeSave('null')).toThrow();
   });
+
+  it('체크섬이 있는 저장은 값이 하나라도 바뀌면 거부되고, 체크섬이 없던 옛 저장은 그대로 허용된다', () => {
+    const s = initial(0);
+    s.gold = 1000;
+    const tampered = JSON.parse(encodeSave(s));
+    tampered.gold = 999999;
+    expect(() => decodeSave(JSON.stringify(tampered))).toThrow('저장 데이터가 손상되었거나 수정되었습니다');
+
+    const noChecksum = JSON.parse(encodeSave(s));
+    delete noChecksum.checksum;
+    noChecksum.gold = 500;
+    expect(decodeSave(JSON.stringify(noChecksum)).gold).toBe(500);
+  });
 });
