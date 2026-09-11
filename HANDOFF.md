@@ -1,0 +1,22 @@
+# Current handoff
+
+- Current goal: requested checkpoint confirming completed Development Workflow 1.1.0 adoption. Game implementation is unchanged.
+- Feature branch: `feature/development-workflow`. Configured remote: `origin` (`https://github.com/PlantJelly/Melvorlike.git`). Verified upstream: `origin/feature/development-workflow`.
+- Checkpoint type: Stable for the workflow-document task: five-document/import/version/portable-rule/README-link/whitespace validation PASS. Commit/push verification follows this snapshot; do not infer remote success from prose.
+- Baseline observed 2026-09-11 18:15 +09:00: local HEAD and live origin/feature/development-workflow both `07b6f9a8bc0012d9d83d7878930a833c32f1dc81`, ahead/behind 0/0; clean working tree/index. Live origin/main remains `c44ea7e784471a2da0ea52215642f3ea8ae46e48`.
+- Known latest commit before this snapshot / pre-checkpoint parent: `07b6f9a8bc0012d9d83d7878930a833c32f1dc81`. This anchor is the parent, not the future snapshot SHA.
+- Snapshot commit: resolve with `git log -1 -- HANDOFF.md` and verify ancestry from the parent above.
+- Last verified Stable checkpoint: `07b6f9a8bc0012d9d83d7878930a833c32f1dc81`, workflow adoption; live remote equality reverified at baseline. Application code/config remain identical to tested `c44ea7e784471a2da0ea52215642f3ea8ae46e48`.
+- Completed: first production loop; fishing/cooking and food expiry; save v3 migration. Workflow documents installed and remotely preserved in 07b6f9a: AGENTS, CLAUDE import, HANDOFF, PROGRESS, DECISIONS and README usage section.
+- In progress at snapshot: checkpoint of the verified completion status; no development task remains active. Commit/push and live remote equality verification follow this snapshot.
+- Incomplete: independent review and main merge (not requested); future farming/ranch, guild, accessories and other planned game systems. See PROGRESS.
+- Tests: `npm test` PASS 25/25; `npm run build` PASS including typecheck, on c44ea7e code/config with documentation-only changes, 2026-09-11 18:10 KST. No application code/config changes after those checks; git diff c44ea7e HEAD on source/manifests/test/build config is empty. Reused evidence, not a new test run. Document/import/anchor/diff checks are performed for this checkpoint.
+- Checks not run: browser replay unnecessary for workflow-only files; prior UI evidence is in docs/implementation_status.md. No lint script or tracked Actions config. Live GitHub required-check/branch protection policy is UNKNOWN, not certified NOT CONFIGURED; inspect before review/merge. No independent review PASS exists.
+- Failed tests/core error: none observed in the executed checks.
+- Known issues: multi-tab save contention unsupported; backup/recovery UI absent; balance provisional; historical design docs include unconfirmed suggestions. No application fixes in workflow scope.
+- Confirmed causes: workflow/state files were previously absent; only historical design and implementation docs existed. Hooks/settings were preserved.
+- Uncertainty: remote merge protections/required checks and full game balance are unverified.
+- Exact first action next session: read AGENTS → HANDOFF → PROGRESS → DECISIONS → README, inspect branch/status/HEAD, fetch origin and compare the intended live feature/main refs against this snapshot. If the snapshot commit is pushed and the tree clean, workflow setup is complete. For requested review, review this feature against fresh origin/main. For requested game development, plan the first farming slice from PROGRESS on a suitable feature branch; do not silently mix it into this workflow branch or merge main.
+- Prerequisites: repository-root PowerShell, Node/npm for game checks, existing Git authentication. No new global config, hooks, CI or background services.
+- Remote preservation: after commit push explicitly to origin feature/development-workflow; compare local HEAD to fresh `git ls-remote --heads origin refs/heads/feature/development-workflow`. On resume repeat verification. This document cannot attest its own future push.
+- Review evidence: none yet. Future local attestation goes to the path returned by `git rev-parse --git-path development-workflow-review.md`; re-review if no trusted matching report survives.
