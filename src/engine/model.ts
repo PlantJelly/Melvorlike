@@ -1,10 +1,11 @@
 import { ResourceDB, toolTiers, playable, cropYield, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
+import { ExchangeDB, exchangeRate, guildTiers } from '../content/guild';
 import type { SkillId } from '../content/types';
 
 export interface Model {
-  version: 5;
+  version: 6;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -16,16 +17,18 @@ export interface Model {
   farmPlot: { cropId: string; progressMs: number } | null;
   // 키 존재 여부가 보유 여부. 값은 다음 산출까지의 진행량(속도 보정 전).
   ranch: Record<string, number>;
+  // guildTiers 인덱스. 등급이 오를수록 환전 가능한 티어 차이가 늘어난다.
+  guild: number;
   lastSaveTime: number;
   notice: string;
 }
 
 export function initial(time = Date.now()): Model {
   return {
-    version: 5, gold: 1000,
+    version: 6, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: 100 }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
-    inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, lastSaveTime: time, notice: '',
+    inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0, lastSaveTime: time, notice: '',
   };
 }
 
@@ -188,13 +191,36 @@ export function sell(s: Model, id: string, count: number) {
   return true;
 }
 
-export function buyCrop(s: Model, id: string, count: number) {
+// 가공품(recipe가 있는 아이템)은 제작으로만 얻을 수 있다. 원재료만 해금된 스킬 레벨 이상이면 즉시 구매 가능
+// (game_design.md의 "이미 해금한 하위 티어 기본 재료는 골드로 즉시 구매 가능" 캐치업 규칙).
+export function buyResource(s: Model, id: string, count: number) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  if (!r || r.skill !== 'farming' || !Number.isInteger(count) || count <= 0) return false;
+  if (!r || r.recipe || !Number.isInteger(count) || count <= 0 || s.skills[r.skill].level < r.reqLevel) return false;
   const cost = r.buy * count;
   if (s.gold < cost) return false;
   s.gold -= cost;
   s.inventory[id] = (s.inventory[id] ?? 0) + count;
+  return true;
+}
+
+// 상위 티어 원재료를 하위 티어로 환전한다. 하위 티어(targetId)는 그 자체로 환전 대상이 없어
+// 역방향 경로가 존재하지 않으므로, 환전을 반복해도 가치를 만들어내는 순환 거래가 될 수 없다.
+export function exchangeResource(s: Model, id: string, count: number) {
+  const ex = Object.hasOwn(ExchangeDB, id) ? ExchangeDB[id] : undefined;
+  if (!ex || !Number.isInteger(count) || count <= 0 || ex.tierGap > s.guild + 1 || (s.inventory[id] ?? 0) < count) return false;
+  const gained = Math.floor(count * Math.pow(exchangeRate, ex.tierGap));
+  if (gained <= 0) return false;
+  s.inventory[id] -= count;
+  s.inventory[ex.targetId] = (s.inventory[ex.targetId] ?? 0) + gained;
+  return true;
+}
+
+export function upgradeGuild(s: Model) {
+  const tier = guildTiers[s.guild + 1];
+  if (!tier || s.gold < tier.goldCost) return false;
+  s.gold -= tier.goldCost;
+  s.guild++;
+  s.notice = `${tier.name} 승급 · 환전 가능 티어 ${s.guild + 1}단계까지 확대`;
   return true;
 }
 

@@ -2,6 +2,7 @@ import { initial, type Model } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
+import { guildTiers } from '../content/guild';
 export const SAVE_KEY = 'melvorlike_save';
 
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
@@ -9,8 +10,8 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 
 export function decodeSave(text: string): Model {
   const raw: unknown = JSON.parse(text);
-  if (!object(raw) || ![1, 2, 3, 4, 5].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
-  const version = raw.version as 1 | 2 | 3 | 4 | 5;
+  if (!object(raw) || ![1, 2, 3, 4, 5, 6].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   const s = initial(raw.lastSaveTime);
   s.gold = raw.gold;
@@ -59,7 +60,7 @@ export function decodeSave(text: string): Model {
     if (plot.progressMs > r.baseDurationMs || s.skills.farming.level < r.reqLevel) throw Error('농사밭 정보 오류');
     s.farmPlot = {cropId: r.id, progressMs: plot.progressMs};
   }
-  if (version === 5) {
+  if (version >= 5) {
     if (!object(raw.ranch)) throw Error('목장 정보 오류');
     for (const [id, progressMs] of Object.entries(raw.ranch)) {
       if (!Object.hasOwn(AnimalDB, id) || !finite(progressMs)) throw Error('목장 정보 오류');
@@ -68,6 +69,10 @@ export function decodeSave(text: string): Model {
       if (progressMs > p.baseDurationMs || s.skills.ranching.level < p.reqLevel) throw Error('목장 정보 오류');
       s.ranch[id] = progressMs;
     }
+  }
+  if (version === 6) {
+    if (!finite(raw.guild) || !Number.isInteger(raw.guild) || raw.guild >= guildTiers.length) throw Error('길드 정보 오류');
+    s.guild = raw.guild;
   }
   return s;
 }

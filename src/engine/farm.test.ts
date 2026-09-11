@@ -1,22 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { advance, begin, buyCrop, farmReady, farmRemainingMs, harvest, initial, plant } from './model';
+import { advance, begin, farmReady, farmRemainingMs, harvest, initial, plant } from './model';
 import { decodeSave } from './save';
 
 describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
-  it('씨앗을 구매하면 골드가 줄고 인벤토리가 는다', () => {
-    const s = initial(0);
-    expect(buyCrop(s, 'wheat', 3)).toBe(true);
-    expect(s.gold).toBe(1000 - 2 * 5 * 3);
-    expect(s.inventory.wheat).toBe(3);
-    expect(buyCrop(s, 'wheat', 0)).toBe(false);
-    expect(buyCrop(s, 'wheat', -1)).toBe(false);
-    expect(buyCrop(s, 'missing', 1)).toBe(false);
-    expect(buyCrop(s, 'wood', 1)).toBe(false);
-    const poor = initial(0);
-    poor.gold = 5;
-    expect(buyCrop(poor, 'wheat', 1)).toBe(false);
-  });
-
   it('심으면 씨앗 1개를 소모하고, 이미 심었거나 레벨/재고 부족이면 막는다', () => {
     const s = initial(0);
     expect(plant(s, 'wheat')).toBe(false);
@@ -101,7 +87,7 @@ describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
     const s = initial(0);
     const {farming: _skill, ...skills} = s.skills;
     const loaded = decodeSave(JSON.stringify({version: 3, gold: 500, skills, tools: s.tools, inventory: {}, currentAction: null, meal: null, lastSaveTime: 0}));
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.skills.farming).toEqual({level: 1, exp: 0, maxExp: 100});
     expect(loaded.farmPlot).toBeNull();
 

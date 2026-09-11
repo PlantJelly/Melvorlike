@@ -12,4 +12,5 @@
 .replace-meal p { margin-bottom:10px; }
 .inventory article { flex-wrap:wrap; }
 .inventory .food-controls { margin:0; }
+.section-title { margin:34px 0 4px; padding-top:18px; border-top:1px solid #304136; }
 @media(max-width:450px) { .meal-status { flex-direction:column; } }
