@@ -1,6 +1,6 @@
 import { createSignal } from 'solid-js';
 import { initial, advance, type Model } from '../engine/model';
-import { decodeSave, SAVE_KEY } from '../engine/save';
+import { decodeSave, encodeSave, SAVE_KEY } from '../engine/save';
 let blocked = false;
 function load() { try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -29,3 +29,18 @@ export function saveGame() { if (blocked)
 catch {
     mutate(s => { s.notice = '저장 공간에 접근할 수 없습니다. 브라우저 설정을 확인해주세요.'; });
 } }
+
+export function exportSave() { return encodeSave(state()); }
+
+// 백업 복원은 decodeSave로 먼저 검증하고, 성공할 때만 기존 저장을 덮어쓴다.
+// 저장을 읽지 못해 자동 저장이 막힌 상태(blocked)도 여기서 풀어 정상 저장을 재개시킨다.
+export function restoreFromBackup(text: string): true | string {
+  let s: Model;
+  try { s = decodeSave(text); }
+  catch (e) { return e instanceof Error ? e.message : '백업 파일을 읽지 못했습니다.'; }
+  blocked = false;
+  s.notice = '백업에서 복원했습니다.';
+  setState(s);
+  saveGame();
+  return true;
+}

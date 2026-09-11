@@ -6,6 +6,10 @@ import { guildTiers } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 export const SAVE_KEY = 'melvorlike_save';
 
+export function encodeSave(s: Model): string {
+  return JSON.stringify(s);
+}
+
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
