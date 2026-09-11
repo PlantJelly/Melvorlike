@@ -25,6 +25,13 @@ describe('길드: 원재료 구매', () => {
     poor.gold = 5;
     expect(buyResource(poor, 'wheat', 1)).toBe(false);
   });
+
+  it('골드가 정확히 비용만큼이면 구매할 수 있다', () => {
+    const s = initial(0);
+    s.gold = ResourceDB.wheat.buy; // 부족하지도 넉넉하지도 않은 정확한 경계
+    expect(buyResource(s, 'wheat', 1)).toBe(true);
+    expect(s.gold).toBe(0);
+  });
 });
 
 describe('길드: 환전', () => {
@@ -97,6 +104,14 @@ describe('길드: 등급 승급', () => {
     expect(s.guild).toBe(2);
     expect(upgradeGuild(s)).toBe(false); // guildTiers 범위를 벗어남
     expect(s.guild).toBe(guildTiers.length - 1);
+  });
+
+  it('골드가 정확히 승급 비용만큼이면 승급할 수 있다', () => {
+    const s = initial(0);
+    s.gold = guildTiers[1].goldCost; // 부족하지도 넉넉하지도 않은 정확한 경계
+    expect(upgradeGuild(s)).toBe(true);
+    expect(s.gold).toBe(0);
+    expect(s.guild).toBe(1);
   });
 });
 
