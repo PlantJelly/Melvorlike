@@ -1,0 +1,22 @@
+# Current handoff
+
+- Current goal: Development Workflow 1.1.0 initial adoption for this existing game repository. Game implementation is unchanged.
+- Feature branch: `feature/development-workflow`. Configured remote: `origin` (`https://github.com/PlantJelly/Melvorlike.git`). Intended feature upstream after first push: `origin/feature/development-workflow`; it did not exist at baseline.
+- Checkpoint type: Stable for the workflow-document task: five-document/import/version/portable-rule/README-link/whitespace validation PASS. Commit/push verification follows this snapshot; do not infer remote success from prose.
+- Baseline observed 2026-09-11 18:10:28 +09:00: local HEAD and live origin/main both `c44ea7e784471a2da0ea52215642f3ea8ae46e48`, ahead/behind 0/0. Working tree/index were clean. Local main upstream was origin/main. Feature remote ref explicitly absent, not an auth/fetch failure.
+- Known latest commit before this snapshot / pre-checkpoint parent: `c44ea7e784471a2da0ea52215642f3ea8ae46e48`. This anchor is the parent, not the snapshot's future SHA.
+- Snapshot commit: resolve with `git log -1 -- HANDOFF.md` and verify ancestry from the parent above.
+- Last verified stable code checkpoint: `c44ea7e784471a2da0ea52215642f3ea8ae46e48`; live remote equality confirmed at baseline; code checked again 2026-09-11 18:10 KST.
+- Completed: first production loop; fishing/cooking and food expiry; save v3 migration. Workflow documents prepared: AGENTS, CLAUDE import, HANDOFF, PROGRESS, DECISIONS; README gets a short usage section.
+- In progress at snapshot: explicit staging, workflow commit, immediate pre-push freshness comparison and live remote verification. Document validation passed; no application implementation remains in this task.
+- Incomplete: independent review and main merge (not requested); future farming/ranch, guild, accessories and other planned game systems. See PROGRESS.
+- Tests: `npm test` PASS 25/25; `npm run build` PASS including typecheck, on c44ea7e code/config with documentation-only changes, 2026-09-11 18:10 KST. No application code/config changes after those checks.
+- Checks not run: browser replay unnecessary for workflow-only files; prior UI evidence is in docs/implementation_status.md. No lint script or tracked Actions config. Live GitHub required-check/branch protection policy is UNKNOWN, not certified NOT CONFIGURED; inspect before review/merge. No independent review PASS exists.
+- Failed tests/core error: none observed in the executed checks.
+- Known issues: multi-tab save contention unsupported; backup/recovery UI absent; balance provisional; historical design docs include unconfirmed suggestions. No application fixes in workflow scope.
+- Confirmed causes: workflow/state files were previously absent; only historical design and implementation docs existed. Hooks/settings were preserved.
+- Uncertainty: remote merge protections/required checks and full game balance are unverified.
+- Exact first action next session: read AGENTS → HANDOFF → PROGRESS → DECISIONS → README, inspect branch/status/HEAD, fetch origin and compare the intended live feature/main refs against this snapshot. If the snapshot commit is pushed and the tree clean, workflow setup is complete. For requested review, review this feature against fresh origin/main. For requested game development, plan the first farming slice from PROGRESS on a suitable feature branch; do not silently mix it into this workflow branch or merge main.
+- Prerequisites: repository-root PowerShell, Node/npm for game checks, existing Git authentication. No new global config, hooks, CI or background services.
+- Remote preservation: after commit push explicitly to origin feature/development-workflow; compare local HEAD to fresh `git ls-remote --heads origin refs/heads/feature/development-workflow`. On resume repeat verification. This document cannot attest its own future push.
+- Review evidence: none yet. Future local attestation goes to the path returned by `git rev-parse --git-path development-workflow-review.md`; re-review if no trusted matching report survives.
