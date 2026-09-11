@@ -10,11 +10,16 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     {...row('fish_salmon', '연어', 'fishing', 30, 8500, 150, 15, '🐟'), area: '상류 여울'},
     row('grilled_fish', '구운 생선', 'cooking', 1, 5000, 35, 5, '🍢', {fish_small: 2}),
     row('fish_soup', '민물 생선탕', 'cooking', 10, 7000, 75, 12, '🍲', {fish_carp: 2}),
-    row('smoked_salmon', '훈제 연어', 'cooking', 30, 10000, 180, 35, '🍣', {fish_salmon: 2, wood: 1})
+    row('smoked_salmon', '훈제 연어', 'cooking', 30, 10000, 180, 35, '🍣', {fish_salmon: 2, wood: 1}),
+    row('wheat', '밀', 'farming', 1, 180000, 30, 2, '🌾'),
+    row('potato', '감자', 'farming', 10, 480000, 90, 5, '🥔'),
+    row('carrot', '당근', 'farming', 25, 900000, 200, 9, '🥕')
 ].map(r => [r.id, r]));
-export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리' };
-export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking'];
-export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대', cooking: '조리도구' };
+// 수확 시 씨앗 1개를 심어 한 번에 돌려받는 개수. 재파종 분을 남기고 잉여를 판매/요리에 쓴다.
+export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3 };
+export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리', farming: '농사' };
+export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking', 'farming'];
+export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대', cooking: '조리도구', farming: '괭이' };
 export const toolTiers: {
     name: string;
     level: number;

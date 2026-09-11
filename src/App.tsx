@@ -9,6 +9,7 @@ import { ProductionView, fmt } from './ui/ProductionView';
 import { ToolsView } from './ui/ToolsView';
 import { InventoryView } from './ui/InventoryView';
 import { MealStatus } from './ui/Food';
+import { FarmingView, FarmStatus } from './ui/FarmingView';
 
 function App() {
   initGameLoop();
@@ -35,7 +36,9 @@ function App() {
         <small>{resource() ? `${(duration(state(), resource()!.id) / 1000).toFixed(1)}초마다 1개 · 화면을 바꿔도 계속 진행됩니다` : '한 번에 하나의 작업이 진행됩니다.'}</small>
       </section>
       <MealStatus/>
-      <Show when={playable.includes(page() as SkillId)}><ProductionView skill={page() as SkillId}/></Show>
+      <FarmStatus/>
+      <Show when={playable.includes(page() as SkillId) && page() !== 'farming'}><ProductionView skill={page() as SkillId}/></Show>
+      <Show when={page() === 'farming'}><FarmingView/></Show>
       <Show when={page() === 'tools'}><ToolsView/></Show>
       <Show when={page() === 'inventory'}><InventoryView/></Show>
     </main>

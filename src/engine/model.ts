@@ -1,9 +1,9 @@
-import { ResourceDB, toolTiers, playable } from '../content/resources';
+import { ResourceDB, toolTiers, playable, cropYield } from '../content/resources';
 import { FoodDB } from '../content/foods';
 import type { SkillId } from '../content/types';
 
 export interface Model {
-  version: 3;
+  version: 4;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -11,16 +11,18 @@ export interface Model {
   // progressMs는 속도 보정 전 작업량. 속도가 변해도 진행률은 유지한다.
   currentAction: { resourceId: string; progressMs: number } | null;
   meal: { foodId: string; remainingMs: number } | null;
+  // 농사는 액티브 작업과 별개로 항상 병행 진행된다. 수확 전까지 진행률은 성장 시간에서 멈춘다.
+  farmPlot: { cropId: string; progressMs: number } | null;
   lastSaveTime: number;
   notice: string;
 }
 
 export function initial(time = Date.now()): Model {
   return {
-    version: 3, gold: 1000,
+    version: 4, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: 100 }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
-    inventory: {}, currentAction: null, meal: null, lastSaveTime: time, notice: '',
+    inventory: {}, currentAction: null, meal: null, farmPlot: null, lastSaveTime: time, notice: '',
   };
 }
 
@@ -76,10 +78,33 @@ function advanceSegment(s: Model, elapsed: number) {
   return count;
 }
 
+// 밭은 재접속 여부와 무관하게 항상 흐르고, 다 자란 뒤에는 수확 전까지 더 진행되지 않는다.
+function advanceFarm(s: Model, elapsed: number) {
+  const plot = s.farmPlot;
+  if (!plot) return;
+  const r = ResourceDB[plot.cropId];
+  plot.progressMs = Math.min(r.baseDurationMs, plot.progressMs + elapsed * speedMultiplier(s, r.skill));
+}
+
+// 작은 틱이 누적되며 생기는 부동소수점 오차로 수확이 한 틱 밀리지 않게 advanceSegment와 같은 여유를 둔다.
+export function farmReady(s: Model) {
+  const plot = s.farmPlot;
+  return !!plot && plot.progressMs + 1e-7 >= ResourceDB[plot.cropId].baseDurationMs;
+}
+
+// progressMs는 속도 보정 전 작업량이므로 실제 남은 시간으로 바꾸려면 현재 속도로 나눈다.
+export function farmRemainingMs(s: Model) {
+  const plot = s.farmPlot;
+  if (!plot) return 0;
+  const r = ResourceDB[plot.cropId];
+  return Math.max(0, r.baseDurationMs - plot.progressMs) / speedMultiplier(s, r.skill);
+}
+
 export function advance(s: Model, time: number) {
   if (!Number.isFinite(time)) return 0;
   let elapsed = Math.max(0, time - s.lastSaveTime);
   s.lastSaveTime = Math.max(time, s.lastSaveTime);
+  advanceFarm(s, elapsed);
   let count = 0;
   // 음식 만료 시점을 경계로 분리해 오프라인 전체에 효과가 적용되지 않게 한다.
   if (s.meal) {
@@ -95,7 +120,8 @@ export function advance(s: Model, time: number) {
 
 export function begin(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  if (!r || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
+  // 작물은 밭에서만 자란다. 액티브 슬롯으로도 생산되면 같은 아이템이 이중으로 나온다.
+  if (!r || r.skill === 'farming' || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
   s.currentAction = { resourceId: id, progressMs: 0 };
   s.notice = '';
   return true;
@@ -113,6 +139,37 @@ export function sell(s: Model, id: string, count: number) {
   if (!Object.hasOwn(ResourceDB, id) || !Number.isInteger(count) || count <= 0 || (s.inventory[id] ?? 0) < count) return false;
   s.inventory[id] -= count;
   s.gold += ResourceDB[id].sell * count;
+  return true;
+}
+
+export function buyCrop(s: Model, id: string, count: number) {
+  const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
+  if (!r || r.skill !== 'farming' || !Number.isInteger(count) || count <= 0) return false;
+  const cost = r.buy * count;
+  if (s.gold < cost) return false;
+  s.gold -= cost;
+  s.inventory[id] = (s.inventory[id] ?? 0) + count;
+  return true;
+}
+
+export function plant(s: Model, id: string) {
+  const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
+  if (!r || r.skill !== 'farming' || s.farmPlot || s.skills.farming.level < r.reqLevel || (s.inventory[id] ?? 0) < 1) return false;
+  s.inventory[id]--;
+  s.farmPlot = { cropId: id, progressMs: 0 };
+  s.notice = '';
+  return true;
+}
+
+export function harvest(s: Model) {
+  const plot = s.farmPlot;
+  if (!plot || !farmReady(s)) return false;
+  const r = ResourceDB[plot.cropId];
+  const n = cropYield[plot.cropId] ?? 1;
+  s.inventory[plot.cropId] = (s.inventory[plot.cropId] ?? 0) + n;
+  addExperience(s, 'farming', r.exp);
+  s.farmPlot = null;
+  s.notice = `${r.name} ${n}개 수확 · 경험치 +${r.exp}`;
   return true;
 }
 

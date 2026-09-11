@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FoodDB } from '../content/foods';
-import { ResourceDB, playable } from '../content/resources';
+import { ResourceDB, cropYield, playable } from '../content/resources';
 import { advance, begin, duration, eat, initial, upgrade } from './model';
 import { decodeSave } from './save';
 
@@ -115,7 +115,7 @@ describe('저장 이전과 콘텐츠 참조', () => {
     const {cooking: _skill, ...skills} = s.skills;
     const {cooking: _tool, ...tools} = s.tools;
     const loaded = decodeSave(JSON.stringify({version:2, gold:1234, skills, tools:{...tools,logging:1}, inventory:{wood:8}, lastSaveTime:1000, currentAction:{resourceId:'wood',progressMs:1000}}));
-    expect(loaded.version).toBe(3);
+    expect(loaded.version).toBe(4);
     expect(loaded.skills.cooking.level).toBe(1);
     expect(loaded.tools.cooking).toBe(0);
     expect(loaded.gold).toBe(1234);
@@ -153,6 +153,7 @@ describe('저장 이전과 콘텐츠 참조', () => {
     for (const r of Object.values(ResourceDB)) {
       expect(playable).toContain(r.skill);
       expect(r.baseDurationMs).toBeGreaterThan(0);
+      if (r.skill === 'farming') expect(cropYield[r.id]).toBeGreaterThan(0);
       for (const [id, n] of Object.entries(r.recipe ?? {})) {
         expect(ResourceDB[id]).toBeDefined();
         expect(n).toBeGreaterThan(0);
