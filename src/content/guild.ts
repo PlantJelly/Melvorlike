@@ -6,6 +6,7 @@ export const ExchangeDB: Record<string, ExchangeDef> = {
   hardwood: {targetId: 'wood', tierGap: 2},
   magic_wood: {targetId: 'wood', tierGap: 3},
   iron: {targetId: 'stone', tierGap: 1},
+  gold_ore: {targetId: 'stone', tierGap: 2},
   fish_carp: {targetId: 'fish_small', tierGap: 1},
   fish_salmon: {targetId: 'fish_small', tierGap: 2},
 };

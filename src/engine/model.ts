@@ -2,10 +2,21 @@ import { ResourceDB, toolTiers, playable, cropYield, passiveSkills } from '../co
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { ExchangeDB, exchangeRate, guildTiers } from '../content/guild';
+import {
+  accessoryOptionIds,
+  accessoryOptions,
+  accessorySlots,
+  accessoryTiers,
+  emptyAccessories,
+  enchantmentStoneByResource,
+  type AccessoryOptionId,
+  type AccessorySlotId,
+  type AccessoryState,
+} from '../content/accessories';
 import type { SkillId } from '../content/types';
 
 export interface Model {
-  version: 6;
+  version: 7;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -19,22 +30,34 @@ export interface Model {
   ranch: Record<string, number>;
   // guildTiers 인덱스. 등급이 오를수록 환전 가능한 티어 차이가 늘어난다.
   guild: number;
+  // 슬롯별 장신구는 없거나 정확히 하나만 존재한다. 승급은 동일 객체의 재질만 올려 옵션을 보존한다.
+  accessories: Record<AccessorySlotId, AccessoryState | null>;
   lastSaveTime: number;
   notice: string;
 }
 
 export function initial(time = Date.now()): Model {
   return {
-    version: 6, gold: 1000,
+    version: 7, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: 100 }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
-    inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0, lastSaveTime: time, notice: '',
+    inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0, accessories: emptyAccessories(), lastSaveTime: time, notice: '',
   };
+}
+
+export function accessoryBonus(s: Model, optionId: AccessoryOptionId) {
+  let total = 0;
+  for (const accessory of Object.values(s.accessories)) {
+    if (accessory?.optionId === optionId && accessory.rarity !== null) {
+      total += accessoryOptions[optionId].values[accessory.rarity];
+    }
+  }
+  return total;
 }
 
 export function speedMultiplier(s: Model, skill: SkillId) {
   const food = s.meal && s.meal.remainingMs > 0 ? FoodDB[s.meal.foodId] : null;
-  return 1 + toolTiers[s.tools[skill]].bonus + (food?.skills.includes(skill) ? food.speedBonus : 0);
+  return 1 + toolTiers[s.tools[skill]].bonus + (food?.skills.includes(skill) ? food.speedBonus : 0) + accessoryBonus(s, 'speed');
 }
 
 export function duration(s: Model, id: string) {
@@ -51,7 +74,7 @@ function spend(s: Model, cost: Record<string, number>, count = 1) {
 
 function addExperience(s: Model, skillId: SkillId, amount: number) {
   const skill = s.skills[skillId];
-  skill.exp += amount;
+  skill.exp += amount * (1 + accessoryBonus(s, 'experience'));
   while (skill.level < 99 && skill.exp >= skill.maxExp) {
     skill.exp -= skill.maxExp;
     skill.level++;
@@ -187,7 +210,62 @@ export function upgrade(s: Model, skill: SkillId) {
 export function sell(s: Model, id: string, count: number) {
   if (!Object.hasOwn(ResourceDB, id) || !Number.isInteger(count) || count <= 0 || (s.inventory[id] ?? 0) < count) return false;
   s.inventory[id] -= count;
-  s.gold += ResourceDB[id].sell * count;
+  s.gold += Math.floor(ResourceDB[id].sell * count * (1 + accessoryBonus(s, 'sale')));
+  return true;
+}
+
+export function craftAccessory(s: Model, slotId: AccessorySlotId) {
+  if (!accessorySlots.some(slot => slot.id === slotId) || s.accessories[slotId]) return false;
+  const tier = accessoryTiers[0];
+  if (s.skills.blacksmithing.level < tier.reqLevel || s.gold < tier.goldCost || !afford(s, tier.cost)) return false;
+  s.gold -= tier.goldCost;
+  spend(s, tier.cost);
+  s.accessories[slotId] = {tier: 0, optionId: null, rarity: null};
+  s.notice = `${accessorySlots.find(slot => slot.id === slotId)!.name} 제작 완료`;
+  return true;
+}
+
+export function upgradeAccessory(s: Model, slotId: AccessorySlotId) {
+  const accessory = s.accessories[slotId];
+  if (!accessory) return false;
+  const next = accessoryTiers[accessory.tier + 1];
+  if (!next || s.skills.blacksmithing.level < next.reqLevel || s.gold < next.goldCost || !afford(s, next.cost)) return false;
+  s.gold -= next.goldCost;
+  spend(s, next.cost);
+  accessory.tier++;
+  s.notice = `${accessorySlots.find(slot => slot.id === slotId)!.name} · ${next.name} 재질로 승급`;
+  return true;
+}
+
+export function rollAccessoryRarity(accessoryTier: number, stoneTier: number, roll: number) {
+  const accessoryTierDef = accessoryTiers[accessoryTier];
+  const stone = Object.values(enchantmentStoneByResource).find(candidate => candidate.tier === stoneTier);
+  if (!accessoryTierDef || !stone || stoneTier < accessoryTier || !Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
+  const allowed = stone.weights.slice(0, accessoryTierDef.maxRarity + 1);
+  const total = allowed.reduce((sum, weight) => sum + weight, 0);
+  if (total <= 0) return null;
+  const target = roll * total;
+  let cumulative = 0;
+  for (let rarity = 0; rarity < allowed.length; rarity++) {
+    cumulative += allowed[rarity];
+    if (target < cumulative) return rarity;
+  }
+  return allowed.length - 1;
+}
+
+export function rerollAccessory(s: Model, slotId: AccessorySlotId, stoneId: string, random: () => number = Math.random) {
+  const accessory = s.accessories[slotId];
+  const stone = Object.hasOwn(enchantmentStoneByResource, stoneId) ? enchantmentStoneByResource[stoneId] : undefined;
+  if (!accessory || !stone || stone.tier < accessory.tier || (s.inventory[stoneId] ?? 0) < 1) return false;
+  const rarityRoll = random();
+  const optionRoll = random();
+  const rarity = rollAccessoryRarity(accessory.tier, stone.tier, rarityRoll);
+  if (rarity === null || !Number.isFinite(optionRoll) || optionRoll < 0 || optionRoll >= 1) return false;
+  const optionId = accessoryOptionIds[Math.floor(optionRoll * accessoryOptionIds.length)];
+  s.inventory[stoneId]--;
+  accessory.optionId = optionId;
+  accessory.rarity = rarity;
+  s.notice = `${accessoryOptions[optionId].name} · ${accessoryOptions[optionId].description} +${Math.round(accessoryOptions[optionId].values[rarity] * 100)}%`;
   return true;
 }
 
