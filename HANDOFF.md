@@ -1,6 +1,7 @@
 # Current handoff
 
-- Current goal: connect farming/ranching output to cooking (PROGRESS Planned item 3), implemented and browser-verified. Independent review has not run yet on this branch.
+- Current goal: connect farming/ranching output to cooking (PROGRESS Planned item 3), implemented, browser-verified, reviewed (round 1), and fixed. Re-review runs against this snapshot.
+- Review round 1 (`b0cfa3e`, self-review at high effort) found 1 non-blocking finding, closed in this snapshot: `vegetable_porridge`/`festival_dish` assigned the live `playable` array reference directly to `FoodDef.skills` instead of a copy (`playable === FoodDB.vegetable_porridge.skills === FoodDB.festival_dish.skills` were the same object). Inert today (nothing mutates `playable`), but a latent shared-mutable-reference hazard since `playable` is also iterated by App.tsx/ToolsView. Fixed with `[...playable]` at both sites.
 - Feature branch: `feature/farm-ranch-cooking`, created from fresh `main` (`f31a032`, which already includes the merged farming and ranching loops). Configured remote: `origin` (`https://github.com/PlantJelly/Melvorlike.git`).
 - Checkpoint type: WIP — implementation complete, tests/build pass, browser-verified, but not yet reviewed, not yet committed/pushed as of this snapshot being written. Review and commit follow immediately after this snapshot.
 - Known pre-checkpoint parent: `f31a032fffdcf35d310541535f8222b37605bc96` (main, post ranching-loop merge + docs).
