@@ -1,5 +1,5 @@
 import { For, Show, createSignal } from 'solid-js';
-import { ResourceDB, playable, skillNames } from './content/resources';
+import { ResourceDB, playable, passiveSkills, skillNames } from './content/resources';
 import type { SkillId } from './content/types';
 import { initGameLoop } from './engine/gameLoop';
 import { state } from './state/gameState';
@@ -10,6 +10,7 @@ import { ToolsView } from './ui/ToolsView';
 import { InventoryView } from './ui/InventoryView';
 import { MealStatus } from './ui/Food';
 import { FarmingView, FarmStatus } from './ui/FarmingView';
+import { RanchingView, RanchStatus } from './ui/RanchingView';
 
 function App() {
   initGameLoop();
@@ -37,8 +38,10 @@ function App() {
       </section>
       <MealStatus/>
       <FarmStatus/>
-      <Show when={playable.includes(page() as SkillId) && page() !== 'farming'}><ProductionView skill={page() as SkillId}/></Show>
+      <RanchStatus/>
+      <Show when={playable.includes(page() as SkillId) && !passiveSkills.includes(page() as SkillId)}><ProductionView skill={page() as SkillId}/></Show>
       <Show when={page() === 'farming'}><FarmingView/></Show>
+      <Show when={page() === 'ranching'}><RanchingView/></Show>
       <Show when={page() === 'tools'}><ToolsView/></Show>
       <Show when={page() === 'inventory'}><InventoryView/></Show>
     </main>
