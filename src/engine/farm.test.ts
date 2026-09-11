@@ -119,4 +119,10 @@ describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
       expect(() => decodeSave(JSON.stringify({...s, farmPlot}))).toThrow();
     }
   });
+
+  it('작업 슬롯에 농사 작물이 담긴 저장은 거부한다', () => {
+    const s = initial(0);
+    const currentAction = {resourceId: 'wheat', progressMs: 0};
+    expect(() => decodeSave(JSON.stringify({...s, currentAction}))).toThrow();
+  });
 });

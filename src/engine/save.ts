@@ -37,7 +37,8 @@ export function decodeSave(text: string): Model {
       const a = raw.currentAction;
       if (!object(a) || typeof a.resourceId !== 'string' || !Object.hasOwn(ResourceDB, a.resourceId) || !finite(a.progressMs)) throw Error('작업 정보 오류');
       const r = ResourceDB[a.resourceId];
-      if (a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
+      // 작물은 밭에서만 자란다. begin()과 같은 규칙을 저장 데이터 검증에도 적용한다.
+      if (r.skill === 'farming' || a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
       // v2는 실제 경과 시간, v3+는 속도 보정 전 작업량으로 저장한다.
       const progressMs = a.progressMs * (version === 2 ? 1 + toolTiers[s.tools[r.skill]].bonus : 1);
       s.currentAction = {resourceId: r.id, progressMs};
