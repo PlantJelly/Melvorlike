@@ -3,6 +3,7 @@ import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resou
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { guildTiers } from '../content/guild';
+import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 export const SAVE_KEY = 'melvorlike_save';
 
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
@@ -10,8 +11,8 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 
 export function decodeSave(text: string): Model {
   const raw: unknown = JSON.parse(text);
-  if (!object(raw) || ![1, 2, 3, 4, 5, 6].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
-  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6;
+  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   const s = initial(raw.lastSaveTime);
   s.gold = raw.gold;
@@ -19,6 +20,7 @@ export function decodeSave(text: string): Model {
     if (version < 3 && id === 'cooking') continue;
     if (version < 4 && id === 'farming') continue;
     if (version < 5 && id === 'ranching') continue;
+    if (version < 7 && id === 'magic') continue;
     const k = raw.skills[id];
     if (!object(k) || !finite(k.level) || k.level < 1 || !Number.isInteger(k.level) || !finite(k.exp) || !finite(k.maxExp) || k.maxExp <= 0) throw Error('스킬 정보 오류');
     s.skills[id] = {level: Math.min(99, k.level), exp: k.exp, maxExp: k.maxExp};
@@ -33,6 +35,7 @@ export function decodeSave(text: string): Model {
       if (version === 2 && id === 'cooking') continue;
       if (version < 4 && id === 'farming') continue;
       if (version < 5 && id === 'ranching') continue;
+      if (version < 7 && id === 'magic') continue;
       const n = raw.tools[id];
       if (!finite(n) || !Number.isInteger(n) || n >= toolTiers.length) throw Error('도구 정보 오류');
       s.tools[id] = n;
@@ -70,9 +73,29 @@ export function decodeSave(text: string): Model {
       s.ranch[id] = progressMs;
     }
   }
-  if (version === 6) {
+  if (version >= 6) {
     if (!finite(raw.guild) || !Number.isInteger(raw.guild) || raw.guild >= guildTiers.length) throw Error('길드 정보 오류');
     s.guild = raw.guild;
+  }
+  if (version >= 7) {
+    if (!object(raw.accessories)) throw Error('장신구 정보 오류');
+    const slotIds = accessorySlots.map(slot => slot.id);
+    if (Object.keys(raw.accessories).some(id => !slotIds.includes(id as (typeof slotIds)[number]))) throw Error('장신구 정보 오류');
+    for (const slotId of slotIds) {
+      const accessory = raw.accessories[slotId];
+      if (accessory === null) continue;
+      if (!object(accessory) || !finite(accessory.tier) || !Number.isInteger(accessory.tier) || accessory.tier >= accessoryTiers.length) throw Error('장신구 정보 오류');
+      if (s.skills.blacksmithing.level < accessoryTiers[accessory.tier].reqLevel) throw Error('장신구 정보 오류');
+      const optionId = accessory.optionId;
+      const rarity = accessory.rarity;
+      if (optionId === null || rarity === null) {
+        if (optionId !== null || rarity !== null) throw Error('장신구 정보 오류');
+        s.accessories[slotId] = {tier: accessory.tier, optionId: null, rarity: null};
+        continue;
+      }
+      if (typeof optionId !== 'string' || !accessoryOptionIds.includes(optionId as AccessoryOptionId) || !finite(rarity) || !Number.isInteger(rarity) || rarity > accessoryTiers[accessory.tier].maxRarity) throw Error('장신구 정보 오류');
+      s.accessories[slotId] = {tier: accessory.tier, optionId: optionId as AccessoryOptionId, rarity};
+    }
   }
   return s;
 }

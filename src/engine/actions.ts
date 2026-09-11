@@ -1,6 +1,7 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, upgrade, sell, eat, buyResource, plant, harvest, buyAnimal, exchangeResource, upgradeGuild } from './model';
+import { begin, upgrade, sell, eat, buyResource, plant, harvest, buyAnimal, exchangeResource, upgradeGuild, craftAccessory, upgradeAccessory, rerollAccessory } from './model';
 import type { SkillId } from '../content/types';
+import type { AccessorySlotId } from '../content/accessories';
 
 export function startAction(_skill: SkillId, id: string) {
   mutate(s => { begin(s, id); });
@@ -48,5 +49,17 @@ export function exchangeResourceAction(id: string, n: number) {
 }
 export function upgradeGuildAction() {
   mutate(s => { upgradeGuild(s); });
+  saveGame();
+}
+export function craftAccessoryAction(slotId: AccessorySlotId) {
+  mutate(s => { craftAccessory(s, slotId); });
+  saveGame();
+}
+export function upgradeAccessoryAction(slotId: AccessorySlotId) {
+  mutate(s => { upgradeAccessory(s, slotId); });
+  saveGame();
+}
+export function rerollAccessoryAction(slotId: AccessorySlotId, stoneId: string) {
+  mutate(s => { rerollAccessory(s, slotId, stoneId); });
   saveGame();
 }

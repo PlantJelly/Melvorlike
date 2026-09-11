@@ -4,7 +4,9 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('wood', '나무', 'logging', 1, 3000, 25, 1, '🪵'), row('oak', '참나무', 'logging', 10, 5000, 60, 3, '🌳'),
     row('hardwood', '단단한 나무', 'logging', 30, 8000, 150, 12, '🌲'), row('magic_wood', '마법 나무', 'logging', 50, 12000, 400, 50, '✨'),
     row('stone', '돌', 'mining', 1, 4000, 25, 1, '🪨'), row('copper', '구리 광석', 'mining', 1, 5000, 35, 3, '⛏️'), row('iron', '철 광석', 'mining', 10, 7000, 70, 8, '⛏️'),
+    row('gold_ore', '금 광석', 'mining', 50, 11000, 300, 35, '🟡'), row('mana_stone', '마나석', 'mining', 30, 9000, 180, 22, '🔷'),
     row('brick', '돌 벽돌', 'blacksmithing', 1, 4000, 30, 5, '🧱', { stone: 2 }), row('copper_ingot', '구리 주괴', 'blacksmithing', 1, 6000, 40, 12, '▰', { copper: 3, wood: 1 }), row('iron_ingot', '철 주괴', 'blacksmithing', 10, 8000, 90, 30, '▰', { iron: 3, wood: 2 }),
+    row('gold_ingot', '금 주괴', 'blacksmithing', 50, 12000, 320, 110, '▰', {gold_ore: 3, magic_wood: 1}),
     {...row('fish_small', '피라미', 'fishing', 1, 3500, 25, 2, '🐟'), area: '마을 개울'},
     {...row('fish_carp', '붕어', 'fishing', 10, 5500, 60, 5, '🐠'), area: '갈대 호수'},
     {...row('fish_salmon', '연어', 'fishing', 30, 8500, 150, 15, '🐟'), area: '상류 여울'},
@@ -19,17 +21,25 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('wheat', '밀', 'farming', 1, 180000, 30, 2, '🌾'),
     row('potato', '감자', 'farming', 10, 480000, 90, 5, '🥔'),
     row('carrot', '당근', 'farming', 25, 900000, 200, 9, '🥕'),
+    row('chamomile', '캐모마일', 'farming', 1, 240000, 40, 3, '🌼'),
+    row('mugwort', '쑥', 'farming', 10, 540000, 110, 6, '🌿'),
+    row('magic_mugwort', '마법쑥', 'farming', 25, 960000, 240, 12, '🍃'),
+    row('mystic_herb', '신비 허브', 'farming', 40, 1500000, 420, 25, '☘️'),
     row('egg', '달걀', 'ranching', 1, 1800000, 60, 4, '🥚'),
     row('wool', '양털', 'ranching', 15, 2700000, 150, 20, '🧶'),
-    row('milk', '우유', 'ranching', 30, 3600000, 300, 8, '🥛')
+    row('milk', '우유', 'ranching', 30, 3600000, 300, 8, '🥛'),
+    row('enchant_stone_stone', '스톤급 마법부여석', 'magic', 1, 10000, 50, 40, '🔮', {chamomile: 2, mana_stone: 1}),
+    row('enchant_stone_copper', '구리급 마법부여석', 'magic', 10, 14000, 120, 100, '🔮', {mugwort: 2, mana_stone: 2, copper_ingot: 1}),
+    row('enchant_stone_iron', '철급 마법부여석', 'magic', 30, 20000, 280, 260, '🔮', {magic_mugwort: 2, mana_stone: 3, iron_ingot: 1}),
+    row('enchant_stone_gold', '금급 마법부여석', 'magic', 50, 30000, 600, 700, '🔮', {mystic_herb: 2, mana_stone: 5, gold_ingot: 1})
 ].map(r => [r.id, r]));
 // 수확 시 씨앗 1개를 심어 한 번에 돌려받는 개수. 재파종 분을 남기고 잉여를 판매/요리에 쓴다.
-export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3 };
-export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리', farming: '농사', ranching: '목장' };
-export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking', 'farming', 'ranching'];
+export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3, chamomile: 3, mugwort: 3, magic_mugwort: 3, mystic_herb: 3 };
+export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리', farming: '농사', ranching: '목장', magic: '마법' };
+export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking', 'farming', 'ranching', 'magic'];
 // 액티브 단일 작업 슬롯을 쓰지 않고 항상 배경에서 병행 진행되는 스킬. begin()/저장 검증/화면 라우팅이 함께 참조한다.
 export const passiveSkills: SkillId[] = ['farming', 'ranching'];
-export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대', cooking: '조리도구', farming: '괭이', ranching: '사료통' };
+export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대', cooking: '조리도구', farming: '괭이', ranching: '사료통', magic: '마법봉' };
 export const toolTiers: {
     name: string;
     level: number;
