@@ -1,5 +1,5 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, upgrade, sell, eat, buyCrop, plant, harvest } from './model';
+import { begin, upgrade, sell, eat, buyCrop, plant, harvest, buyAnimal } from './model';
 import type { SkillId } from '../content/types';
 
 export function startAction(_skill: SkillId, id: string) {
@@ -32,5 +32,9 @@ export function plantCrop(id: string) {
 }
 export function harvestCrop() {
   mutate(s => { harvest(s); });
+  saveGame();
+}
+export function buyAnimalAction(id: string) {
+  mutate(s => { buyAnimal(s, id); });
   saveGame();
 }

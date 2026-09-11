@@ -1,4 +1,4 @@
-export type SkillId = 'logging' | 'mining' | 'fishing' | 'blacksmithing' | 'cooking' | 'farming';
+export type SkillId = 'logging' | 'mining' | 'fishing' | 'blacksmithing' | 'cooking' | 'farming' | 'ranching';
 
 export interface ResourceDef {
   id: string;

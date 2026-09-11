@@ -1,9 +1,10 @@
-import { ResourceDB, toolTiers, playable, cropYield } from '../content/resources';
+import { ResourceDB, toolTiers, playable, cropYield, passiveSkills } from '../content/resources';
+import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import type { SkillId } from '../content/types';
 
 export interface Model {
-  version: 4;
+  version: 5;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -13,16 +14,18 @@ export interface Model {
   meal: { foodId: string; remainingMs: number } | null;
   // 농사는 액티브 작업과 별개로 항상 병행 진행된다. 수확 전까지 진행률은 성장 시간에서 멈춘다.
   farmPlot: { cropId: string; progressMs: number } | null;
+  // 키 존재 여부가 보유 여부. 값은 다음 산출까지의 진행량(속도 보정 전).
+  ranch: Record<string, number>;
   lastSaveTime: number;
   notice: string;
 }
 
 export function initial(time = Date.now()): Model {
   return {
-    version: 4, gold: 1000,
+    version: 5, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: 100 }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
-    inventory: {}, currentAction: null, meal: null, farmPlot: null, lastSaveTime: time, notice: '',
+    inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, lastSaveTime: time, notice: '',
   };
 }
 
@@ -100,11 +103,54 @@ export function farmRemainingMs(s: Model) {
   return Math.max(0, r.baseDurationMs - plot.progressMs) / speedMultiplier(s, r.skill);
 }
 
+// 사육 중인 모든 동물을 병행 정산한다. 사료가 모자라면 주기 1회분에서 진행을 멈춰
+// 무한정 적체됐다가 사료를 채우는 순간 몰아서 나오는 것을 막는다(D007 참고).
+function advanceRanch(s: Model, elapsed: number) {
+  for (const id of Object.keys(s.ranch)) {
+    const a = AnimalDB[id];
+    const p = ResourceDB[a.productId];
+    let progressMs = s.ranch[id] + elapsed * speedMultiplier(s, p.skill);
+    const timeCount = Math.floor((progressMs + 1e-7) / p.baseDurationMs);
+    if (timeCount > 0) {
+      const affordable = Math.floor((s.inventory[a.feedId] ?? 0) / a.feedAmount);
+      const count = Math.min(timeCount, affordable);
+      if (count > 0) {
+        s.inventory[a.feedId] -= a.feedAmount * count;
+        s.inventory[p.id] = (s.inventory[p.id] ?? 0) + count;
+        addExperience(s, p.skill, p.exp * count);
+      }
+      progressMs = count < timeCount ? p.baseDurationMs : progressMs - count * p.baseDurationMs;
+    }
+    s.ranch[id] = progressMs;
+  }
+}
+
+// advanceSegment와 같은 여유(1e-7)로 주기 완료 여부를 판정한다.
+function ranchCycleReady(s: Model, id: string) {
+  const p = ResourceDB[AnimalDB[id].productId];
+  return s.ranch[id] + 1e-7 >= p.baseDurationMs;
+}
+
+// 주기를 채웠지만 사료가 없어 다음 산출을 만들지 못하는 상태 — 손해 없이 대기, 사료를 채우면 바로 재개.
+export function ranchStarved(s: Model, id: string) {
+  if (!Object.hasOwn(s.ranch, id)) return false;
+  const a = AnimalDB[id];
+  return ranchCycleReady(s, id) && (s.inventory[a.feedId] ?? 0) < a.feedAmount;
+}
+
+export function ranchRemainingMs(s: Model, id: string) {
+  if (!Object.hasOwn(s.ranch, id)) return 0;
+  const a = AnimalDB[id];
+  const p = ResourceDB[a.productId];
+  return Math.max(0, p.baseDurationMs - s.ranch[id]) / speedMultiplier(s, p.skill);
+}
+
 export function advance(s: Model, time: number) {
   if (!Number.isFinite(time)) return 0;
   let elapsed = Math.max(0, time - s.lastSaveTime);
   s.lastSaveTime = Math.max(time, s.lastSaveTime);
   advanceFarm(s, elapsed);
+  advanceRanch(s, elapsed);
   let count = 0;
   // 음식 만료 시점을 경계로 분리해 오프라인 전체에 효과가 적용되지 않게 한다.
   if (s.meal) {
@@ -120,8 +166,8 @@ export function advance(s: Model, time: number) {
 
 export function begin(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  // 작물은 밭에서만 자란다. 액티브 슬롯으로도 생산되면 같은 아이템이 이중으로 나온다.
-  if (!r || r.skill === 'farming' || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
+  // 패시브 스킬(농사/목장) 산출물은 밭/축사에서만 나온다. 액티브 슬롯으로도 생산되면 이중 생산이 된다.
+  if (!r || passiveSkills.includes(r.skill) || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
   s.currentAction = { resourceId: id, progressMs: 0 };
   s.notice = '';
   return true;
@@ -170,6 +216,17 @@ export function harvest(s: Model) {
   addExperience(s, 'farming', r.exp);
   s.farmPlot = null;
   s.notice = `${r.name} ${n}개 수확 · 경험치 +${r.exp}`;
+  return true;
+}
+
+export function buyAnimal(s: Model, id: string) {
+  const a = Object.hasOwn(AnimalDB, id) ? AnimalDB[id] : undefined;
+  if (!a || Object.hasOwn(s.ranch, id)) return false;
+  const p = ResourceDB[a.productId];
+  if (s.skills.ranching.level < p.reqLevel || s.gold < a.buyGold) return false;
+  s.gold -= a.buyGold;
+  s.ranch[id] = 0;
+  s.notice = `${a.name} 입주 · 사료(${ResourceDB[a.feedId].name})를 채워두면 자동으로 ${p.name}을(를) 만듭니다.`;
   return true;
 }
 
