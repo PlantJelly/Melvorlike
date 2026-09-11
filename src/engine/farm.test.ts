@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, begin, buyCrop, harvest, initial, plant } from './model';
+import { advance, begin, buyCrop, farmReady, farmRemainingMs, harvest, initial, plant } from './model';
 import { decodeSave } from './save';
 
 describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
@@ -42,6 +42,26 @@ describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
     expect(s.skills.farming.exp).toBe(30);
     expect(s.farmPlot).toBeNull();
     expect(harvest(s)).toBe(false);
+  });
+
+  it('작물은 액티브 작업 슬롯으로 채집할 수 없다', () => {
+    const s = initial(0);
+    expect(begin(s, 'wheat')).toBe(false);
+    expect(s.currentAction).toBeNull();
+  });
+
+  it('남은 시간은 도구 속도를 반영하고, 도구를 바꿔도 진행량은 보존된다', () => {
+    const s = initial(0);
+    s.inventory.wheat = 1;
+    plant(s, 'wheat');
+    advance(s, 60000);
+    expect(farmRemainingMs(s)).toBe(120000);
+    s.tools.farming = 1;
+    expect(s.farmPlot?.progressMs).toBe(60000);
+    expect(farmRemainingMs(s)).toBeCloseTo(120000 / 1.15);
+    advance(s, 60000 + 120000 / 1.15);
+    expect(farmReady(s)).toBe(true);
+    expect(farmRemainingMs(s)).toBe(0);
   });
 
   it('다 자란 뒤에는 더 진행되지 않고 수확 전까지 기다린다', () => {

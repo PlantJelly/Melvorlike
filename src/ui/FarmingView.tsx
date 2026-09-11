@@ -1,7 +1,7 @@
 import { For, Show } from 'solid-js';
 import { ResourceDB, cropYield } from '../content/resources';
 import { state } from '../state/gameState';
-import { duration } from '../engine/model';
+import { duration, farmReady, farmRemainingMs } from '../engine/model';
 import { buySeed, plantCrop, harvestCrop } from '../engine/actions';
 import { fmt } from './ProductionView';
 
@@ -9,10 +9,11 @@ function minutes(ms: number) {
   return (ms / 60000).toFixed(1);
 }
 
+const plot = () => state().farmPlot;
+const crop = () => plot() ? ResourceDB[plot()!.cropId] : null;
+const ready = () => farmReady(state());
+
 export function FarmStatus() {
-  const plot = () => state().farmPlot;
-  const crop = () => plot() ? ResourceDB[plot()!.cropId] : null;
-  const ready = () => !!plot() && plot()!.progressMs >= crop()!.baseDurationMs;
   return <section class="meal-status" aria-label="농사 상태">
     <Show when={plot()} fallback={<span>🌱 심은 작물 없음 · 농사 탭에서 씨앗을 심어보세요.</span>}>
       <strong>🌱 {crop()!.name}</strong>
@@ -23,9 +24,6 @@ export function FarmStatus() {
 
 export function FarmingView() {
   const skill = () => state().skills.farming;
-  const plot = () => state().farmPlot;
-  const crop = () => plot() ? ResourceDB[plot()!.cropId] : null;
-  const ready = () => !!plot() && plot()!.progressMs >= crop()!.baseDurationMs;
   return <>
     <h1>농사</h1>
     <p class="muted">레벨 {skill().level} · 경험치 {fmt(skill().exp)} / {fmt(skill().maxExp)}</p>
@@ -35,7 +33,7 @@ export function FarmingView() {
       <Show when={ready()}><button onClick={harvestCrop}>수확하기</button></Show>
       <Show when={plot()}>
         <progress aria-label="농사 진행률" max="100" value={plot()!.progressMs / crop()!.baseDurationMs * 100}/>
-        <small>{ready() ? '수확할 수 있습니다' : `${minutes(crop()!.baseDurationMs - plot()!.progressMs)}분 후 수확 가능 · 화면을 바꿔도 계속 자랍니다`}</small>
+        <small>{ready() ? '수확할 수 있습니다' : `${minutes(farmRemainingMs(state()))}분 후 수확 가능 · 화면을 바꿔도 계속 자랍니다`}</small>
       </Show>
     </section>
     <div class="cards">

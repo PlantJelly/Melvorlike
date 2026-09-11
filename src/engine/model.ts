@@ -86,6 +86,20 @@ function advanceFarm(s: Model, elapsed: number) {
   plot.progressMs = Math.min(r.baseDurationMs, plot.progressMs + elapsed * speedMultiplier(s, r.skill));
 }
 
+// 작은 틱이 누적되며 생기는 부동소수점 오차로 수확이 한 틱 밀리지 않게 advanceSegment와 같은 여유를 둔다.
+export function farmReady(s: Model) {
+  const plot = s.farmPlot;
+  return !!plot && plot.progressMs + 1e-7 >= ResourceDB[plot.cropId].baseDurationMs;
+}
+
+// progressMs는 속도 보정 전 작업량이므로 실제 남은 시간으로 바꾸려면 현재 속도로 나눈다.
+export function farmRemainingMs(s: Model) {
+  const plot = s.farmPlot;
+  if (!plot) return 0;
+  const r = ResourceDB[plot.cropId];
+  return Math.max(0, r.baseDurationMs - plot.progressMs) / speedMultiplier(s, r.skill);
+}
+
 export function advance(s: Model, time: number) {
   if (!Number.isFinite(time)) return 0;
   let elapsed = Math.max(0, time - s.lastSaveTime);
@@ -106,7 +120,8 @@ export function advance(s: Model, time: number) {
 
 export function begin(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  if (!r || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
+  // 작물은 밭에서만 자란다. 액티브 슬롯으로도 생산되면 같은 아이템이 이중으로 나온다.
+  if (!r || r.skill === 'farming' || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
   s.currentAction = { resourceId: id, progressMs: 0 };
   s.notice = '';
   return true;
@@ -148,9 +163,8 @@ export function plant(s: Model, id: string) {
 
 export function harvest(s: Model) {
   const plot = s.farmPlot;
-  if (!plot) return false;
+  if (!plot || !farmReady(s)) return false;
   const r = ResourceDB[plot.cropId];
-  if (plot.progressMs < r.baseDurationMs) return false;
   const n = cropYield[plot.cropId] ?? 1;
   s.inventory[plot.cropId] = (s.inventory[plot.cropId] ?? 0) + n;
   addExperience(s, 'farming', r.exp);
