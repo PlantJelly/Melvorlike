@@ -1,4 +1,4 @@
-export type SkillId = 'logging' | 'mining' | 'fishing' | 'blacksmithing';
+export type SkillId = 'logging' | 'mining' | 'fishing' | 'blacksmithing' | 'cooking';
 
 export interface ResourceDef {
   id: string;
@@ -12,4 +12,5 @@ export interface ResourceDef {
   icon: string;
   /** 제작류 자원(대장작업 등)만 존재. 채집류는 없음. */
   recipe?: Record<string, number>;
+  area?: string;
 }

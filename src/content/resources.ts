@@ -4,11 +4,17 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('wood', '나무', 'logging', 1, 3000, 25, 1, '🪵'), row('oak', '참나무', 'logging', 10, 5000, 60, 3, '🌳'),
     row('hardwood', '단단한 나무', 'logging', 30, 8000, 150, 12, '🌲'), row('magic_wood', '마법 나무', 'logging', 50, 12000, 400, 50, '✨'),
     row('stone', '돌', 'mining', 1, 4000, 25, 1, '🪨'), row('copper', '구리 광석', 'mining', 1, 5000, 35, 3, '⛏️'), row('iron', '철 광석', 'mining', 10, 7000, 70, 8, '⛏️'),
-    row('brick', '돌 벽돌', 'blacksmithing', 1, 4000, 30, 5, '🧱', { stone: 2 }), row('copper_ingot', '구리 주괴', 'blacksmithing', 1, 6000, 40, 12, '▰', { copper: 3, wood: 1 }), row('iron_ingot', '철 주괴', 'blacksmithing', 10, 8000, 90, 30, '▰', { iron: 3, wood: 2 })
+    row('brick', '돌 벽돌', 'blacksmithing', 1, 4000, 30, 5, '🧱', { stone: 2 }), row('copper_ingot', '구리 주괴', 'blacksmithing', 1, 6000, 40, 12, '▰', { copper: 3, wood: 1 }), row('iron_ingot', '철 주괴', 'blacksmithing', 10, 8000, 90, 30, '▰', { iron: 3, wood: 2 }),
+    {...row('fish_small', '피라미', 'fishing', 1, 3500, 25, 2, '🐟'), area: '마을 개울'},
+    {...row('fish_carp', '붕어', 'fishing', 10, 5500, 60, 5, '🐠'), area: '갈대 호수'},
+    {...row('fish_salmon', '연어', 'fishing', 30, 8500, 150, 15, '🐟'), area: '상류 여울'},
+    row('grilled_fish', '구운 생선', 'cooking', 1, 5000, 35, 5, '🍢', {fish_small: 2}),
+    row('fish_soup', '민물 생선탕', 'cooking', 10, 7000, 75, 12, '🍲', {fish_carp: 2}),
+    row('smoked_salmon', '훈제 연어', 'cooking', 30, 10000, 180, 35, '🍣', {fish_salmon: 2, wood: 1})
 ].map(r => [r.id, r]));
-export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시' };
-export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing'];
-export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대' };
+export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리' };
+export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking'];
+export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대', cooking: '조리도구' };
 export const toolTiers: {
     name: string;
     level: number;
