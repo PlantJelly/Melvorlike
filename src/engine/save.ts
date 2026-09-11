@@ -14,7 +14,8 @@ const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFi
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function decodeSave(text: string): Model {
-  const raw: unknown = JSON.parse(text);
+  let raw: unknown;
+  try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
   if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
   const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');

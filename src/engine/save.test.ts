@@ -34,7 +34,7 @@ describe('백업 내보내기/복원', () => {
     const broken = JSON.parse(encodeSave(s));
     broken.version = 999;
     expect(() => decodeSave(JSON.stringify(broken))).toThrow('지원하지 않는 저장 버전');
-    expect(() => decodeSave('{not json')).toThrow();
+    expect(() => decodeSave('{not json')).toThrow('저장 파일 형식이 올바르지 않습니다');
     expect(() => decodeSave('null')).toThrow();
   });
 });

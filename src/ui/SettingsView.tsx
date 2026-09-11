@@ -8,8 +8,10 @@ function downloadBackup() {
   const a = document.createElement('a');
   a.href = url;
   a.download = `melvorlike-save-${stamp}.json`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function SettingsView() {
@@ -23,7 +25,8 @@ export function SettingsView() {
     if (!confirm('현재 저장 데이터를 백업 파일 내용으로 덮어씁니다. 계속할까요?')) return;
     const text = await file.text();
     const result = restoreFromBackup(text);
-    setRestoreMessage(result === true ? '백업에서 복원했습니다.' : `복원 실패: ${result}`);
+    // 성공 메시지는 state().notice를 통해 화면 상단 알림으로 이미 표시되므로 여기서는 실패만 알린다.
+    setRestoreMessage(result.ok ? '' : `복원 실패: ${result.error}`);
   }
 
   return <>
