@@ -3,6 +3,7 @@ import { ResourceDB, skillNames } from '../content/resources';
 import { ExchangeDB, exchangeRate, guildTiers } from '../content/guild';
 import { state } from '../state/gameState';
 import { buyResourceAction, exchangeResourceAction, upgradeGuildAction, completeDailyQuestAction } from '../engine/actions';
+import { dailyQuestReward } from '../engine/model';
 import { fmt } from './ProductionView';
 
 export function GuildView() {
@@ -26,11 +27,11 @@ export function GuildView() {
       <For each={state().dailyQuests.quests}>{(quest, i) => {
         const r = () => ResourceDB[quest.resourceId];
         const owned = () => state().inventory[quest.resourceId] ?? 0;
-        const reward = () => Math.round(quest.amount * r().sell * 2);
+        const reward = () => dailyQuestReward(state(), quest);
         return <article>
           <div><h2>{r().icon} {r().name} {quest.amount}개 납품</h2><small>보상 {fmt(reward())} G</small></div>
           <strong>보유 {fmt(owned())}개</strong>
-          <button disabled={quest.done || owned() < quest.amount} onClick={() => completeDailyQuestAction(i())}>{quest.done ? '완료됨' : '납품'}</button>
+          <button disabled={quest.done || owned() < quest.amount} onClick={() => completeDailyQuestAction(i(), quest.resourceId)}>{quest.done ? '완료됨' : '납품'}</button>
         </article>;
       }}</For>
     </div>

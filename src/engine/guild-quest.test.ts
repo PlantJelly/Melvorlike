@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ResourceDB } from '../content/resources';
-import { advance, completeDailyQuest, initial } from './model';
+import { advance, completeDailyQuest, dailyQuestReward, initial } from './model';
 import { decodeSave, encodeSave } from './save';
 
 const DAY = 86400000;
@@ -24,7 +24,7 @@ describe('길드: 일일 퀘스트', () => {
     const s = initial(0);
     const quest0 = s.dailyQuests.quests[0];
     s.inventory[quest0.resourceId] = quest0.amount;
-    expect(completeDailyQuest(s, 0)).toBe(true);
+    expect(completeDailyQuest(s, 0, quest0.resourceId)).toBe(true);
     const afterComplete = s.dailyQuests.quests;
     advance(s, 1000); // 같은 날 안에서 시간만 흐름
     expect(s.dailyQuests.day).toBe(0);
@@ -36,45 +36,78 @@ describe('길드: 일일 퀘스트', () => {
     expect(s.dailyQuests.quests.every(q => !q.done)).toBe(true); // 완료 여부와 무관하게 새 3개로 교체
   });
 
-  it('요구량을 채우면 인벤토리를 소모하고 골드를 보상하며, 다시 납품할 수 없다', () => {
+  it('요구량을 채우면 인벤토리를 소모하고 골드를 보상하며(장신구 판매가 보너스 포함), 다시 납품할 수 없다', () => {
     const s = initial(0);
+    s.accessories.crown = {tier: 0, optionId: 'sale', rarity: 0}; // 하급 흥정 +5%
     const quest = s.dailyQuests.quests[0];
     const r = ResourceDB[quest.resourceId];
     s.inventory[quest.resourceId] = quest.amount;
     const goldBefore = s.gold;
-    expect(completeDailyQuest(s, 0)).toBe(true);
+    const expectedReward = Math.floor(quest.amount * r.sell * 2 * 1.05);
+    expect(dailyQuestReward(s, quest)).toBe(expectedReward);
+    expect(completeDailyQuest(s, 0, quest.resourceId)).toBe(true);
     expect(s.inventory[quest.resourceId]).toBe(0);
-    expect(s.gold).toBe(goldBefore + Math.round(quest.amount * r.sell * 2));
+    expect(s.gold).toBe(goldBefore + expectedReward);
     expect(s.dailyQuests.quests[0].done).toBe(true);
-    expect(completeDailyQuest(s, 0)).toBe(false); // 이미 완료
+    expect(completeDailyQuest(s, 0, quest.resourceId)).toBe(false); // 이미 완료
   });
 
-  it('요구량 미달, 잘못된 인덱스는 실패하고 아무것도 바뀌지 않는다', () => {
+  it('요구량 미달, 잘못된 인덱스, resourceId 불일치는 실패하고 아무것도 바뀌지 않는다', () => {
     const s = initial(0);
     const quest = s.dailyQuests.quests[0];
     s.inventory[quest.resourceId] = quest.amount - 1;
-    expect(completeDailyQuest(s, 0)).toBe(false);
-    expect(completeDailyQuest(s, -1)).toBe(false);
-    expect(completeDailyQuest(s, 99)).toBe(false);
-    expect(s.inventory[quest.resourceId]).toBe(quest.amount - 1);
+    expect(completeDailyQuest(s, 0, quest.resourceId)).toBe(false); // 요구량 미달
+    s.inventory[quest.resourceId] = quest.amount;
+    expect(completeDailyQuest(s, -1, quest.resourceId)).toBe(false); // 잘못된 인덱스
+    expect(completeDailyQuest(s, 99, quest.resourceId)).toBe(false);
+    expect(completeDailyQuest(s, 0, `not-${quest.resourceId}`)).toBe(false); // 화면이 보여준 것과 다른 재료로 확인(불일치)
+    expect(s.inventory[quest.resourceId]).toBe(quest.amount);
     expect(s.gold).toBe(1000);
   });
 
-  it('v8 저장은 왕복 시 퀘스트 상태가 정확히 보존되고, v7 이전 저장은 새 퀘스트로 채워진다', () => {
+  it('클릭 순간 날짜가 바뀌어 퀘스트가 통째로 교체돼도, resourceId가 다르면 엉뚱한 퀘스트를 완료하지 않는다', () => {
+    const s = initial(0);
+    const oldQuest = s.dailyQuests.quests[0];
+    s.inventory[oldQuest.resourceId] = oldQuest.amount;
+    advance(s, DAY); // 날짜가 바뀌어 퀘스트가 전부 새로 생성됨(같은 인덱스라도 다른 퀘스트일 수 있음)
+    // index 0은 이제 새 퀘스트를 가리키지만, 화면이 보여줬던(오래된) resourceId로 확인을 요청한다.
+    if (s.dailyQuests.quests[0].resourceId !== oldQuest.resourceId) {
+      expect(completeDailyQuest(s, 0, oldQuest.resourceId)).toBe(false);
+      expect(s.gold).toBe(1000);
+    }
+  });
+
+  it('v8 저장은 왕복 시 퀘스트 상태가 정확히 보존되고, v7 이전 저장은 복원된 실제 스킬 레벨로 새 퀘스트를 채운다', () => {
     const s = initial(0);
     s.inventory[s.dailyQuests.quests[0].resourceId] = s.dailyQuests.quests[0].amount;
-    completeDailyQuest(s, 0);
+    completeDailyQuest(s, 0, s.dailyQuests.quests[0].resourceId);
     const restored = decodeSave(encodeSave(s));
     expect(restored.dailyQuests).toEqual(s.dailyQuests);
 
-    const {dailyQuests: _dq, ...withoutQuests} = JSON.parse(encodeSave(initial(0)));
+    // 레벨 1로는 절대 해금되지 않는 채광 Lv50 전용 재료(gold_ore)만 뽑히도록 미리 만렙을 준 뒤 이전.
+    const highLevel = initial(0);
+    highLevel.skills.mining.level = 50;
+    const {dailyQuests: _dq, ...withoutQuests} = JSON.parse(encodeSave(highLevel));
     const legacy = {...withoutQuests, version: 7};
     delete (legacy as Record<string, unknown>).checksum;
     const migrated = decodeSave(JSON.stringify(legacy));
+    expect(migrated.skills.mining.level).toBe(50);
     expect(migrated.dailyQuests.quests.length).toBeGreaterThan(0);
+    // 스킬을 복원하기 전(레벨 1)에 퀘스트를 뽑았다면 나올 수 없는, 고레벨 전용 재료가 풀에 포함돼야 한다.
+    const pool = Object.values(ResourceDB).filter(r => !r.recipe && migrated.skills[r.skill].level >= r.reqLevel);
+    expect(pool.some(r => r.reqLevel >= 30)).toBe(true);
   });
 
-  it('퀘스트 정보가 구조적으로 잘못되면 거부한다', () => {
+  it('시간이 거슬러 온 호출은 생산 정산 시계(lastSaveTime)와 같은 날짜 기준으로 퀘스트를 판단한다', () => {
+    const s = initial(90_000_000); // dayId(90000000) = 1
+    const day1Quests = s.dailyQuests.quests;
+    advance(s, 5000); // dayId(5000) = 0 이지만 lastSaveTime은 절대 뒤로 가지 않는다
+    expect(s.lastSaveTime).toBe(90_000_000);
+    expect(s.dailyQuests.day).toBe(1); // 생산 시계와 같은 날짜 유지, 조용히 0일차로 되돌아가지 않음
+    expect(s.dailyQuests.quests).toBe(day1Quests);
+  });
+
+  it('퀘스트 정보가 구조적으로 잘못되면(형식 오류·중복 재료) 거부한다', () => {
     const s = initial(0);
     const raw = JSON.parse(encodeSave(s));
     raw.dailyQuests.quests[0].amount = -1;
@@ -85,5 +118,10 @@ describe('길드: 일일 퀘스트', () => {
     raw2.dailyQuests.quests[0].resourceId = 'brick'; // 가공품은 대상이 될 수 없음
     delete raw2.checksum;
     expect(() => decodeSave(JSON.stringify(raw2))).toThrow('퀘스트 정보 오류');
+
+    const raw3 = JSON.parse(encodeSave(s));
+    raw3.dailyQuests.quests[1].resourceId = raw3.dailyQuests.quests[0].resourceId; // 중복 재료
+    delete raw3.checksum;
+    expect(() => decodeSave(JSON.stringify(raw3))).toThrow('퀘스트 정보 오류');
   });
 });

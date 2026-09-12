@@ -1,4 +1,4 @@
-import { initial, type Model, type DailyQuest } from './model';
+import { initial, generateDailyQuests, type Model, type DailyQuest } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
@@ -63,6 +63,9 @@ export function decodeSave(text: string): Model {
     if (!object(k) || !finite(k.level) || k.level < 1 || !Number.isInteger(k.level) || !finite(k.exp) || !finite(k.maxExp) || k.maxExp <= 0) throw Error('스킬 정보 오류');
     s.skills[id] = {level: Math.min(99, k.level), exp: k.exp, maxExp: k.maxExp};
   }
+  // initial()이 만든 dailyQuests는 아직 스킬이 복원되기 전(레벨 1 기준)으로 뽑힌 것이므로,
+  // v8 이전 저장(뒤의 dailyQuests 블록이 실행되지 않음)은 방금 복원한 실제 레벨로 다시 뽑는다.
+  if (version < 8) s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
   if (version !== 1) {
     if (!object(raw.inventory) || !object(raw.tools)) throw Error('소지품 정보 오류');
     for (const [id, n] of Object.entries(raw.inventory)) {
@@ -139,8 +142,10 @@ export function decodeSave(text: string): Model {
     const dq = raw.dailyQuests;
     if (!object(dq) || !finite(dq.day) || !Number.isInteger(dq.day) || !Array.isArray(dq.quests) || dq.quests.length > 3) throw Error('퀘스트 정보 오류');
     const quests: DailyQuest[] = [];
+    const seen = new Set<string>();
     for (const q of dq.quests) {
-      if (!object(q) || typeof q.resourceId !== 'string' || !Object.hasOwn(ResourceDB, q.resourceId) || ResourceDB[q.resourceId].recipe || !finite(q.amount) || !Number.isInteger(q.amount) || q.amount <= 0 || typeof q.done !== 'boolean') throw Error('퀘스트 정보 오류');
+      if (!object(q) || typeof q.resourceId !== 'string' || !Object.hasOwn(ResourceDB, q.resourceId) || ResourceDB[q.resourceId].recipe || !finite(q.amount) || !Number.isInteger(q.amount) || q.amount <= 0 || typeof q.done !== 'boolean' || seen.has(q.resourceId)) throw Error('퀘스트 정보 오류');
+      seen.add(q.resourceId);
       quests.push({resourceId: q.resourceId, amount: q.amount, done: q.done});
     }
     s.dailyQuests = {day: dq.day, quests};

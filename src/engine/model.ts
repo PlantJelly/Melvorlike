@@ -58,7 +58,8 @@ function seededRandom(seed: number): () => number {
 }
 
 // 이미 해금한 원재료 중에서만 골라 중복 없이 최대 3개 뽑는다(해금 재료가 3개 미만인
-// 극단적인 경우에는 있는 만큼만 반환).
+// 극단적인 경우에는 있는 만큼만 반환). decodeSave가 옛 저장을 이전할 때, 스킬을 복원한
+// 뒤 해금 상태를 다시 반영해 퀘스트를 새로 뽑기 위해 이 함수를 그대로 가져다 쓴다.
 export function generateDailyQuests(s: Model, day: number, random: () => number = seededRandom(day)): DailyQuest[] {
   const pool = Object.values(ResourceDB).filter(r => !r.recipe && s.skills[r.skill].level >= r.reqLevel);
   const quests: DailyQuest[] = [];
@@ -222,7 +223,9 @@ export function advance(s: Model, time: number) {
   if (!Number.isFinite(time)) return 0;
   let elapsed = Math.max(0, time - s.lastSaveTime);
   s.lastSaveTime = Math.max(time, s.lastSaveTime);
-  refreshDailyQuests(s, time);
+  // 시간이 거슬러 오는 호출(과거 time)에도 방금 위에서 고정한 s.lastSaveTime을 날짜 기준으로
+  // 써야, 생산 정산이 쓰는 시계와 퀘스트 갱신이 쓰는 시계가 서로 어긋나지 않는다.
+  refreshDailyQuests(s, s.lastSaveTime);
   advanceFarm(s, elapsed);
   advanceRanch(s, elapsed);
   let count = 0;
@@ -341,14 +344,21 @@ export function exchangeResource(s: Model, id: string, count: number) {
   return true;
 }
 
-// 요구량만큼 인벤토리에서 소모하고 골드로 보상한다. 판매가의 2배로, 그냥 파는 것보다 낫게 한다.
-export function completeDailyQuest(s: Model, index: number) {
+// 판매가의 2배(그냥 파는 것보다 낫게)에 판매가 장신구 보너스를 반영한다 — sell()과 같은 규칙.
+// 엔진과 화면(GuildView)이 항상 같은 값을 쓰도록 이 함수 하나로 계산한다.
+export function dailyQuestReward(s: Model, quest: DailyQuest) {
+  return Math.floor(quest.amount * ResourceDB[quest.resourceId].sell * 2 * (1 + accessoryBonus(s, 'sale')));
+}
+
+// 요구량만큼 인벤토리에서 소모하고 골드로 보상한다. resourceId까지 함께 확인해, 클릭과 날짜
+// 갱신이 겹쳐 퀘스트 배열이 통째로 바뀐 사이에 다른 퀘스트를 잘못 완료 처리하지 않게 한다.
+export function completeDailyQuest(s: Model, index: number, resourceId: string) {
   const quest = s.dailyQuests.quests[index];
-  if (!quest || quest.done || (s.inventory[quest.resourceId] ?? 0) < quest.amount) return false;
+  if (!quest || quest.resourceId !== resourceId || quest.done || (s.inventory[quest.resourceId] ?? 0) < quest.amount) return false;
   const r = ResourceDB[quest.resourceId];
+  const reward = dailyQuestReward(s, quest);
   s.inventory[quest.resourceId] -= quest.amount;
   quest.done = true;
-  const reward = Math.round(quest.amount * r.sell * 2);
   s.gold += reward;
   s.notice = `일일 퀘스트 완료 · ${r.name} ${quest.amount}개 납품 · ${reward} G 획득`;
   return true;

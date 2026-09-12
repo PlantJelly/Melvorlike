@@ -51,8 +51,8 @@ export function upgradeGuildAction() {
   mutate(s => { upgradeGuild(s); });
   saveGame();
 }
-export function completeDailyQuestAction(index: number) {
-  mutate(s => { completeDailyQuest(s, index); });
+export function completeDailyQuestAction(index: number, resourceId: string) {
+  mutate(s => { completeDailyQuest(s, index, resourceId); });
   saveGame();
 }
 export function craftAccessoryAction(slotId: AccessorySlotId) {
