@@ -13,10 +13,11 @@ import { FarmingView, FarmStatus } from './ui/FarmingView';
 import { RanchingView, RanchStatus } from './ui/RanchingView';
 import { GuildView } from './ui/GuildView';
 import { EquipmentView } from './ui/EquipmentView';
+import { SettingsView } from './ui/SettingsView';
 
 function App() {
   initGameLoop();
-  const [page, setPage] = createSignal<SkillId | 'inventory' | 'tools' | 'guild' | 'equipment'>('logging');
+  const [page, setPage] = createSignal<SkillId | 'inventory' | 'tools' | 'guild' | 'equipment' | 'settings'>('logging');
   const active = () => state().currentAction;
   const resource = () => active() ? ResourceDB[active()!.resourceId] : null;
   return <div id="app">
@@ -29,6 +30,7 @@ function App() {
       <button classList={{selected: page() === 'equipment'}} onClick={() => setPage('equipment')}>장신구</button>
       <button classList={{selected: page() === 'inventory'}} onClick={() => setPage('inventory')}>보관함</button>
       <button classList={{selected: page() === 'guild'}} onClick={() => setPage('guild')}>길드</button>
+      <button classList={{selected: page() === 'settings'}} onClick={() => setPage('settings')}>설정</button>
       <p class="aside-note">첫 목표<br/>나무 5개와 돌 6개로 돌 도구를 제작해보세요.<br/><br/>다음 목표<br/>피라미를 잡아 구운 생선을 만들고, 낚시 속도를 높여보세요.</p>
     </aside>
     <main>
@@ -50,6 +52,7 @@ function App() {
       <Show when={page() === 'equipment'}><EquipmentView/></Show>
       <Show when={page() === 'inventory'}><InventoryView/></Show>
       <Show when={page() === 'guild'}><GuildView/></Show>
+      <Show when={page() === 'settings'}><SettingsView/></Show>
     </main>
   </div>;
 }

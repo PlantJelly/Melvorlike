@@ -1,0 +1,56 @@
+import { Show, createSignal } from 'solid-js';
+import { exportSave, restoreFromBackup } from '../state/gameState';
+
+function downloadBackup() {
+  const blob = new Blob([exportSave()], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `melvorlike-save-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+export function SettingsView() {
+  // 복원 성공 메시지는 state().notice를 통해 화면 상단 알림으로 이미 표시되므로
+  // 여기서는 복사/복원 결과 중 이 페이지에서만 보여줄 필요가 있는 메시지만 관리한다.
+  const [message, setMessage] = createSignal('');
+  let fileInput: HTMLInputElement | undefined;
+
+  async function copyBackup() {
+    try {
+      await navigator.clipboard.writeText(exportSave());
+      setMessage('클립보드에 복사했습니다.');
+    } catch {
+      setMessage('클립보드 복사에 실패했습니다. 이 브라우저/환경에서는 지원하지 않을 수 있습니다.');
+    }
+  }
+
+  async function onFileChosen(e: Event) {
+    const file = (e.currentTarget as HTMLInputElement).files?.[0];
+    if (fileInput) fileInput.value = '';
+    if (!file) return;
+    if (!confirm('현재 저장 데이터를 백업 파일 내용으로 덮어씁니다. 계속할까요?')) return;
+    const text = await file.text();
+    const result = restoreFromBackup(text);
+    setMessage(result.ok ? '' : `복원 실패: ${result.error}`);
+  }
+
+  return <>
+    <h1>설정</h1>
+    <p class="intro-note">저장은 이 브라우저에만 보관됩니다. 다른 기기로 옮기거나 저장 손상에 대비하려면 백업 파일을 내려받아 두세요.</p>
+    <h2 class="section-title">백업 다운로드</h2>
+    <p class="muted">현재 진행 상황을 JSON 파일로 내려받거나, 브라우저 다운로드 대화상자 없이 클립보드로 복사할 수 있습니다.</p>
+    <div class="button-row">
+      <button onClick={downloadBackup}>백업 파일 다운로드</button>
+      <button onClick={copyBackup}>클립보드에 복사</button>
+    </div>
+    <h2 class="section-title">백업 복원</h2>
+    <p class="muted">백업 파일을 선택하면 현재 저장을 덮어씁니다. 형식이 올바르지 않은 파일은 적용되지 않습니다.</p>
+    <input ref={fileInput} type="file" accept="application/json,.json" onChange={onFileChosen}/>
+    <Show when={message()}><p role="status" class="notice">{message()}</p></Show>
+  </>;
+}
