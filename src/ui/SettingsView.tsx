@@ -15,16 +15,17 @@ function downloadBackup() {
 }
 
 export function SettingsView() {
-  const [restoreMessage, setRestoreMessage] = createSignal('');
-  const [copyMessage, setCopyMessage] = createSignal('');
+  // 복원 성공 메시지는 state().notice를 통해 화면 상단 알림으로 이미 표시되므로
+  // 여기서는 복사/복원 결과 중 이 페이지에서만 보여줄 필요가 있는 메시지만 관리한다.
+  const [message, setMessage] = createSignal('');
   let fileInput: HTMLInputElement | undefined;
 
   async function copyBackup() {
     try {
       await navigator.clipboard.writeText(exportSave());
-      setCopyMessage('클립보드에 복사했습니다.');
+      setMessage('클립보드에 복사했습니다.');
     } catch {
-      setCopyMessage('클립보드 복사에 실패했습니다. 이 브라우저/환경에서는 지원하지 않을 수 있습니다.');
+      setMessage('클립보드 복사에 실패했습니다. 이 브라우저/환경에서는 지원하지 않을 수 있습니다.');
     }
   }
 
@@ -35,8 +36,7 @@ export function SettingsView() {
     if (!confirm('현재 저장 데이터를 백업 파일 내용으로 덮어씁니다. 계속할까요?')) return;
     const text = await file.text();
     const result = restoreFromBackup(text);
-    // 성공 메시지는 state().notice를 통해 화면 상단 알림으로 이미 표시되므로 여기서는 실패만 알린다.
-    setRestoreMessage(result.ok ? '' : `복원 실패: ${result.error}`);
+    setMessage(result.ok ? '' : `복원 실패: ${result.error}`);
   }
 
   return <>
@@ -48,10 +48,9 @@ export function SettingsView() {
       <button onClick={downloadBackup}>백업 파일 다운로드</button>
       <button onClick={copyBackup}>클립보드에 복사</button>
     </div>
-    <Show when={copyMessage()}><p role="status" class="notice">{copyMessage()}</p></Show>
     <h2 class="section-title">백업 복원</h2>
     <p class="muted">백업 파일을 선택하면 현재 저장을 덮어씁니다. 형식이 올바르지 않은 파일은 적용되지 않습니다.</p>
     <input ref={fileInput} type="file" accept="application/json,.json" onChange={onFileChosen}/>
-    <Show when={restoreMessage()}><p role="status" class="notice">{restoreMessage()}</p></Show>
+    <Show when={message()}><p role="status" class="notice">{message()}</p></Show>
   </>;
 }

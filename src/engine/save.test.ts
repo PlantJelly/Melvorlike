@@ -50,4 +50,27 @@ describe('백업 내보내기/복원', () => {
     noChecksum.gold = 500;
     expect(decodeSave(JSON.stringify(noChecksum)).gold).toBe(500);
   });
+
+  it('체크섬이 문자열이 아니면(타입이 깨졌어도) 검증을 건너뛰지 않고 거부한다', () => {
+    const s = initial(0);
+    const broken = JSON.parse(encodeSave(s));
+    broken.checksum = 12345;
+    expect(() => decodeSave(JSON.stringify(broken))).toThrow('저장 데이터가 손상되었거나 수정되었습니다');
+  });
+
+  it('값은 그대로 두고 키 순서만 바뀐 JSON은 체크섬 검증을 통과한다(정렬 직렬화가 실제로 동작함을 증명)', () => {
+    const s = initial(0);
+    s.gold = 777;
+    const parsed = JSON.parse(encodeSave(s));
+    const reordered: Record<string, unknown> = {};
+    for (const key of Object.keys(parsed).reverse()) reordered[key] = parsed[key];
+    expect(decodeSave(JSON.stringify(reordered)).gold).toBe(777);
+  });
+
+  it('저장 필드가 undefined여도(타입상 불가능하지만 방어적으로) 스스로 내보낸 값을 다시 읽을 수 있다', () => {
+    const s = initial(0) as unknown as Record<string, unknown>;
+    s.notice = undefined;
+    const encoded = encodeSave(s as never);
+    expect(() => decodeSave(encoded)).not.toThrow();
+  });
 });

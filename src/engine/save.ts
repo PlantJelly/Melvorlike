@@ -7,14 +7,17 @@ import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOption
 export const SAVE_KEY = 'melvorlike_save';
 
 // 키를 정렬해 직렬화한다 — 인코딩 시점과 디코딩 시점의 JS 객체 키 순서가 달라도
-// 체크섬이 항상 같은 문자열을 해시하도록 보장한다.
+// 체크섬이 항상 같은 문자열을 해시하도록 보장한다. undefined 값은 JSON.stringify와
+// 동일하게 취급한다(객체 키는 생략, 배열 원소는 null) — 그렇지 않으면 encodeSave가
+// 실제로 저장한 텍스트(undefined 키가 빠짐)와 canonical()이 해시한 내용이 어긋나
+// 손상되지 않은 저장까지 체크섬 불일치로 거부될 수 있다.
 function canonical(value: unknown): string {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const keys = Object.keys(value as Record<string, unknown>).sort();
-    return `{${keys.map(k => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`).join(',')}}`;
+  if (Array.isArray(value)) return `[${value.map(v => v === undefined ? 'null' : canonical(v)).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(',')}}`;
   }
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  return JSON.stringify(value);
+  return JSON.stringify(value) ?? 'null';
 }
 
 // 암호학적 서명이 아니라, 텍스트 편집기로 값을 슬쩍 바꾸고 그대로 복원하는 것을
@@ -41,10 +44,11 @@ export function decodeSave(text: string): Model {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
   if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
-  // 체크섬은 v7 이전 저장에는 없었으므로 있을 때만 검증한다(있는데 값이 다르면만 거부).
-  if (typeof raw.checksum === 'string') {
+  // 체크섬은 v7 이전 저장에는 없었으므로 필드 자체가 없을 때만 건너뛴다.
+  // 필드가 있는데 문자열이 아니거나 값이 다르면(타입이 깨졌어도) 거부한다.
+  if (raw.checksum !== undefined) {
     const {checksum: saved, ...rest} = raw;
-    if (checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
+    if (typeof saved !== 'string' || checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
   }
   const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
