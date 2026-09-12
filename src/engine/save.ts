@@ -1,4 +1,4 @@
-import { initial, type Model } from './model';
+import { initial, type Model, type DailyQuest } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
@@ -43,14 +43,14 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 export function decodeSave(text: string): Model {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
-  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
   // 체크섬은 v7 이전 저장에는 없었으므로 필드 자체가 없을 때만 건너뛴다.
   // 필드가 있는데 문자열이 아니거나 값이 다르면(타입이 깨졌어도) 거부한다.
   if (raw.checksum !== undefined) {
     const {checksum: saved, ...rest} = raw;
     if (typeof saved !== 'string' || checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
   }
-  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   const s = initial(raw.lastSaveTime);
   s.gold = raw.gold;
@@ -134,6 +134,16 @@ export function decodeSave(text: string): Model {
       if (typeof optionId !== 'string' || !accessoryOptionIds.includes(optionId as AccessoryOptionId) || !finite(rarity) || !Number.isInteger(rarity) || rarity > accessoryTiers[accessory.tier].maxRarity) throw Error('장신구 정보 오류');
       s.accessories[slotId] = {tier: accessory.tier, optionId: optionId as AccessoryOptionId, rarity};
     }
+  }
+  if (version >= 8) {
+    const dq = raw.dailyQuests;
+    if (!object(dq) || !finite(dq.day) || !Number.isInteger(dq.day) || !Array.isArray(dq.quests) || dq.quests.length > 3) throw Error('퀘스트 정보 오류');
+    const quests: DailyQuest[] = [];
+    for (const q of dq.quests) {
+      if (!object(q) || typeof q.resourceId !== 'string' || !Object.hasOwn(ResourceDB, q.resourceId) || ResourceDB[q.resourceId].recipe || !finite(q.amount) || !Number.isInteger(q.amount) || q.amount <= 0 || typeof q.done !== 'boolean') throw Error('퀘스트 정보 오류');
+      quests.push({resourceId: q.resourceId, amount: q.amount, done: q.done});
+    }
+    s.dailyQuests = {day: dq.day, quests};
   }
   return s;
 }

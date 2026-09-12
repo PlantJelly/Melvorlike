@@ -2,7 +2,7 @@ import { For, Show } from 'solid-js';
 import { ResourceDB, skillNames } from '../content/resources';
 import { ExchangeDB, exchangeRate, guildTiers } from '../content/guild';
 import { state } from '../state/gameState';
-import { buyResourceAction, exchangeResourceAction, upgradeGuildAction } from '../engine/actions';
+import { buyResourceAction, exchangeResourceAction, upgradeGuildAction, completeDailyQuestAction } from '../engine/actions';
 import { fmt } from './ProductionView';
 
 export function GuildView() {
@@ -19,6 +19,21 @@ export function GuildView() {
         <button disabled={state().gold < next()!.goldCost} onClick={upgradeGuildAction}>승급하기 · {fmt(next()!.goldCost)} G</button>
       </Show>
     </section>
+
+    <h2 class="section-title">일일 퀘스트</h2>
+    <p class="muted">매일 자동으로 3개가 갱신됩니다. 완료하지 않은 퀘스트는 다음 날 그냥 교체되며 손해는 없습니다.</p>
+    <div class="inventory">
+      <For each={state().dailyQuests.quests}>{(quest, i) => {
+        const r = () => ResourceDB[quest.resourceId];
+        const owned = () => state().inventory[quest.resourceId] ?? 0;
+        const reward = () => Math.round(quest.amount * r().sell * 2);
+        return <article>
+          <div><h2>{r().icon} {r().name} {quest.amount}개 납품</h2><small>보상 {fmt(reward())} G</small></div>
+          <strong>보유 {fmt(owned())}개</strong>
+          <button disabled={quest.done || owned() < quest.amount} onClick={() => completeDailyQuestAction(i())}>{quest.done ? '완료됨' : '납품'}</button>
+        </article>;
+      }}</For>
+    </div>
 
     <h2 class="section-title">재료 구매</h2>
     <p class="muted">스킬 레벨로 이미 해금한 원재료만 구매할 수 있습니다. 가공품은 대상이 아닙니다.</p>

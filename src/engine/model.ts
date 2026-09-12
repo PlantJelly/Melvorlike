@@ -15,8 +15,10 @@ import {
 } from '../content/accessories';
 import type { SkillId } from '../content/types';
 
+export interface DailyQuest { resourceId: string; amount: number; done: boolean }
+
 export interface Model {
-  version: 7;
+  version: 8;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -30,19 +32,64 @@ export interface Model {
   ranch: Record<string, number>;
   // guildTiers 인덱스. 등급이 오를수록 환전 가능한 티어 차이가 늘어난다.
   guild: number;
+  // day는 UTC 날짜 id(dayId 참고). 날짜가 바뀌면 advance()가 완료 여부와 무관하게 새로 갱신한다.
+  dailyQuests: { day: number; quests: DailyQuest[] };
   // 슬롯별 장신구는 없거나 정확히 하나만 존재한다. 승급은 동일 객체의 재질만 올려 옵션을 보존한다.
   accessories: Record<AccessorySlotId, AccessoryState | null>;
   lastSaveTime: number;
   notice: string;
 }
 
+function dayId(time: number) {
+  return Math.floor(time / 86400000);
+}
+
+// 날짜 id를 시드로 하는 결정론적 의사난수(xorshift32) — 같은 날짜·같은 해금 상태면 항상
+// 같은 퀘스트가 나오게 해서, 이 프로젝트의 다른 시간 정산과 마찬가지로 온라인(짧은 틱)과
+// 오프라인(긴 시간 한 번에 정산)이 같은 결과를 내도록 한다.
+function seededRandom(seed: number): () => number {
+  let x = seed >>> 0 || 1;
+  return () => {
+    x ^= x << 13; x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5; x >>>= 0;
+    return x / 4294967296;
+  };
+}
+
+// 이미 해금한 원재료 중에서만 골라 중복 없이 최대 3개 뽑는다(해금 재료가 3개 미만인
+// 극단적인 경우에는 있는 만큼만 반환).
+export function generateDailyQuests(s: Model, day: number, random: () => number = seededRandom(day)): DailyQuest[] {
+  const pool = Object.values(ResourceDB).filter(r => !r.recipe && s.skills[r.skill].level >= r.reqLevel);
+  const quests: DailyQuest[] = [];
+  const used = new Set<string>();
+  while (quests.length < 3 && used.size < pool.length) {
+    const r = pool[Math.floor(random() * pool.length)];
+    if (used.has(r.id)) continue;
+    used.add(r.id);
+    quests.push({ resourceId: r.id, amount: 5 + Math.floor(random() * 11), done: false });
+  }
+  return quests;
+}
+
+// 날짜가 바뀌면 완료 여부와 무관하게 새 퀘스트 3개로 교체한다(연체·이월 없음).
+function refreshDailyQuests(s: Model, time: number) {
+  const today = dayId(time);
+  if (s.dailyQuests.day !== today) {
+    s.dailyQuests = { day: today, quests: generateDailyQuests(s, today) };
+  }
+}
+
 export function initial(time = Date.now()): Model {
-  return {
-    version: 7, gold: 1000,
+  const s: Model = {
+    version: 8, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: 100 }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
-    inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0, accessories: emptyAccessories(), lastSaveTime: time, notice: '',
+    inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0,
+    dailyQuests: { day: dayId(time), quests: [] }, accessories: emptyAccessories(), lastSaveTime: time, notice: '',
   };
+  s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
+  return s;
 }
 
 export function accessoryBonus(s: Model, optionId: AccessoryOptionId) {
@@ -175,6 +222,7 @@ export function advance(s: Model, time: number) {
   if (!Number.isFinite(time)) return 0;
   let elapsed = Math.max(0, time - s.lastSaveTime);
   s.lastSaveTime = Math.max(time, s.lastSaveTime);
+  refreshDailyQuests(s, time);
   advanceFarm(s, elapsed);
   advanceRanch(s, elapsed);
   let count = 0;
@@ -290,6 +338,19 @@ export function exchangeResource(s: Model, id: string, count: number) {
   if (gained <= 0) return false;
   s.inventory[id] -= count;
   s.inventory[ex.targetId] = (s.inventory[ex.targetId] ?? 0) + gained;
+  return true;
+}
+
+// 요구량만큼 인벤토리에서 소모하고 골드로 보상한다. 판매가의 2배로, 그냥 파는 것보다 낫게 한다.
+export function completeDailyQuest(s: Model, index: number) {
+  const quest = s.dailyQuests.quests[index];
+  if (!quest || quest.done || (s.inventory[quest.resourceId] ?? 0) < quest.amount) return false;
+  const r = ResourceDB[quest.resourceId];
+  s.inventory[quest.resourceId] -= quest.amount;
+  quest.done = true;
+  const reward = Math.round(quest.amount * r.sell * 2);
+  s.gold += reward;
+  s.notice = `일일 퀘스트 완료 · ${r.name} ${quest.amount}개 납품 · ${reward} G 획득`;
   return true;
 }
 
