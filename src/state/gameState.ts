@@ -30,6 +30,24 @@ catch {
     mutate(s => { s.notice = '저장 공간에 접근할 수 없습니다. 브라우저 설정을 확인해주세요.'; });
 } }
 
+// 다른 탭이 저장을 갱신하면 이 탭의 메모리 상태도 그 내용으로 맞춘다. storage 이벤트는
+// 값을 쓴 탭 자신에게는 발생하지 않고 다른 탭에서만 발생하므로, 오래 방치된 탭이 자신의
+// 다음 자동 저장에서 그 최신 내용을 조용히 덮어쓰는 것을 막는다(개발 중 실제로 목격한 문제).
+// 완벽한 동시 편집 병합이 아니라 그 조용한 덮어쓰기를 막는 것이 목적이다.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', e => {
+    if (e.key !== SAVE_KEY || !e.newValue) return;
+    try {
+      const s = decodeSave(e.newValue);
+      advance(s, Date.now());
+      blocked = false;
+      setState(s);
+    } catch {
+      // 다른 탭이 쓴 값이 유효하지 않으면 무시하고 이 탭의 상태를 그대로 유지한다.
+    }
+  });
+}
+
 export function exportSave() { return encodeSave(state()); }
 
 // 백업 복원은 decodeSave로 먼저 검증하고, 성공할 때만 기존 저장을 덮어쓴다.
