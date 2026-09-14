@@ -68,14 +68,16 @@ describe('길드: 일일 퀘스트', () => {
 
   it('클릭 순간 날짜가 바뀌어 퀘스트가 통째로 교체돼도, resourceId가 다르면 엉뚱한 퀘스트를 완료하지 않는다', () => {
     const s = initial(0);
-    const oldQuest = s.dailyQuests.quests[0];
+    const index = 1;
+    const oldQuest = s.dailyQuests.quests[index];
     s.inventory[oldQuest.resourceId] = oldQuest.amount;
-    advance(s, DAY); // 날짜가 바뀌어 퀘스트가 전부 새로 생성됨(같은 인덱스라도 다른 퀘스트일 수 있음)
-    // index 0은 이제 새 퀘스트를 가리키지만, 화면이 보여줬던(오래된) resourceId로 확인을 요청한다.
-    if (s.dailyQuests.quests[0].resourceId !== oldQuest.resourceId) {
-      expect(completeDailyQuest(s, 0, oldQuest.resourceId)).toBe(false);
-      expect(s.gold).toBe(1000);
+    for (let day = 1; day <= 100 && s.dailyQuests.quests[index].resourceId === oldQuest.resourceId; day++) {
+      advance(s, DAY * day);
     }
+    expect(s.dailyQuests.quests[index].resourceId).not.toBe(oldQuest.resourceId);
+    expect(completeDailyQuest(s, index, oldQuest.resourceId)).toBe(false);
+    expect(s.gold).toBe(1000);
+    expect(s.inventory[oldQuest.resourceId]).toBe(oldQuest.amount);
   });
 
   it('v8 저장은 왕복 시 퀘스트 상태가 정확히 보존되고, v7 이전 저장은 복원된 실제 스킬 레벨로 새 퀘스트를 채운다', () => {
@@ -85,7 +87,7 @@ describe('길드: 일일 퀘스트', () => {
     const restored = decodeSave(encodeSave(s));
     expect(restored.dailyQuests).toEqual(s.dailyQuests);
 
-    // 레벨 1로는 절대 해금되지 않는 채광 Lv50 전용 재료(gold_ore)만 뽑히도록 미리 만렙을 준 뒤 이전.
+    // 레벨 1에서는 나오지 않는 고레벨 채광 재료가 실제 생성 결과에 포함되도록 미리 레벨을 준 뒤 이전.
     const highLevel = initial(0);
     highLevel.skills.mining.level = 50;
     const {dailyQuests: _dq, ...withoutQuests} = JSON.parse(encodeSave(highLevel));
@@ -93,10 +95,9 @@ describe('길드: 일일 퀘스트', () => {
     delete (legacy as Record<string, unknown>).checksum;
     const migrated = decodeSave(JSON.stringify(legacy));
     expect(migrated.skills.mining.level).toBe(50);
-    expect(migrated.dailyQuests.quests.length).toBeGreaterThan(0);
-    // 스킬을 복원하기 전(레벨 1)에 퀘스트를 뽑았다면 나올 수 없는, 고레벨 전용 재료가 풀에 포함돼야 한다.
-    const pool = Object.values(ResourceDB).filter(r => !r.recipe && migrated.skills[r.skill].level >= r.reqLevel);
-    expect(pool.some(r => r.reqLevel >= 30)).toBe(true);
+    expect(migrated.dailyQuests.quests).toEqual(generateDailyQuests(highLevel, 0));
+    // 스킬 복원 전 레벨 1 상태로 생성했다면 이 검증은 실패한다(day 0 시드에서는 마나석이 선택됨).
+    expect(migrated.dailyQuests.quests.some(q => ResourceDB[q.resourceId].reqLevel >= 30)).toBe(true);
   });
 
   it('시간이 거슬러 온 호출은 생산 정산 시계(lastSaveTime)와 같은 날짜 기준으로 퀘스트를 판단한다', () => {
