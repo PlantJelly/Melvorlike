@@ -63,11 +63,9 @@ function seededRandom(seed: number): () => number {
 export function generateDailyQuests(s: Model, day: number, random: () => number = seededRandom(day)): DailyQuest[] {
   const pool = Object.values(ResourceDB).filter(r => !r.recipe && s.skills[r.skill].level >= r.reqLevel);
   const quests: DailyQuest[] = [];
-  const used = new Set<string>();
-  while (quests.length < 3 && used.size < pool.length) {
-    const r = pool[Math.floor(random() * pool.length)];
-    if (used.has(r.id)) continue;
-    used.add(r.id);
+  // 뽑힌 항목을 후보군에서 제거하면 난수 함수가 같은 값을 반복해도 루프가 반드시 끝난다.
+  while (quests.length < 3 && pool.length) {
+    const [r] = pool.splice(Math.floor(random() * pool.length), 1);
     quests.push({ resourceId: r.id, amount: 5 + Math.floor(random() * 11), done: false });
   }
   return quests;

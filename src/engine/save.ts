@@ -140,11 +140,13 @@ export function decodeSave(text: string): Model {
   }
   if (version >= 8) {
     const dq = raw.dailyQuests;
-    if (!object(dq) || !finite(dq.day) || !Number.isInteger(dq.day) || !Array.isArray(dq.quests) || dq.quests.length > 3) throw Error('퀘스트 정보 오류');
+    if (!object(dq) || !finite(dq.day) || !Number.isInteger(dq.day) || !Array.isArray(dq.quests) || dq.quests.length !== 3) throw Error('퀘스트 정보 오류');
     const quests: DailyQuest[] = [];
     const seen = new Set<string>();
     for (const q of dq.quests) {
-      if (!object(q) || typeof q.resourceId !== 'string' || !Object.hasOwn(ResourceDB, q.resourceId) || ResourceDB[q.resourceId].recipe || !finite(q.amount) || !Number.isInteger(q.amount) || q.amount <= 0 || typeof q.done !== 'boolean' || seen.has(q.resourceId)) throw Error('퀘스트 정보 오류');
+      if (!object(q) || typeof q.resourceId !== 'string' || !Object.hasOwn(ResourceDB, q.resourceId)) throw Error('퀘스트 정보 오류');
+      const resource = ResourceDB[q.resourceId];
+      if (resource.recipe || s.skills[resource.skill].level < resource.reqLevel || !finite(q.amount) || !Number.isInteger(q.amount) || q.amount < 5 || q.amount > 15 || typeof q.done !== 'boolean' || seen.has(q.resourceId)) throw Error('퀘스트 정보 오류');
       seen.add(q.resourceId);
       quests.push({resourceId: q.resourceId, amount: q.amount, done: q.done});
     }

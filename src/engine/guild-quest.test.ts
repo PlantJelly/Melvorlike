@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ResourceDB } from '../content/resources';
-import { advance, completeDailyQuest, dailyQuestReward, initial } from './model';
+import { advance, completeDailyQuest, dailyQuestReward, generateDailyQuests, initial } from './model';
 import { decodeSave, encodeSave } from './save';
 
 const DAY = 86400000;
@@ -18,6 +18,7 @@ describe('길드: 일일 퀘스트', () => {
     }
     const other = initial(0);
     expect(other.dailyQuests).toEqual(s.dailyQuests);
+    expect(generateDailyQuests(s, 0, () => 0)).toHaveLength(3); // 같은 난수만 반복해도 종료되고 중복되지 않음
   });
 
   it('날짜가 바뀌면 완료 여부와 무관하게 새 퀘스트로 교체되고, 같은 날에는 그대로 유지된다', () => {
@@ -123,5 +124,20 @@ describe('길드: 일일 퀘스트', () => {
     raw3.dailyQuests.quests[1].resourceId = raw3.dailyQuests.quests[0].resourceId; // 중복 재료
     delete raw3.checksum;
     expect(() => decodeSave(JSON.stringify(raw3))).toThrow('퀘스트 정보 오류');
+
+    const raw4 = JSON.parse(encodeSave(s));
+    raw4.dailyQuests.quests.pop(); // 정상 저장은 매일 정확히 3개
+    delete raw4.checksum;
+    expect(() => decodeSave(JSON.stringify(raw4))).toThrow('퀘스트 정보 오류');
+
+    const raw5 = JSON.parse(encodeSave(s));
+    raw5.dailyQuests.quests[0].amount = 16; // 생성 범위 밖 수량
+    delete raw5.checksum;
+    expect(() => decodeSave(JSON.stringify(raw5))).toThrow('퀘스트 정보 오류');
+
+    const raw6 = JSON.parse(encodeSave(s));
+    raw6.dailyQuests.quests[0].resourceId = 'magic_wood'; // 현재 벌목 Lv1에서 잠긴 원재료
+    delete raw6.checksum;
+    expect(() => decodeSave(JSON.stringify(raw6))).toThrow('퀘스트 정보 오류');
   });
 });
