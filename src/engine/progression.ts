@@ -1,4 +1,4 @@
-import { ResourceDB, cropYield, playable, toolTiers } from '../content/resources';
+import { ResourceDB, cropYield, passiveSkills, playable, toolTiers } from '../content/resources';
 import type { ResourceDef, SkillId } from '../content/types';
 import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
 
@@ -36,6 +36,21 @@ export interface SkillProgressionResult {
   actions: number;
 }
 
+export interface ProductionRouteStep {
+  resourceId: string;
+  requiredUnits: number;
+  actions: number;
+  producedUnits: number;
+  durationMs: number;
+}
+
+export interface ProductionRoute {
+  steps: ProductionRouteStep[];
+  rawRequirements: Record<string, number>;
+  timeBySkillMs: Record<SkillId, number>;
+  activeTimeMs: number;
+}
+
 function assertBonus(value: number, name: string) {
   if (!Number.isFinite(value) || value < 0) throw new RangeError(`${name} 보너스가 올바르지 않습니다.`);
 }
@@ -44,6 +59,10 @@ function assertScenario(scenario: ProgressionScenario) {
   assertBonus(scenario.foodSpeedBonus, '음식 속도');
   assertBonus(scenario.accessorySpeedBonus, '장신구 속도');
   assertBonus(scenario.experienceBonus, '경험치');
+}
+
+function unitsPerAction(resource: ResourceDef) {
+  return resource.skill === 'farming' ? cropYield[resource.id] ?? 1 : 1;
 }
 
 export function toolTierAtLevel(level: number, automaticTools: boolean): number {
@@ -61,14 +80,14 @@ function rateFor(resource: ResourceDef, scenario: ProgressionScenario, level: nu
   const speed = getSpeedMultiplier(toolTiers[toolTier].bonus, scenario.foodSpeedBonus, scenario.accessorySpeedBonus);
   const durationMs = resource.baseDurationMs / speed;
   const actionsPerHour = 3_600_000 / durationMs;
-  const unitsPerAction = resource.skill === 'farming' ? cropYield[resource.id] ?? 1 : 1;
+  const output = unitsPerAction(resource);
   return {
     resourceId: resource.id,
     durationMs,
     actionsPerHour,
-    unitsPerHour: actionsPerHour * unitsPerAction,
+    unitsPerHour: actionsPerHour * output,
     experiencePerHour: actionsPerHour * resource.exp * (1 + scenario.experienceBonus),
-    grossGoldPerHour: actionsPerHour * unitsPerAction * resource.sell,
+    grossGoldPerHour: actionsPerHour * output * resource.sell,
   };
 }
 
@@ -126,4 +145,60 @@ export function simulateSkillToLevel(skill: SkillId, targetLevel: number, scenar
   }
 
   return {skill, targetLevel, elapsedMs, actions};
+}
+
+export function planProductionRequirements(
+  targets: Record<string, number>,
+  scenario: ProgressionScenario,
+  levels: Partial<Record<SkillId, number>> = {},
+): ProductionRoute {
+  assertScenario(scenario);
+  if (Object.keys(targets).length === 0) throw new RangeError('생산 목표가 비어 있습니다.');
+  const required = new Map<string, number>();
+  const order: string[] = [];
+  const ordered = new Set<string>();
+
+  const visit = (resourceId: string, count: number, ancestors: Set<string>) => {
+    const resource = Object.hasOwn(ResourceDB, resourceId) ? ResourceDB[resourceId] : undefined;
+    if (!resource) throw new RangeError(`알 수 없는 자원: ${resourceId}`);
+    if (!Number.isSafeInteger(count) || count <= 0) throw new RangeError(`${resource.name} 요구량이 올바르지 않습니다: ${count}`);
+    if (ancestors.has(resourceId)) throw new Error(`순환 레시피를 계산할 수 없습니다: ${[...ancestors, resourceId].join(' → ')}`);
+
+    required.set(resourceId, (required.get(resourceId) ?? 0) + count);
+    if (resource.recipe) {
+      const nextAncestors = new Set(ancestors).add(resourceId);
+      for (const [ingredientId, amount] of Object.entries(resource.recipe)) {
+        visit(ingredientId, amount * count, nextAncestors);
+      }
+    }
+    if (!ordered.has(resourceId)) {
+      ordered.add(resourceId);
+      order.push(resourceId);
+    }
+  };
+
+  for (const [resourceId, count] of Object.entries(targets)) visit(resourceId, count, new Set());
+
+  const timeBySkillMs = Object.fromEntries(playable.map(skill => [skill, 0])) as Record<SkillId, number>;
+  const rawRequirements: Record<string, number> = {};
+  const steps = order.map(resourceId => {
+    const resource = ResourceDB[resourceId];
+    const requiredUnits = required.get(resourceId)!;
+    const output = unitsPerAction(resource);
+    const actions = Math.ceil(requiredUnits / output);
+    const level = levels[resource.skill] ?? resource.reqLevel;
+    const durationMs = resourceRate(resourceId, scenario, level).durationMs * actions;
+    timeBySkillMs[resource.skill] += durationMs;
+    if (!resource.recipe) rawRequirements[resourceId] = requiredUnits;
+    return {resourceId, requiredUnits, actions, producedUnits: actions * output, durationMs};
+  });
+
+  const activeTimeMs = playable
+    .filter(skill => !passiveSkills.includes(skill))
+    .reduce((sum, skill) => sum + timeBySkillMs[skill], 0);
+  return {steps, rawRequirements, timeBySkillMs, activeTimeMs};
+}
+
+export function planProduction(resourceId: string, count: number, scenario: ProgressionScenario, levels: Partial<Record<SkillId, number>> = {}) {
+  return planProductionRequirements({[resourceId]: count}, scenario, levels);
 }

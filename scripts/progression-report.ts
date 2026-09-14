@@ -1,12 +1,21 @@
-import { ResourceDB, playable, skillNames } from '../src/content/resources';
-import { progressionCheckpoints, progressionScenarios, resourceRate, simulateSkillToLevel } from '../src/engine/progression';
+import { ResourceDB, playable, skillNames, toolTiers } from '../src/content/resources';
+import { planProduction, planProductionRequirements, progressionCheckpoints, progressionScenarios, resourceRate, simulateSkillToLevel } from '../src/engine/progression';
 
 function duration(ms: number) {
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}초`;
   const minutes = ms / 60_000;
   if (minutes < 60) return `${minutes.toFixed(1)}분`;
   const hours = minutes / 60;
   if (hours < 48) return `${hours.toFixed(1)}시간`;
   return `${(hours / 24).toFixed(1)}일`;
+}
+
+function requirements(items: Record<string, number>) {
+  return Object.entries(items).map(([id, count]) => `${ResourceDB[id].name} ${count}개`).join(', ');
+}
+
+function skillTimes(timeBySkillMs: Record<(typeof playable)[number], number>) {
+  return playable.filter(skill => timeBySkillMs[skill] > 0).map(skill => `${skillNames[skill]} ${duration(timeBySkillMs[skill])}`).join(', ');
 }
 
 function number(value: number) {
@@ -40,4 +49,20 @@ console.log('| --- | --- | ---: | ---: | ---: | ---: | ---: |');
 for (const resource of Object.values(ResourceDB)) {
   const rate = resourceRate(resource.id, progressionScenarios[0], resource.reqLevel);
   console.log(`| ${skillNames[resource.skill]} | ${resource.name} | Lv.${resource.reqLevel} | ${(rate.durationMs / 1000).toFixed(1)}초 | ${number(rate.unitsPerHour)} | ${number(rate.experiencePerHour)} | ${number(rate.grossGoldPerHour)} G |`);
+}
+
+console.log('');
+console.log('## 초반 생산 경로');
+console.log('');
+console.log('- 모든 작업은 무도구 기준입니다. 액티브 시간은 한 번에 하나만 수행하는 스킬의 합계이며, 농사·목장 시간은 스킬별 시간에 별도로 표시됩니다.');
+console.log('| 목표 | 필요한 원재료 | 스킬별 작업 시간 | 액티브 합계 |');
+console.log('| --- | --- | --- | ---: |');
+const routes = [
+  {name: '돌 도구 1개', route: planProductionRequirements(toolTiers[1].cost, progressionScenarios[0])},
+  {name: '구리 도구 1개', route: planProductionRequirements(toolTiers[2].cost, progressionScenarios[0])},
+  {name: '철 도구 1개', route: planProductionRequirements(toolTiers[3].cost, progressionScenarios[0])},
+  {name: '구운 생선 1개', route: planProduction('grilled_fish', 1, progressionScenarios[0])},
+];
+for (const target of routes) {
+  console.log(`| ${target.name} | ${requirements(target.route.rawRequirements)} | ${skillTimes(target.route.timeBySkillMs)} | ${duration(target.route.activeTimeMs)} |`);
 }

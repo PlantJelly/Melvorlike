@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { ResourceDB } from '../content/resources';
 import { experienceToNextLevel } from './formulas';
-import { progressionScenarios, resourceRate, simulateSkillToLevel, totalExperienceToLevel } from './progression';
+import { planProduction, planProductionRequirements, progressionScenarios, resourceRate, simulateSkillToLevel, totalExperienceToLevel } from './progression';
 
 describe('성장 곡선 시뮬레이터', () => {
   const bare = progressionScenarios[0];
@@ -45,5 +46,40 @@ describe('성장 곡선 시뮬레이터', () => {
     expect(() => resourceRate('missing', bare, 1)).toThrow('알 수 없는 자원');
     expect(() => totalExperienceToLevel(100)).toThrow('유효하지 않은 레벨 구간');
     expect(() => simulateSkillToLevel('logging', 0, bare)).toThrow('유효하지 않은 목표 레벨');
+  });
+
+  it('돌 도구 재료를 실제 레시피에서 펼쳐 스킬별 51초 경로로 계산한다', () => {
+    const route = planProductionRequirements({wood: 5, brick: 3}, bare);
+    expect(route.rawRequirements).toEqual({wood: 5, stone: 6});
+    expect(route.steps.find(step => step.resourceId === 'brick')).toMatchObject({requiredUnits: 3, actions: 3});
+    expect(route.timeBySkillMs.logging).toBe(15000);
+    expect(route.timeBySkillMs.mining).toBe(24000);
+    expect(route.timeBySkillMs.blacksmithing).toBe(12000);
+    expect(route.activeTimeMs).toBe(51000);
+  });
+
+  it('첫 구운 생선의 원재료와 가공 시간을 계산한다', () => {
+    const route = planProduction('grilled_fish', 1, bare);
+    expect(route.rawRequirements).toEqual({fish_small: 2});
+    expect(route.timeBySkillMs.fishing).toBe(7000);
+    expect(route.timeBySkillMs.cooking).toBe(5000);
+    expect(route.activeTimeMs).toBe(12000);
+  });
+
+  it('생산 경로의 잘못된 자원과 요구량을 거부한다', () => {
+    expect(() => planProduction('missing', 1, bare)).toThrow('알 수 없는 자원');
+    expect(() => planProduction('wood', 0, bare)).toThrow('요구량이 올바르지 않습니다');
+    expect(() => planProductionRequirements({}, bare)).toThrow('생산 목표가 비어 있습니다');
+  });
+
+  it('잘못 추가된 순환 레시피를 무한 재귀 전에 거부한다', () => {
+    ResourceDB.cycle_a = {...ResourceDB.wood, id: 'cycle_a', name: '순환 A', recipe: {cycle_b: 1}};
+    ResourceDB.cycle_b = {...ResourceDB.wood, id: 'cycle_b', name: '순환 B', recipe: {cycle_a: 1}};
+    try {
+      expect(() => planProduction('cycle_a', 1, bare)).toThrow('순환 레시피를 계산할 수 없습니다');
+    } finally {
+      delete ResourceDB.cycle_a;
+      delete ResourceDB.cycle_b;
+    }
   });
 });
