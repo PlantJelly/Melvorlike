@@ -1,7 +1,8 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, upgrade, sell, eat, buyResource, plant, harvest, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, craftAccessory, upgradeAccessory, rerollAccessory } from './model';
+import { begin, upgrade, sell, eat, buyResource, plant, harvest, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory } from './model';
 import type { SkillId } from '../content/types';
 import type { AccessorySlotId } from '../content/accessories';
+import type { MilestoneId } from '../content/guild';
 
 export function startAction(_skill: SkillId, id: string) {
   mutate(s => { begin(s, id); });
@@ -53,6 +54,10 @@ export function upgradeGuildAction() {
 }
 export function completeDailyQuestAction(index: number, resourceId: string) {
   mutate(s => { completeDailyQuest(s, index, resourceId); });
+  saveGame();
+}
+export function claimMilestoneAction(id: MilestoneId) {
+  mutate(s => { claimMilestone(s, id); });
   saveGame();
 }
 export function craftAccessoryAction(slotId: AccessorySlotId) {

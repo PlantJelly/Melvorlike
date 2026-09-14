@@ -1,9 +1,9 @@
 import { For, Show } from 'solid-js';
 import { ResourceDB, skillNames } from '../content/resources';
-import { ExchangeDB, exchangeRate, guildTiers } from '../content/guild';
+import { ExchangeDB, exchangeRate, guildTiers, milestones } from '../content/guild';
 import { state } from '../state/gameState';
-import { buyResourceAction, exchangeResourceAction, upgradeGuildAction, completeDailyQuestAction } from '../engine/actions';
-import { dailyQuestReward } from '../engine/model';
+import { buyResourceAction, exchangeResourceAction, upgradeGuildAction, completeDailyQuestAction, claimMilestoneAction } from '../engine/actions';
+import { dailyQuestReward, milestoneReady } from '../engine/model';
 import { fmt } from './ProductionView';
 
 export function GuildView() {
@@ -20,6 +20,20 @@ export function GuildView() {
         <button disabled={state().gold < next()!.goldCost} onClick={upgradeGuildAction}>승급하기 · {fmt(next()!.goldCost)} G</button>
       </Show>
     </section>
+
+    <h2 class="section-title">마일스톤 퀘스트</h2>
+    <p class="muted">왕국을 성장시키며 한 번씩 달성하는 목표입니다. 달성한 보상은 직접 수령할 수 있습니다.</p>
+    <div class="inventory">
+      <For each={milestones}>{milestone => {
+        const claimed = () => state().milestones.claimed.includes(milestone.id);
+        const ready = () => milestoneReady(state(), milestone.id);
+        return <article>
+          <div><h2>{milestone.icon} {milestone.name}</h2><small>{milestone.description} · 보상 {fmt(milestone.reward)} G</small></div>
+          <strong>{claimed() ? '수령 완료' : ready() ? '달성' : '진행 중'}</strong>
+          <button disabled={claimed() || !ready()} onClick={() => claimMilestoneAction(milestone.id)}>{claimed() ? '완료됨' : ready() ? '보상 받기' : '미달성'}</button>
+        </article>;
+      }}</For>
+    </div>
 
     <h2 class="section-title">일일 퀘스트</h2>
     <p class="muted">매일 자동으로 3개가 갱신됩니다. 완료하지 않은 퀘스트는 다음 날 그냥 교체되며 손해는 없습니다.</p>
