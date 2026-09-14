@@ -14,6 +14,7 @@ import {
   type AccessoryState,
 } from '../content/accessories';
 import type { SkillId } from '../content/types';
+import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
 
 export interface Model {
   version: 7;
@@ -39,7 +40,7 @@ export interface Model {
 export function initial(time = Date.now()): Model {
   return {
     version: 7, gold: 1000,
-    skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: 100 }])) as Model['skills'],
+    skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: experienceToNextLevel(1) }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
     inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0, accessories: emptyAccessories(), lastSaveTime: time, notice: '',
   };
@@ -57,7 +58,11 @@ export function accessoryBonus(s: Model, optionId: AccessoryOptionId) {
 
 export function speedMultiplier(s: Model, skill: SkillId) {
   const food = s.meal && s.meal.remainingMs > 0 ? FoodDB[s.meal.foodId] : null;
-  return 1 + toolTiers[s.tools[skill]].bonus + (food?.skills.includes(skill) ? food.speedBonus : 0) + accessoryBonus(s, 'speed');
+  return getSpeedMultiplier(
+    toolTiers[s.tools[skill]].bonus,
+    food?.skills.includes(skill) ? food.speedBonus : 0,
+    accessoryBonus(s, 'speed'),
+  );
 }
 
 export function duration(s: Model, id: string) {
@@ -75,12 +80,12 @@ function spend(s: Model, cost: Record<string, number>, count = 1) {
 function addExperience(s: Model, skillId: SkillId, amount: number) {
   const skill = s.skills[skillId];
   skill.exp += amount * (1 + accessoryBonus(s, 'experience'));
-  while (skill.level < 99 && skill.exp >= skill.maxExp) {
+  while (skill.level < MAX_SKILL_LEVEL && skill.exp >= skill.maxExp) {
     skill.exp -= skill.maxExp;
     skill.level++;
-    skill.maxExp = Math.floor(100 * Math.pow(1.12, skill.level - 1));
+    skill.maxExp = experienceToNextLevel(skill.level);
   }
-  if (skill.level === 99) skill.exp = Math.min(skill.exp, skill.maxExp);
+  if (skill.level === MAX_SKILL_LEVEL) skill.exp = Math.min(skill.exp, skill.maxExp);
 }
 
 // 한 구간 안에서는 속도가 일정하므로 횟수별 반복 없이 전체 생산량을 계산한다.
