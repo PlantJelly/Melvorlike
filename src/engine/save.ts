@@ -1,8 +1,8 @@
-import { initial, generateDailyQuests, type Model, type DailyQuest } from './model';
+import { initial, generateDailyQuests, milestoneReady, type Model, type DailyQuest } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
-import { guildTiers } from '../content/guild';
+import { guildTiers, milestoneIds, type MilestoneId } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 export const SAVE_KEY = 'melvorlike_save';
 
@@ -43,14 +43,14 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 export function decodeSave(text: string): Model {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
-  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
   // 체크섬은 v7 이전 저장에는 없었으므로 필드 자체가 없을 때만 건너뛴다.
   // 필드가 있는데 문자열이 아니거나 값이 다르면(타입이 깨졌어도) 거부한다.
   if (raw.checksum !== undefined) {
     const {checksum: saved, ...rest} = raw;
     if (typeof saved !== 'string' || checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
   }
-  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   const s = initial(raw.lastSaveTime);
   s.gold = raw.gold;
@@ -151,6 +151,19 @@ export function decodeSave(text: string): Model {
       quests.push({resourceId: q.resourceId, amount: q.amount, done: q.done});
     }
     s.dailyQuests = {day: dq.day, quests};
+  }
+  if (version >= 9) {
+    const state = raw.milestones;
+    if (!object(state) || !Array.isArray(state.claimed) || typeof state.exchangeUsed !== 'boolean') throw Error('마일스톤 정보 오류');
+    const claimed: MilestoneId[] = [];
+    const seen = new Set<string>();
+    for (const id of state.claimed) {
+      if (typeof id !== 'string' || !milestoneIds.includes(id as MilestoneId) || seen.has(id)) throw Error('마일스톤 정보 오류');
+      seen.add(id);
+      claimed.push(id as MilestoneId);
+    }
+    s.milestones = {claimed, exchangeUsed: state.exchangeUsed};
+    if (claimed.some(id => !milestoneReady(s, id))) throw Error('마일스톤 정보 오류');
   }
   return s;
 }

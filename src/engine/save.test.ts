@@ -25,6 +25,7 @@ describe('백업 내보내기/복원', () => {
     expect(restored.farmPlot).toEqual(s.farmPlot);
     expect(restored.ranch).toEqual(s.ranch);
     expect(restored.guild).toBe(s.guild);
+    expect(restored.milestones).toEqual(s.milestones);
     expect(restored.accessories).toEqual(s.accessories);
     expect(restored.lastSaveTime).toBe(s.lastSaveTime);
   });

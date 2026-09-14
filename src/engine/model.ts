@@ -1,7 +1,7 @@
 import { ResourceDB, toolTiers, playable, cropYield, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
-import { ExchangeDB, exchangeRate, guildTiers } from '../content/guild';
+import { ExchangeDB, exchangeRate, guildTiers, milestoneById, type MilestoneId } from '../content/guild';
 import {
   accessoryOptionIds,
   accessoryOptions,
@@ -19,7 +19,7 @@ import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './fo
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
 export interface Model {
-  version: 8;
+  version: 9;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -35,6 +35,8 @@ export interface Model {
   guild: number;
   // day는 UTC 날짜 id(dayId 참고). 날짜가 바뀌면 advance()가 완료 여부와 무관하게 새로 갱신한다.
   dailyQuests: { day: number; quests: DailyQuest[] };
+  // 달성 조건은 기존 영구 상태에서 계산하고 수령 여부만 저장한다. 과거 상태로 추론할 수 없는 환전만 별도 기록한다.
+  milestones: { claimed: MilestoneId[]; exchangeUsed: boolean };
   // 슬롯별 장신구는 없거나 정확히 하나만 존재한다. 승급은 동일 객체의 재질만 올려 옵션을 보존한다.
   accessories: Record<AccessorySlotId, AccessoryState | null>;
   lastSaveTime: number;
@@ -82,11 +84,12 @@ function refreshDailyQuests(s: Model, time: number) {
 
 export function initial(time = Date.now()): Model {
   const s: Model = {
-    version: 8, gold: 1000,
+    version: 9, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: experienceToNextLevel(1) }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
     inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0,
-    dailyQuests: { day: dayId(time), quests: [] }, accessories: emptyAccessories(), lastSaveTime: time, notice: '',
+    dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
+    accessories: emptyAccessories(), lastSaveTime: time, notice: '',
   };
   s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
   return s;
@@ -344,6 +347,34 @@ export function exchangeResource(s: Model, id: string, count: number) {
   if (gained <= 0) return false;
   s.inventory[id] -= count;
   s.inventory[ex.targetId] = (s.inventory[ex.targetId] ?? 0) + gained;
+  s.milestones.exchangeUsed = true;
+  return true;
+}
+
+function skillHasProgress(s: Model, skill: SkillId) {
+  return s.skills[skill].level > 1 || s.skills[skill].exp > 0;
+}
+
+export function milestoneReady(s: Model, id: MilestoneId) {
+  switch (id) {
+    case 'first_gather': return (['logging', 'mining', 'fishing'] as const).some(skill => skillHasProgress(s, skill));
+    case 'any_skill_10': return playable.some(skill => s.skills[skill].level >= 10);
+    case 'first_tool': return playable.some(skill => s.tools[skill] > 0);
+    case 'first_meal': return skillHasProgress(s, 'cooking');
+    case 'first_animal': return Object.keys(s.ranch).length > 0;
+    case 'first_harvest': return skillHasProgress(s, 'farming');
+    case 'first_exchange': return s.milestones.exchangeUsed;
+    case 'any_skill_50': return playable.some(skill => s.skills[skill].level >= 50);
+    case 'first_enchantment_stone': return skillHasProgress(s, 'magic');
+  }
+}
+
+export function claimMilestone(s: Model, id: MilestoneId) {
+  const milestone = milestoneById[id];
+  if (!milestone || s.milestones.claimed.includes(id) || !milestoneReady(s, id)) return false;
+  s.milestones.claimed.push(id);
+  s.gold += milestone.reward;
+  s.notice = `마일스톤 완료 · ${milestone.name} · ${milestone.reward} G 획득`;
   return true;
 }
 
