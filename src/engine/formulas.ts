@@ -4,6 +4,18 @@
  */
 
 export const MIN_ACTION_DURATION_MS = 100;
+export const MAX_SKILL_LEVEL = 99;
+
+export function experienceToNextLevel(level: number): number {
+  if (!Number.isInteger(level) || level < 1 || level > MAX_SKILL_LEVEL) {
+    throw new RangeError(`유효하지 않은 스킬 레벨: ${level}`);
+  }
+  return Math.floor(100 * Math.pow(1.12, level - 1));
+}
+
+export function getSpeedMultiplier(...bonuses: number[]): number {
+  return 1 + Math.max(0, bonuses.reduce((sum, bonus) => sum + bonus, 0));
+}
 
 /**
  * speedBonus: 0 = +0%, 1 = +100% ...
