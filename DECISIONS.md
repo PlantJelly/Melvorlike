@@ -121,3 +121,17 @@
 - Save architecture: save schema v9 adds `{claimed: MilestoneId[]; exchangeUsed: boolean}`. v1–v8 saves keep all prior state, start with no claimed rewards, and can immediately claim milestones inferred from restored permanent progress. Prior exchange use cannot be reconstructed honestly, so migrated players must perform one new successful exchange for that milestone. v9 validation rejects unknown or duplicate ids, malformed flags, and claimed milestones whose permanent condition is not satisfied.
 - Rationale: storing only irreducible facts avoids nine parallel booleans drifting away from the actual game state and lets existing players receive credit for visible progress without a migration guessing at inventory they may already have sold. Explicit claiming keeps rewards visible as onboarding feedback and prevents save migration from silently changing gold.
 - Caution: milestone rewards (100–5,000 G) are unplaytested balance. The first cooking/farming/magic milestones use `level > 1 || exp > 0`; this remains valid while those skills gain experience only from their named production action. If future mechanics grant those skill experience through unrelated actions, introduce explicit event flags rather than weakening the milestone meaning.
+
+## D017 — 2026-09-15: 왕국 복원이 주 진행이며 정리·공사는 스킬이 아니다
+
+- Decision: 기본 진행을 스킬 목록 해금이 아니라 왕국 구역 프로젝트로 구성한다. 프로젝트는 조사, 폐허 정리, 부분 자재 납품, 복원 공사, 완료 순서로 진행한다. 폐허 정리와 복원 공사는 경험치·레벨·전용 장비가 없는 왕국 활동이며 생산과 같은 전역 액티브 슬롯을 쓴다.
+- Rationale: 복원 결과가 새로운 스킬·구역·시설을 여는 구조가 게임의 고유한 목적과 가이드라인을 동시에 만든다. 정리와 공사를 각각 스킬로 만들면 레벨이 없는 유사 진행 바가 늘고, 레벨을 부여하면 복원보다 반복 숙련 자체가 목적이 된다.
+- Alternatives: 스킬을 처음부터 모두 보여주는 방식, 폐허 회수/건설을 별도 스킬로 만드는 방식, 길드 퀘스트만으로 온보딩하는 방식을 검토했다. 왕국 프로젝트가 핵심 테마를 화면과 진행 양쪽에서 가장 직접적으로 보여주므로 선택했다.
+- Caution: 필수 프로젝트는 희귀 확률 보상, 만료, 실패, 진행도 손실을 사용하지 않는다. 이전 저장은 이미 열린 기능을 잠그지 않으며 대응 프로젝트 보상을 중복 지급하지 않는다.
+
+## D018 — 2026-09-15: 병렬 자동 생산과 확률 정착민을 기획에서 제외한다
+
+- Decision: Lv50 자동 채집 장치와 여러 스킬 동시 생산은 채택하지 않는다. 후반 편의는 전역 액티브 슬롯을 유지하는 반복, 목표 수량, 다음 작업 예약, 프리셋으로 제한해 검토한다. 멜버의 스킬링 펫과 역할이 같은 확률 정착민도 채택하지 않는다. 이 결정은 D009에 기록된 당시의 자동 채집 장치 제안을 대체한다.
+- Rationale: 병렬 생산은 매직 리서치식 효율 최적화 압박을 만들고 처음 합의한 한 액티브 작업 구조를 약화한다. 확률 정착민은 이름과 테마를 바꿔도 낮은 확률의 영구 스킬 보너스라는 기능이 같아 차별성이 부족하다.
+- Alternatives: 높은 레벨에서 스킬별 자동 장치를 구매하는 방식, 이름 있는 주민을 낮은 확률로 수집하는 방식을 기존 초안에 두었다. 편의 기능과 왕국 복원/수집 기록으로 각각의 목적을 더 직접적으로 해결한다.
+- Caution: 농사와 목장의 패시브 진행은 기존 합의이며 병렬 자동 생산 제외 대상이 아니다. 도감과 업적의 구체 내용은 전체 생산망 이후 다시 설계한다.
