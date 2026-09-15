@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -53,6 +53,22 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: [],
     restorationPoints: 1,
     introducedVersion: 11,
+  },
+  ruined_restaurant: {
+    id: 'ruined_restaurant',
+    name: '무너진 식당',
+    description: '무너진 부엌을 되살리면 잡은 재료로 요리를 시작할 수 있습니다.',
+    icon: '🍽️',
+    clearingDurationMs: 50_000,
+    salvage: {wood: 5, stone: 3},
+    // 피라미는 낚시 산출물이라, 다리를 먼저 끝내야 실제로 납품을 완료할 수 있다
+    // (다리의 벽돌과 같은 방식 — 하드 선행조건 없이 재료로 순서를 유도).
+    materials: {wood: 12, fish_small: 8},
+    restorationDurationMs: 70_000,
+    unlockSkills: ['cooking'],
+    unlockFeatures: [],
+    restorationPoints: 1,
+    introducedVersion: 12,
   },
 };
 

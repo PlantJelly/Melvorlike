@@ -153,15 +153,17 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects;
     raw.currentAction = {resourceId: raw.currentAction.resourceId, progressMs: raw.currentAction.progressMs};
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(11);
+    expect(migrated.version).toBe(12);
     expect(migrated.unlockedSkills).toEqual(old.unlockedSkills);
     expect(migrated.unlockedFeatures).toEqual(old.unlockedFeatures);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     // v9는 왕국 시스템 자체가 없던 시절의 저장이라(그 어떤 스킬도 잠겨있지 않았음), 부서진
-    // 다리를 포함해 그 시점에 존재하는 모든 프로젝트가 이미 완료된 것으로 이전된다 —
-    // "이미 열려 있던 기능을 잃지 않는다" 원칙이 대장간에만 국한되지 않고 적용된다.
+    // 다리·무너진 식당을 포함해 그 시점에 존재하는 모든 프로젝트가 이미 완료된 것으로
+    // 이전된다 — "이미 열려 있던 기능을 잃지 않는다" 원칙이 대장간에만 국한되지 않는다.
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
+    expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
     expect(skillUnlocked(migrated, 'fishing')).toBe(true);
+    expect(skillUnlocked(migrated, 'cooking')).toBe(true);
     expect(migrated.inventory.wood).toBe(7);
     expect(migrated.currentAction).toEqual({kind: 'production', resourceId: 'wood', progressMs: 1_000});
   });
@@ -179,23 +181,116 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.checksum;
     raw.version = 10;
     delete raw.projects.broken_bridge;
+    delete raw.projects.ruined_restaurant;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'fishing');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(11);
+    expect(migrated.version).toBe(12);
     // 대장간은 v10에서 이미 진행한 그대로 보존된다.
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(skillUnlocked(migrated, 'blacksmithing')).toBe(true);
-    // 새로 추가된 다리는 자동 완료되지 않고 미시작 상태로 나타난다 — 직접 진행해야 한다.
+    // 새로 추가된 다리·식당은 자동 완료되지 않고 미시작 상태로 나타난다 — 직접 진행해야 한다.
     expect(migrated.projects.broken_bridge.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'fishing')).toBe(false);
+    expect(migrated.projects.ruined_restaurant.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'cooking')).toBe(false);
   });
 
-  it('v11 저장은 두 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
+  it('무너진 식당 도입 전(v11) 저장은 대장간·다리 상태를 보존하고 식당은 미시작으로 이전한다', () => {
+    const s = initial(0);
+    finishClearing(s);
+    supplyForge(s);
+    startProjectWork(s, 'ruined_forge');
+    advance(s, s.lastSaveTime + project.restorationDurationMs);
+    const bridge = ProjectDB.broken_bridge;
+    surveyProject(s, 'broken_bridge');
+    startProjectWork(s, 'broken_bridge');
+    advance(s, s.lastSaveTime + bridge.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + bridge.materials.wood;
+    s.inventory.brick = (s.inventory.brick ?? 0) + bridge.materials.brick;
+    deliverProjectMaterial(s, 'broken_bridge', 'wood', bridge.materials.wood);
+    deliverProjectMaterial(s, 'broken_bridge', 'brick', bridge.materials.brick);
+    startProjectWork(s, 'broken_bridge');
+    advance(s, s.lastSaveTime + bridge.restorationDurationMs);
+    expect(s.projects.broken_bridge.phase).toBe('complete');
+
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.version = 11;
+    delete raw.projects.ruined_restaurant;
+    raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'cooking');
+
+    const migrated = decodeSave(JSON.stringify(raw));
+    expect(migrated.version).toBe(12);
+    expect(migrated.projects.ruined_forge.phase).toBe('complete');
+    expect(migrated.projects.broken_bridge.phase).toBe('complete');
+    expect(skillUnlocked(migrated, 'blacksmithing')).toBe(true);
+    expect(skillUnlocked(migrated, 'fishing')).toBe(true);
+    expect(migrated.projects.ruined_restaurant.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'cooking')).toBe(false);
+  });
+
+  it('v12 저장은 세 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
+    const s = initial(0);
+    surveyProject(s, 'ruined_restaurant');
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    // v11인데 아직 도입되지 않았어야 할 ruined_restaurant 키가 섞여 있으면 거부.
+    const asV11 = {...raw, version: 11};
+    expect(() => decodeSave(JSON.stringify(asV11))).toThrow('왕국 정보 오류');
+    // v12인데 broken_bridge 키가 빠져 있으면(있어야 할 구역 누락) 거부.
+    const missingBridge = JSON.parse(JSON.stringify(raw));
+    delete missingBridge.projects.broken_bridge;
+    expect(() => decodeSave(JSON.stringify(missingBridge))).toThrow('왕국 정보 오류');
+  });
+
+  it('무너진 식당 완료 시 요리를 영구 해금하고 복원도가 3이 된다', () => {
+    const s = initial(0);
+    finishClearing(s);
+    supplyForge(s);
+    startProjectWork(s, 'ruined_forge');
+    advance(s, s.lastSaveTime + project.restorationDurationMs);
+
+    const bridge = ProjectDB.broken_bridge;
+    surveyProject(s, 'broken_bridge');
+    startProjectWork(s, 'broken_bridge');
+    advance(s, s.lastSaveTime + bridge.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + bridge.materials.wood;
+    s.inventory.brick = (s.inventory.brick ?? 0) + bridge.materials.brick;
+    deliverProjectMaterial(s, 'broken_bridge', 'wood', bridge.materials.wood);
+    deliverProjectMaterial(s, 'broken_bridge', 'brick', bridge.materials.brick);
+    startProjectWork(s, 'broken_bridge');
+    advance(s, s.lastSaveTime + bridge.restorationDurationMs);
+    expect(kingdomRestoration(s)).toBe(2);
+
+    const restaurant = ProjectDB.ruined_restaurant;
+    expect(surveyProject(s, 'ruined_restaurant')).toBe(true);
+    expect(startProjectWork(s, 'ruined_restaurant')).toBe(true);
+    advance(s, s.lastSaveTime + restaurant.clearingDurationMs);
+    expect(s.projects.ruined_restaurant.phase).toBe('delivery');
+    s.inventory.wood = (s.inventory.wood ?? 0) + restaurant.materials.wood;
+    // 피라미는 낚시(이미 해금됨) 산출물이다 — 채집 자체는 다른 테스트가 검증하므로
+    // 여기서는 납품에 필요한 만큼 보유한 상태만 준비한다.
+    s.inventory.fish_small = (s.inventory.fish_small ?? 0) + restaurant.materials.fish_small;
+    expect(deliverProjectMaterial(s, 'ruined_restaurant', 'wood', restaurant.materials.wood)).toBe(restaurant.materials.wood);
+    expect(deliverProjectMaterial(s, 'ruined_restaurant', 'fish_small', restaurant.materials.fish_small)).toBe(restaurant.materials.fish_small);
+    expect(s.projects.ruined_restaurant.phase).toBe('restorable');
+    expect(startProjectWork(s, 'ruined_restaurant')).toBe(true);
+    advance(s, s.lastSaveTime + restaurant.restorationDurationMs);
+
+    expect(s.projects.ruined_restaurant.phase).toBe('complete');
+    expect(skillUnlocked(s, 'cooking')).toBe(true);
+    expect(kingdomRestoration(s)).toBe(3);
+  });
+
+  it('v11 저장(대장간+다리 시절)은 두 프로젝트만 검증하고, 그 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
     const s = initial(0);
     expect(surveyProject(s, 'broken_bridge')).toBe(true);
     const raw = JSON.parse(encodeSave(s));
     delete raw.checksum;
+    raw.version = 11;
+    delete raw.projects.ruined_restaurant;
+    raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'cooking');
     // v10인데 아직 도입되지 않았어야 할 broken_bridge 키가 섞여 있으면 거부.
     const asV10 = {...raw, version: 10};
     expect(() => decodeSave(JSON.stringify(asV10))).toThrow('왕국 정보 오류');
@@ -203,6 +298,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingForge = JSON.parse(JSON.stringify(raw));
     delete missingForge.projects.ruined_forge;
     expect(() => decodeSave(JSON.stringify(missingForge))).toThrow('왕국 정보 오류');
+    // v11 그대로는(식당 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(12);
   });
 
   it('부서진 다리 완료 시 낚시를 영구 해금하고 복원도가 2가 된다', () => {

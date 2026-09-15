@@ -87,7 +87,7 @@ describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
     const s = initial(0);
     const {farming: _skill, ...skills} = s.skills;
     const loaded = decodeSave(JSON.stringify({version: 3, gold: 500, skills, tools: s.tools, inventory: {}, currentAction: null, meal: null, lastSaveTime: 0}));
-    expect(loaded.version).toBe(11);
+    expect(loaded.version).toBe(12);
     expect(loaded.skills.farming).toEqual({level: 1, exp: 0, maxExp: 100});
     expect(loaded.farmPlot).toBeNull();
 
