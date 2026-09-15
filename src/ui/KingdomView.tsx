@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js';
-import { ProjectDB, projectIds, type ProjectId, type ProjectPhase } from '../content/projects';
+import { ProjectDB, projectIds, type FeatureId, type ProjectId, type ProjectPhase } from '../content/projects';
 import { ResourceDB, skillNames } from '../content/resources';
 import { kingdomRestoration } from '../engine/model';
 import { deliverProjectMaterialAction, startProjectWorkAction, surveyProjectAction } from '../engine/actions';
@@ -14,6 +14,19 @@ const phaseLabel: Record<ProjectPhase, string> = {
   restoring: '복원 공사',
   complete: '복원 완료',
 };
+
+const featureLabel: Record<FeatureId, string> = {
+  tools: '도구 제작',
+  equipment: '장신구',
+  guild: '길드',
+};
+
+// 완료 카드가 대장간 전용 문구를 하드코딩하지 않고, 이 프로젝트가 실제로 여는 스킬/시설
+// 목록을 그대로 나열한다 — 두 번째 이후 구역이 추가돼도 그대로 맞는 문구가 나오게 함.
+function unlockSummary(id: ProjectId) {
+  const project = ProjectDB[id];
+  return [...project.unlockSkills.map(skill => skillNames[skill]), ...project.unlockFeatures.map(feature => featureLabel[feature])].join(' · ');
+}
 
 const clearingPhases: ProjectPhase[] = ['surveyable', 'clearing'];
 const restorationPhases: ProjectPhase[] = ['delivery', 'restorable', 'restoring'];
@@ -72,12 +85,12 @@ function ProjectCard(props: {id: ProjectId}) {
     <Show when={progress().phase === 'restorable' || progress().phase === 'restoring'}>
       <div class="project-step"><strong>복원 공사</strong><span>{Math.floor(restorationPercent())}%</span></div>
       <progress aria-label={`${project().name} 복원 공사 진행률`} max="100" value={restorationPercent()}/>
-      <p class="project-hint">완료 효과: {project().unlockSkills.map(skill => skillNames[skill]).join(', ')} 및 도구 제작 해금</p>
+      <p class="project-hint">완료 효과: {unlockSummary(props.id)} 해금</p>
       <button disabled={running(props.id, 'restoring')} onClick={() => startProjectWorkAction(props.id)}>{running(props.id, 'restoring') ? '복원 중' : progress().restorationProgressMs > 0 ? '복원 재개' : '복원 공사 시작'}</button>
     </Show>
 
     <Show when={progress().phase === 'complete'}>
-      <div class="completion-mark"><span>✓</span><div><strong>복원된 대장간</strong><small>대장작업과 도구 제작을 이용할 수 있습니다.</small></div></div>
+      <div class="completion-mark"><span>✓</span><div><strong>{project().name} 복원 완료</strong><small>{unlockSummary(props.id)} 이용 가능</small></div></div>
     </Show>
   </article>;
 }

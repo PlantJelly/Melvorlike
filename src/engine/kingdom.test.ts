@@ -153,12 +153,84 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects;
     raw.currentAction = {resourceId: raw.currentAction.resourceId, progressMs: raw.currentAction.progressMs};
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(10);
+    expect(migrated.version).toBe(11);
     expect(migrated.unlockedSkills).toEqual(old.unlockedSkills);
     expect(migrated.unlockedFeatures).toEqual(old.unlockedFeatures);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
+    // v9는 왕국 시스템 자체가 없던 시절의 저장이라(그 어떤 스킬도 잠겨있지 않았음), 부서진
+    // 다리를 포함해 그 시점에 존재하는 모든 프로젝트가 이미 완료된 것으로 이전된다 —
+    // "이미 열려 있던 기능을 잃지 않는다" 원칙이 대장간에만 국한되지 않고 적용된다.
+    expect(migrated.projects.broken_bridge.phase).toBe('complete');
+    expect(skillUnlocked(migrated, 'fishing')).toBe(true);
     expect(migrated.inventory.wood).toBe(7);
     expect(migrated.currentAction).toEqual({kind: 'production', resourceId: 'wood', progressMs: 1_000});
+  });
+
+  it('부서진 다리 도입 전(v10) 저장은 대장간 상태를 보존하고 다리는 미시작으로 이전한다', () => {
+    const s = initial(0);
+    finishClearing(s);
+    supplyForge(s);
+    expect(startProjectWork(s, 'ruined_forge')).toBe(true);
+    advance(s, s.lastSaveTime + project.restorationDurationMs);
+    expect(s.projects.ruined_forge.phase).toBe('complete');
+    expect(skillUnlocked(s, 'blacksmithing')).toBe(true);
+
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.version = 10;
+    delete raw.projects.broken_bridge;
+    raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'fishing');
+
+    const migrated = decodeSave(JSON.stringify(raw));
+    expect(migrated.version).toBe(11);
+    // 대장간은 v10에서 이미 진행한 그대로 보존된다.
+    expect(migrated.projects.ruined_forge.phase).toBe('complete');
+    expect(skillUnlocked(migrated, 'blacksmithing')).toBe(true);
+    // 새로 추가된 다리는 자동 완료되지 않고 미시작 상태로 나타난다 — 직접 진행해야 한다.
+    expect(migrated.projects.broken_bridge.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'fishing')).toBe(false);
+  });
+
+  it('v11 저장은 두 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
+    const s = initial(0);
+    expect(surveyProject(s, 'broken_bridge')).toBe(true);
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    // v10인데 아직 도입되지 않았어야 할 broken_bridge 키가 섞여 있으면 거부.
+    const asV10 = {...raw, version: 10};
+    expect(() => decodeSave(JSON.stringify(asV10))).toThrow('왕국 정보 오류');
+    // v11인데 ruined_forge 키가 빠져 있으면(있어야 할 구역 누락) 거부.
+    const missingForge = JSON.parse(JSON.stringify(raw));
+    delete missingForge.projects.ruined_forge;
+    expect(() => decodeSave(JSON.stringify(missingForge))).toThrow('왕국 정보 오류');
+  });
+
+  it('부서진 다리 완료 시 낚시를 영구 해금하고 복원도가 2가 된다', () => {
+    const s = initial(0);
+    finishClearing(s);
+    supplyForge(s);
+    expect(startProjectWork(s, 'ruined_forge')).toBe(true);
+    advance(s, s.lastSaveTime + project.restorationDurationMs);
+    expect(kingdomRestoration(s)).toBe(1);
+
+    const bridge = ProjectDB.broken_bridge;
+    expect(surveyProject(s, 'broken_bridge')).toBe(true);
+    expect(startProjectWork(s, 'broken_bridge')).toBe(true);
+    advance(s, s.lastSaveTime + bridge.clearingDurationMs);
+    expect(s.projects.broken_bridge.phase).toBe('delivery');
+    s.inventory.wood = (s.inventory.wood ?? 0) + bridge.materials.wood;
+    // 벽돌은 대장작업(이미 해금됨) 산출물이다 — 가공 자체는 다른 테스트가 이미 검증하므로
+    // 여기서는 납품에 필요한 만큼 보유한 상태만 준비한다.
+    s.inventory.brick = (s.inventory.brick ?? 0) + bridge.materials.brick;
+    expect(deliverProjectMaterial(s, 'broken_bridge', 'wood', bridge.materials.wood)).toBe(bridge.materials.wood);
+    expect(deliverProjectMaterial(s, 'broken_bridge', 'brick', bridge.materials.brick)).toBe(bridge.materials.brick);
+    expect(s.projects.broken_bridge.phase).toBe('restorable');
+    expect(startProjectWork(s, 'broken_bridge')).toBe(true);
+    advance(s, s.lastSaveTime + bridge.restorationDurationMs);
+
+    expect(s.projects.broken_bridge.phase).toBe('complete');
+    expect(skillUnlocked(s, 'fishing')).toBe(true);
+    expect(kingdomRestoration(s)).toBe(2);
   });
 
   it('모순된 프로젝트 단계와 현재 작업을 손상 저장으로 거부한다', () => {

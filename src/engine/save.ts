@@ -44,14 +44,14 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 export function decodeSave(text: string): Model {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
-  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
   // 체크섬은 v7 이전 저장에는 없었으므로 필드 자체가 없을 때만 건너뛴다.
   // 필드가 있는데 문자열이 아니거나 값이 다르면(타입이 깨졌어도) 거부한다.
   if (raw.checksum !== undefined) {
     const {checksum: saved, ...rest} = raw;
     if (typeof saved !== 'string' || checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
   }
-  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   // v1~v9는 모든 기능이 처음부터 보이던 기존 게임이다. v10 신규 저장만 실제 해금 상태를 복원한다.
   const s = version < 10 ? unlockedGame(raw.lastSaveTime) : initial(raw.lastSaveTime);
@@ -73,8 +73,12 @@ export function decodeSave(text: string): Model {
     if (unlockedFeatures.some(id => typeof id !== 'string' || !featureIds.includes(id as FeatureId)) || new Set(unlockedFeatures).size !== unlockedFeatures.length) throw Error('왕국 정보 오류');
     s.unlockedSkills = [...unlockedSkills] as Model['unlockedSkills'];
     s.unlockedFeatures = [...unlockedFeatures] as Model['unlockedFeatures'];
-    if (Object.keys(raw.projects).length !== projectIds.length || Object.keys(raw.projects).some(id => !projectIds.includes(id as ProjectId))) throw Error('왕국 정보 오류');
-    for (const projectId of projectIds) {
+    // 이 저장 버전에 등장해야 할 구역만 정확히 있어야 한다 — 아직 도입되지 않은 구역은
+    // 저장에 없는 게 맞고(initial()의 조사 가능 기본값을 그대로 씀), 반대로 그 저장 버전엔
+    // 없어야 할 구역이 섞여 있으면 손상/변조로 거부한다.
+    const projectIdsAtVersion = projectIds.filter(id => ProjectDB[id].introducedVersion <= version);
+    if (Object.keys(raw.projects).length !== projectIdsAtVersion.length || Object.keys(raw.projects).some(id => !projectIdsAtVersion.includes(id as ProjectId))) throw Error('왕국 정보 오류');
+    for (const projectId of projectIdsAtVersion) {
       const value = raw.projects[projectId];
       const project = ProjectDB[projectId];
       if (!object(value) || !['surveyable', 'clearing', 'delivery', 'restorable', 'restoring', 'complete'].includes(value.phase as string) || !finite(value.clearingProgressMs) || value.clearingProgressMs > project.clearingDurationMs || !finite(value.restorationProgressMs) || value.restorationProgressMs > project.restorationDurationMs || !object(value.delivered)) throw Error('왕국 정보 오류');
