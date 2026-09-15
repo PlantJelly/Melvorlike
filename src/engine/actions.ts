@@ -1,8 +1,9 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, upgrade, sell, eat, buyResource, plant, harvest, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory } from './model';
+import { begin, upgrade, sell, eat, buyResource, plant, harvest, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
 import type { SkillId } from '../content/types';
 import type { AccessorySlotId } from '../content/accessories';
 import type { MilestoneId } from '../content/guild';
+import type { ProjectId } from '../content/projects';
 
 export function startAction(_skill: SkillId, id: string) {
   mutate(s => { begin(s, id); });
@@ -10,6 +11,18 @@ export function startAction(_skill: SkillId, id: string) {
 }
 export function stopAction() {
   mutate(s => { s.currentAction = null; });
+  saveGame();
+}
+export function surveyProjectAction(projectId: ProjectId) {
+  mutate(s => { surveyProject(s, projectId); });
+  saveGame();
+}
+export function startProjectWorkAction(projectId: ProjectId) {
+  mutate(s => { startProjectWork(s, projectId); });
+  saveGame();
+}
+export function deliverProjectMaterialAction(projectId: ProjectId, resourceId: string, count: number) {
+  mutate(s => { deliverProjectMaterial(s, projectId, resourceId, count); });
   saveGame();
 }
 export function craftTool(skill: SkillId) {
