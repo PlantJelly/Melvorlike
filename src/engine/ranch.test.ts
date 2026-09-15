@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, begin, buyAnimal, initial, ranchRemainingMs, ranchStarved } from './model';
+import { advance, begin, buyAnimal, unlockedGame as initial, ranchRemainingMs, ranchStarved } from './model';
 import { decodeSave } from './save';
 
 describe('목장: 동물 구매 → 사료 소비 → 산출', () => {
@@ -121,7 +121,7 @@ describe('목장: 동물 구매 → 사료 소비 → 산출', () => {
     const s = initial(0);
     const {ranching: _skill, ...skills} = s.skills;
     const loaded = decodeSave(JSON.stringify({version: 4, gold: 500, skills, tools: s.tools, inventory: {}, currentAction: null, meal: null, farmPlot: null, lastSaveTime: 0}));
-    expect(loaded.version).toBe(9);
+    expect(loaded.version).toBe(10);
     expect(loaded.skills.ranching).toEqual({level: 1, exp: 0, maxExp: 100});
     expect(loaded.ranch).toEqual({});
 

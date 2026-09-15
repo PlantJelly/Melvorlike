@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ResourceDB } from '../content/resources';
-import { advance, completeDailyQuest, dailyQuestReward, generateDailyQuests, initial } from './model';
+import { advance, completeDailyQuest, dailyQuestReward, generateDailyQuests, unlockedGame as initial } from './model';
 import { decodeSave, encodeSave } from './save';
 
 const DAY = 86400000;

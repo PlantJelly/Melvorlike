@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FoodDB } from '../content/foods';
 import { ResourceDB, cropYield, playable } from '../content/resources';
 import { AnimalDB } from '../content/animals';
-import { advance, begin, duration, eat, initial, upgrade } from './model';
+import { advance, begin, duration, eat, unlockedGame as initial, upgrade } from './model';
 import { decodeSave } from './save';
 
 describe('낚시와 음식', () => {
@@ -116,7 +116,7 @@ describe('저장 이전과 콘텐츠 참조', () => {
     const {cooking: _skill, ...skills} = s.skills;
     const {cooking: _tool, ...tools} = s.tools;
     const loaded = decodeSave(JSON.stringify({version:2, gold:1234, skills, tools:{...tools,logging:1}, inventory:{wood:8}, lastSaveTime:1000, currentAction:{resourceId:'wood',progressMs:1000}}));
-    expect(loaded.version).toBe(9);
+    expect(loaded.version).toBe(10);
     expect(loaded.skills.cooking.level).toBe(1);
     expect(loaded.tools.cooking).toBe(0);
     expect(loaded.gold).toBe(1234);

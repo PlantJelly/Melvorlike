@@ -12,6 +12,10 @@ export const costText = (cost: Record<string, number>) => Object.entries(cost)
 
 export function ProductionView(props: {skill: SkillId}) {
   const skill = () => state().skills[props.skill];
+  const running = (resourceId: string) => {
+    const action = state().currentAction;
+    return action?.kind === 'production' && action.resourceId === resourceId;
+  };
   return <>
     <h1>{skillNames[props.skill]}</h1>
     <p class="muted">레벨 {skill().level} · 경험치 {fmt(skill().exp)} / {fmt(skill().maxExp)}</p>
@@ -27,9 +31,9 @@ export function ProductionView(props: {skill: SkillId}) {
           <p class="muted">{(duration(state(), r.id) / 1000).toFixed(1)}초 · 경험치 +{r.exp}</p>
           <Show when={r.recipe}><p class="recipe">{costText(r.recipe!)}</p></Show>
           <button class="production-button"
-            disabled={skill().level < r.reqLevel || !afford(state(), r.recipe ?? {}) || state().currentAction?.resourceId === r.id}
+            disabled={skill().level < r.reqLevel || !afford(state(), r.recipe ?? {}) || running(r.id)}
             onClick={() => startAction(r.skill, r.id)}>
-            {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : state().currentAction?.resourceId === r.id ? '진행 중' : r.recipe ? '제작 시작' : '채집 시작'}
+            {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : running(r.id) ? '진행 중' : r.recipe ? '제작 시작' : '채집 시작'}
           </button>
           <FoodButtons id={r.id}/>
         </article>

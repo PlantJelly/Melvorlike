@@ -1,4 +1,4 @@
-import { ResourceDB, toolTiers, playable, cropYield, passiveSkills } from '../content/resources';
+import { ResourceDB, toolTiers, playable, cropYield, passiveSkills, skillNames } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { ExchangeDB, exchangeRate, guildTiers, milestoneById, type MilestoneId } from '../content/guild';
@@ -14,18 +14,42 @@ import {
   type AccessoryState,
 } from '../content/accessories';
 import type { SkillId } from '../content/types';
+import {
+  ProjectDB,
+  featureIds,
+  projectIds,
+  starterFeatures,
+  starterSkills,
+  type FeatureId,
+  type ProjectId,
+  type ProjectPhase,
+} from '../content/projects';
 import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
+export interface ProjectState {
+  phase: ProjectPhase;
+  clearingProgressMs: number;
+  restorationProgressMs: number;
+  delivered: Record<string, number>;
+}
+
+export type CurrentAction =
+  | {kind: 'production'; resourceId: string; progressMs: number}
+  | {kind: 'project'; projectId: ProjectId; stage: 'clearing' | 'restoring'; progressMs: number};
+
 export interface Model {
-  version: 9;
+  version: 10;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
   tools: Record<SkillId, number>;
   // progressMs는 속도 보정 전 작업량. 속도가 변해도 진행률은 유지한다.
-  currentAction: { resourceId: string; progressMs: number } | null;
+  currentAction: CurrentAction | null;
+  unlockedSkills: SkillId[];
+  unlockedFeatures: FeatureId[];
+  projects: Record<ProjectId, ProjectState>;
   meal: { foodId: string; remainingMs: number } | null;
   // 농사는 액티브 작업과 별개로 항상 병행 진행된다. 수확 전까지 진행률은 성장 시간에서 멈춘다.
   farmPlot: { cropId: string; progressMs: number } | null;
@@ -64,7 +88,7 @@ function seededRandom(seed: number): () => number {
 // 극단적인 경우에는 있는 만큼만 반환). decodeSave가 옛 저장을 이전할 때, 스킬을 복원한
 // 뒤 해금 상태를 다시 반영해 퀘스트를 새로 뽑기 위해 이 함수를 그대로 가져다 쓴다.
 export function generateDailyQuests(s: Model, day: number, random: () => number = seededRandom(day)): DailyQuest[] {
-  const pool = Object.values(ResourceDB).filter(r => !r.recipe && s.skills[r.skill].level >= r.reqLevel);
+  const pool = Object.values(ResourceDB).filter(r => !r.recipe && skillUnlocked(s, r.skill) && s.skills[r.skill].level >= r.reqLevel);
   const quests: DailyQuest[] = [];
   // 뽑힌 항목을 후보군에서 제거하면 난수 함수가 같은 값을 반복해도 루프가 반드시 끝난다.
   while (quests.length < 3 && pool.length) {
@@ -82,17 +106,56 @@ function refreshDailyQuests(s: Model, time: number) {
   }
 }
 
-export function initial(time = Date.now()): Model {
+function projectStates(completed: boolean): Record<ProjectId, ProjectState> {
+  return Object.fromEntries(projectIds.map(id => {
+    const project = ProjectDB[id];
+    return [id, completed ? {
+      phase: 'complete',
+      clearingProgressMs: project.clearingDurationMs,
+      restorationProgressMs: project.restorationDurationMs,
+      delivered: {...project.materials},
+    } : {
+      phase: 'surveyable',
+      clearingProgressMs: 0,
+      restorationProgressMs: 0,
+      delivered: Object.fromEntries(Object.keys(project.materials).map(resourceId => [resourceId, 0])),
+    }];
+  })) as Record<ProjectId, ProjectState>;
+}
+
+function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: FeatureId[], completedProjects: boolean): Model {
   const s: Model = {
-    version: 9, gold: 1000,
+    version: 10, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: experienceToNextLevel(1) }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
     inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0,
+    unlockedSkills: [...unlockedSkills], unlockedFeatures: [...unlockedFeatures], projects: projectStates(completedProjects),
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
     accessories: emptyAccessories(), lastSaveTime: time, notice: '',
   };
   s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
   return s;
+}
+
+export function initial(time = Date.now()): Model {
+  return createModel(time, starterSkills, starterFeatures, false);
+}
+
+// 기존 기능 단위 테스트와 진행 시뮬레이터가 각 시스템을 바로 다룰 때 사용하는 완전 해금 기준 상태.
+export function unlockedGame(time = Date.now()): Model {
+  return createModel(time, playable, featureIds, true);
+}
+
+export function skillUnlocked(s: Model, skill: SkillId) {
+  return s.unlockedSkills.includes(skill);
+}
+
+export function featureUnlocked(s: Model, feature: FeatureId) {
+  return s.unlockedFeatures.includes(feature);
+}
+
+export function kingdomRestoration(s: Model) {
+  return projectIds.reduce((total, id) => total + (s.projects[id].phase === 'complete' ? ProjectDB[id].restorationPoints : 0), 0);
 }
 
 export function accessoryBonus(s: Model, optionId: AccessoryOptionId) {
@@ -141,6 +204,10 @@ function addExperience(s: Model, skillId: SkillId, amount: number) {
 function advanceSegment(s: Model, elapsed: number) {
   const action = s.currentAction;
   if (!action) return 0;
+  if (action.kind === 'project') {
+    advanceProjectAction(s, action, elapsed);
+    return 0;
+  }
   const r = ResourceDB[action.resourceId];
   action.progressMs += elapsed * speedMultiplier(s, r.skill);
   let count = Math.floor((action.progressMs + 1e-7) / r.baseDurationMs);
@@ -159,6 +226,35 @@ function advanceSegment(s: Model, elapsed: number) {
     s.notice = '재료가 부족해 제작을 멈췄습니다.';
   }
   return count;
+}
+
+function addUnique<T>(values: T[], additions: T[]) {
+  for (const value of additions) if (!values.includes(value)) values.push(value);
+}
+
+function advanceProjectAction(s: Model, action: Extract<CurrentAction, {kind: 'project'}>, elapsed: number) {
+  const project = ProjectDB[action.projectId];
+  const state = s.projects[action.projectId];
+  if (action.stage === 'clearing') {
+    if (state.phase !== 'clearing') { s.currentAction = null; return; }
+    state.clearingProgressMs = Math.min(project.clearingDurationMs, state.clearingProgressMs + elapsed);
+    action.progressMs = state.clearingProgressMs;
+    if (state.clearingProgressMs + 1e-7 < project.clearingDurationMs) return;
+    state.phase = 'delivery';
+    for (const [id, count] of Object.entries(project.salvage)) s.inventory[id] = (s.inventory[id] ?? 0) + count;
+    s.currentAction = null;
+    s.notice = `${project.name} 정리 완료 · 회수품을 확보했습니다.`;
+    return;
+  }
+  if (state.phase !== 'restoring') { s.currentAction = null; return; }
+  state.restorationProgressMs = Math.min(project.restorationDurationMs, state.restorationProgressMs + elapsed);
+  action.progressMs = state.restorationProgressMs;
+  if (state.restorationProgressMs + 1e-7 < project.restorationDurationMs) return;
+  state.phase = 'complete';
+  addUnique(s.unlockedSkills, project.unlockSkills);
+  addUnique(s.unlockedFeatures, project.unlockFeatures);
+  s.currentAction = null;
+  s.notice = `${project.name} 복원 완료 · ${project.unlockSkills.map(skill => skillNames[skill]).join(', ')} 해금`;
 }
 
 // 밭은 재접속 여부와 무관하게 항상 흐르고, 다 자란 뒤에는 수확 전까지 더 진행되지 않는다.
@@ -250,15 +346,49 @@ export function advance(s: Model, time: number) {
 export function begin(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
   // 패시브 스킬(농사/목장) 산출물은 밭/축사에서만 나온다. 액티브 슬롯으로도 생산되면 이중 생산이 된다.
-  if (!r || passiveSkills.includes(r.skill) || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
-  s.currentAction = { resourceId: id, progressMs: 0 };
+  if (!r || !skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
+  s.currentAction = {kind: 'production', resourceId: id, progressMs: 0};
   s.notice = '';
   return true;
 }
 
+export function surveyProject(s: Model, projectId: ProjectId) {
+  const state = s.projects[projectId];
+  if (!state || state.phase !== 'surveyable') return false;
+  state.phase = 'clearing';
+  s.notice = `${ProjectDB[projectId].name} 조사 완료 · 폐허를 정리할 수 있습니다.`;
+  return true;
+}
+
+export function startProjectWork(s: Model, projectId: ProjectId) {
+  const state = s.projects[projectId];
+  if (!state || (state.phase !== 'clearing' && state.phase !== 'restorable' && state.phase !== 'restoring')) return false;
+  if (state.phase === 'restorable') state.phase = 'restoring';
+  const stage = state.phase === 'clearing' ? 'clearing' : 'restoring';
+  const progressMs = stage === 'clearing' ? state.clearingProgressMs : state.restorationProgressMs;
+  s.currentAction = {kind: 'project', projectId, stage, progressMs};
+  s.notice = '';
+  return true;
+}
+
+export function deliverProjectMaterial(s: Model, projectId: ProjectId, resourceId: string, count: number) {
+  const project = ProjectDB[projectId];
+  const state = s.projects[projectId];
+  const required = project?.materials[resourceId];
+  if (!project || !state || state.phase !== 'delivery' || !required || !Number.isInteger(count) || count <= 0) return 0;
+  const remaining = required - (state.delivered[resourceId] ?? 0);
+  const moved = Math.min(count, remaining, s.inventory[resourceId] ?? 0);
+  if (moved <= 0) return 0;
+  s.inventory[resourceId] -= moved;
+  state.delivered[resourceId] = (state.delivered[resourceId] ?? 0) + moved;
+  if (Object.entries(project.materials).every(([id, amount]) => state.delivered[id] === amount)) state.phase = 'restorable';
+  s.notice = `${ResourceDB[resourceId].name} ${moved}개 납품`;
+  return moved;
+}
+
 export function upgrade(s: Model, skill: SkillId) {
   const tier = toolTiers[s.tools[skill] + 1];
-  if (!tier || s.skills[skill].level < tier.level || !afford(s, tier.cost)) return false;
+  if (!skillUnlocked(s, skill) || !featureUnlocked(s, 'tools') || !tier || s.skills[skill].level < tier.level || !afford(s, tier.cost)) return false;
   spend(s, tier.cost);
   s.tools[skill]++;
   return true;
@@ -272,7 +402,7 @@ export function sell(s: Model, id: string, count: number) {
 }
 
 export function craftAccessory(s: Model, slotId: AccessorySlotId) {
-  if (!accessorySlots.some(slot => slot.id === slotId) || s.accessories[slotId]) return false;
+  if (!featureUnlocked(s, 'equipment') || !skillUnlocked(s, 'blacksmithing') || !accessorySlots.some(slot => slot.id === slotId) || s.accessories[slotId]) return false;
   const tier = accessoryTiers[0];
   if (s.skills.blacksmithing.level < tier.reqLevel || s.gold < tier.goldCost || !afford(s, tier.cost)) return false;
   s.gold -= tier.goldCost;
@@ -283,6 +413,7 @@ export function craftAccessory(s: Model, slotId: AccessorySlotId) {
 }
 
 export function upgradeAccessory(s: Model, slotId: AccessorySlotId) {
+  if (!featureUnlocked(s, 'equipment') || !skillUnlocked(s, 'blacksmithing')) return false;
   const accessory = s.accessories[slotId];
   if (!accessory) return false;
   const next = accessoryTiers[accessory.tier + 1];
@@ -311,6 +442,7 @@ export function rollAccessoryRarity(accessoryTier: number, stoneTier: number, ro
 }
 
 export function rerollAccessory(s: Model, slotId: AccessorySlotId, stoneId: string, random: () => number = Math.random) {
+  if (!featureUnlocked(s, 'equipment') || !skillUnlocked(s, 'magic')) return false;
   const accessory = s.accessories[slotId];
   const stone = Object.hasOwn(enchantmentStoneByResource, stoneId) ? enchantmentStoneByResource[stoneId] : undefined;
   if (!accessory || !stone || stone.tier < accessory.tier || (s.inventory[stoneId] ?? 0) < 1) return false;
@@ -330,7 +462,7 @@ export function rerollAccessory(s: Model, slotId: AccessorySlotId, stoneId: stri
 // (game_design.md의 "이미 해금한 하위 티어 기본 재료는 골드로 즉시 구매 가능" 캐치업 규칙).
 export function buyResource(s: Model, id: string, count: number) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  if (!r || r.recipe || !Number.isInteger(count) || count <= 0 || s.skills[r.skill].level < r.reqLevel) return false;
+  if (!r || !skillUnlocked(s, r.skill) || r.recipe || !Number.isInteger(count) || count <= 0 || s.skills[r.skill].level < r.reqLevel) return false;
   const cost = r.buy * count;
   if (s.gold < cost) return false;
   s.gold -= cost;
@@ -342,7 +474,7 @@ export function buyResource(s: Model, id: string, count: number) {
 // 역방향 경로가 존재하지 않으므로, 환전을 반복해도 가치를 만들어내는 순환 거래가 될 수 없다.
 export function exchangeResource(s: Model, id: string, count: number) {
   const ex = Object.hasOwn(ExchangeDB, id) ? ExchangeDB[id] : undefined;
-  if (!ex || !Number.isInteger(count) || count <= 0 || ex.tierGap > s.guild + 1 || (s.inventory[id] ?? 0) < count) return false;
+  if (!featureUnlocked(s, 'guild') || !ex || !Number.isInteger(count) || count <= 0 || ex.tierGap > s.guild + 1 || (s.inventory[id] ?? 0) < count) return false;
   const gained = Math.floor(count * Math.pow(exchangeRate, ex.tierGap));
   if (gained <= 0) return false;
   s.inventory[id] -= count;
@@ -371,7 +503,7 @@ export function milestoneReady(s: Model, id: MilestoneId) {
 
 export function claimMilestone(s: Model, id: MilestoneId) {
   const milestone = milestoneById[id];
-  if (!milestone || s.milestones.claimed.includes(id) || !milestoneReady(s, id)) return false;
+  if (!featureUnlocked(s, 'guild') || !milestone || s.milestones.claimed.includes(id) || !milestoneReady(s, id)) return false;
   s.milestones.claimed.push(id);
   s.gold += milestone.reward;
   s.notice = `마일스톤 완료 · ${milestone.name} · ${milestone.reward} G 획득`;
@@ -388,7 +520,7 @@ export function dailyQuestReward(s: Model, quest: DailyQuest) {
 // 갱신이 겹쳐 퀘스트 배열이 통째로 바뀐 사이에 다른 퀘스트를 잘못 완료 처리하지 않게 한다.
 export function completeDailyQuest(s: Model, index: number, resourceId: string) {
   const quest = s.dailyQuests.quests[index];
-  if (!quest || quest.resourceId !== resourceId || quest.done || (s.inventory[quest.resourceId] ?? 0) < quest.amount) return false;
+  if (!featureUnlocked(s, 'guild') || !quest || quest.resourceId !== resourceId || quest.done || (s.inventory[quest.resourceId] ?? 0) < quest.amount) return false;
   const r = ResourceDB[quest.resourceId];
   const reward = dailyQuestReward(s, quest);
   s.inventory[quest.resourceId] -= quest.amount;
@@ -400,7 +532,7 @@ export function completeDailyQuest(s: Model, index: number, resourceId: string) 
 
 export function upgradeGuild(s: Model) {
   const tier = guildTiers[s.guild + 1];
-  if (!tier || s.gold < tier.goldCost) return false;
+  if (!featureUnlocked(s, 'guild') || !tier || s.gold < tier.goldCost) return false;
   s.gold -= tier.goldCost;
   s.guild++;
   s.notice = `${tier.name} 승급 · 환전 가능 티어 ${s.guild + 1}단계까지 확대`;
@@ -409,7 +541,7 @@ export function upgradeGuild(s: Model) {
 
 export function plant(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  if (!r || r.skill !== 'farming' || s.farmPlot || s.skills.farming.level < r.reqLevel || (s.inventory[id] ?? 0) < 1) return false;
+  if (!skillUnlocked(s, 'farming') || !r || r.skill !== 'farming' || s.farmPlot || s.skills.farming.level < r.reqLevel || (s.inventory[id] ?? 0) < 1) return false;
   s.inventory[id]--;
   s.farmPlot = { cropId: id, progressMs: 0 };
   s.notice = '';
@@ -418,7 +550,7 @@ export function plant(s: Model, id: string) {
 
 export function harvest(s: Model) {
   const plot = s.farmPlot;
-  if (!plot || !farmReady(s)) return false;
+  if (!skillUnlocked(s, 'farming') || !plot || !farmReady(s)) return false;
   const r = ResourceDB[plot.cropId];
   const n = cropYield[plot.cropId] ?? 1;
   s.inventory[plot.cropId] = (s.inventory[plot.cropId] ?? 0) + n;
@@ -430,7 +562,7 @@ export function harvest(s: Model) {
 
 export function buyAnimal(s: Model, id: string) {
   const a = Object.hasOwn(AnimalDB, id) ? AnimalDB[id] : undefined;
-  if (!a || Object.hasOwn(s.ranch, id)) return false;
+  if (!skillUnlocked(s, 'ranching') || !a || Object.hasOwn(s.ranch, id)) return false;
   const p = ResourceDB[a.productId];
   if (s.skills.ranching.level < p.reqLevel || s.gold < a.buyGold) return false;
   s.gold -= a.buyGold;
@@ -441,7 +573,7 @@ export function buyAnimal(s: Model, id: string) {
 
 export function eat(s: Model, foodId: string, count = 1) {
   const food = Object.hasOwn(FoodDB, foodId) ? FoodDB[foodId] : undefined;
-  if (!food || !Number.isInteger(count) || count < 1 || count > 5 || (s.inventory[foodId] ?? 0) < count) return false;
+  if (!skillUnlocked(s, 'cooking') || !food || !Number.isInteger(count) || count < 1 || count > 5 || (s.inventory[foodId] ?? 0) < count) return false;
   s.inventory[foodId] -= count;
   const remaining = s.meal?.foodId === foodId ? s.meal.remainingMs : 0;
   s.meal = { foodId, remainingMs: remaining + food.durationMs * count };

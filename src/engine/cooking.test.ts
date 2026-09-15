@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, begin, duration, eat, initial } from './model';
+import { advance, begin, duration, eat, unlockedGame as initial } from './model';
 
 describe('농사·목장 산출물을 쓰는 요리', () => {
   it('야채죽: 감자·당근으로 제작해 먹으면 액티브뿐 아니라 패시브 스킬(농사)도 함께 빨라진다', () => {

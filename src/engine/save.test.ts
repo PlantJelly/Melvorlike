@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { begin, advance, buyAnimal, buyResource, craftAccessory, initial, plant, upgradeGuild } from './model';
+import { begin, advance, buyAnimal, buyResource, craftAccessory, unlockedGame as initial, plant, upgradeGuild } from './model';
 import { decodeSave, encodeSave } from './save';
 
 describe('백업 내보내기/복원', () => {

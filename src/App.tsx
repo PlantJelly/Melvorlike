@@ -14,12 +14,30 @@ import { RanchingView, RanchStatus } from './ui/RanchingView';
 import { GuildView } from './ui/GuildView';
 import { EquipmentView } from './ui/EquipmentView';
 import { SettingsView } from './ui/SettingsView';
+import { ProjectDB } from './content/projects';
 
 function App() {
   initGameLoop();
   const [page, setPage] = createSignal<SkillId | 'inventory' | 'tools' | 'guild' | 'equipment' | 'settings'>('logging');
   const active = () => state().currentAction;
-  const resource = () => active() ? ResourceDB[active()!.resourceId] : null;
+  const resource = () => {
+    const action = active();
+    return action?.kind === 'production' ? ResourceDB[action.resourceId] : null;
+  };
+  const project = () => {
+    const action = active();
+    return action?.kind === 'project' ? ProjectDB[action.projectId] : null;
+  };
+  const projectStage = () => {
+    const action = active();
+    return action?.kind === 'project' ? action.stage : null;
+  };
+  const activeDuration = () => {
+    const action = active();
+    if (!action) return 1;
+    if (action.kind === 'production') return ResourceDB[action.resourceId].baseDurationMs;
+    return action.stage === 'clearing' ? ProjectDB[action.projectId].clearingDurationMs : ProjectDB[action.projectId].restorationDurationMs;
+  };
   return <div id="app">
     <aside>
       <div class="brand">🌿<div>왕국 재건<small>작은 작업에서 시작하는 정착</small></div></div>
@@ -37,10 +55,10 @@ function App() {
       <header><span>첫 정착 · 개발 중</span><strong>🪙 {fmt(state().gold)} G</strong></header>
       <Show when={state().notice}><p role="status" class="notice">{state().notice}</p></Show>
       <section class="current">
-        <div><span class="label">현재 작업</span><h2>{resource() ? `${resource()!.icon} ${resource()!.name}` : '작업을 선택하세요'}</h2></div>
+        <div><span class="label">현재 작업</span><h2>{resource() ? `${resource()!.icon} ${resource()!.name}` : project() ? `${project()!.icon} ${project()!.name}` : '작업을 선택하세요'}</h2></div>
         <Show when={active()}><button onClick={stopAction}>작업 중지</button></Show>
-        <progress aria-label="현재 작업 진행률" max="100" value={active() ? Math.min(100, active()!.progressMs / resource()!.baseDurationMs * 100) : 0}/>
-        <small>{resource() ? `${(duration(state(), resource()!.id) / 1000).toFixed(1)}초마다 1개 · 화면을 바꿔도 계속 진행됩니다` : '한 번에 하나의 작업이 진행됩니다.'}</small>
+        <progress aria-label="현재 작업 진행률" max="100" value={active() ? Math.min(100, active()!.progressMs / activeDuration() * 100) : 0}/>
+        <small>{resource() ? `${(duration(state(), resource()!.id) / 1000).toFixed(1)}초마다 1개 · 화면을 바꿔도 계속 진행됩니다` : project() ? `${projectStage() === 'clearing' ? '폐허 정리' : '복원 공사'} · 화면을 바꿔도 계속 진행됩니다` : '한 번에 하나의 작업이 진행됩니다.'}</small>
       </section>
       <MealStatus/>
       <FarmStatus/>
