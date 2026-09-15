@@ -53,7 +53,7 @@ export function decodeSave(text: string): Model {
   }
   const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
-  // v1~v9는 모든 기능이 처음부터 보이던 기존 게임이다. v10 신규 저장만 실제 해금 상태를 복원한다.
+  // v1~v9는 모든 기능이 처음부터 보이던 기존 게임이다. v10 이상만 실제 해금 상태를 복원한다.
   const s = version < 10 ? unlockedGame(raw.lastSaveTime) : initial(raw.lastSaveTime);
   s.gold = raw.gold;
   for (const id of playable) {
