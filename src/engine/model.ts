@@ -40,7 +40,7 @@ export type CurrentAction =
   | {kind: 'project'; projectId: ProjectId; stage: 'clearing' | 'restoring'; progressMs: number};
 
 export interface Model {
-  version: 16;
+  version: 17;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -125,7 +125,7 @@ function projectStates(completed: boolean): Record<ProjectId, ProjectState> {
 
 function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: FeatureId[], completedProjects: boolean): Model {
   const s: Model = {
-    version: 16, gold: 1000,
+    version: 17, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: experienceToNextLevel(1) }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
     inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0,

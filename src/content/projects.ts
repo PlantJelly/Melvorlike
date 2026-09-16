@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower' | 'overgrown_trail';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -136,6 +136,22 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: ['equipment'],
     restorationPoints: 1,
     introducedVersion: 16,
+  },
+  overgrown_trail: {
+    id: 'overgrown_trail',
+    name: '무성해진 숲길',
+    description: '뒤덮인 잡초와 넝쿨을 걷어내면 왕국 밖 숲으로 나가 야생의 재료를 채집할 수 있습니다.',
+    icon: '🌲',
+    clearingDurationMs: 100_000,
+    salvage: {wood: 10, stone: 8},
+    // 스톤급 마법부여석은 마법 산출물이라, 마법탑을 먼저 끝내야 실제로 납품을 완료할 수 있다
+    // (다리의 벽돌·축사의 밀과 같은 방식 — 재료로 순서를 유도).
+    materials: {wood: 22, enchant_stone_stone: 6},
+    restorationDurationMs: 120_000,
+    unlockSkills: ['foraging'],
+    unlockFeatures: [],
+    restorationPoints: 1,
+    introducedVersion: 17,
   },
 };
 

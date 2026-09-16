@@ -96,8 +96,10 @@ describe('길드: 일일 퀘스트', () => {
     const migrated = decodeSave(JSON.stringify(legacy));
     expect(migrated.skills.mining.level).toBe(50);
     expect(migrated.dailyQuests.quests).toEqual(generateDailyQuests(highLevel, 0));
-    // 스킬 복원 전 레벨 1 상태로 생성했다면 이 검증은 실패한다(day 0 시드에서는 마나석이 선택됨).
-    expect(migrated.dailyQuests.quests.some(q => ResourceDB[q.resourceId].reqLevel >= 30)).toBe(true);
+    // 스킬 복원 전 레벨 1 상태로 뽑았다면 나왔을 후보군(레벨을 올리기 전의 highLevel)과
+    // 실제 결과가 달라야, 재굴림이 복원된 레벨을 실제로 사용했다는 것이 (구체적으로 어떤
+    // 재료가 뽑혔는지에 기대지 않고) 안정적으로 증명된다.
+    expect(migrated.dailyQuests.quests).not.toEqual(generateDailyQuests(initial(0), 0));
   });
 
   it('시간이 거슬러 온 호출은 생산 정산 시계(lastSaveTime)와 같은 날짜 기준으로 퀘스트를 판단한다', () => {

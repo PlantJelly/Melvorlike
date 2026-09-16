@@ -31,15 +31,17 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('enchant_stone_stone', '스톤급 마법부여석', 'magic', 1, 10000, 50, 40, '🔮', {chamomile: 2, mana_stone: 1}),
     row('enchant_stone_copper', '구리급 마법부여석', 'magic', 10, 14000, 120, 100, '🔮', {mugwort: 2, mana_stone: 2, copper_ingot: 1}),
     row('enchant_stone_iron', '철급 마법부여석', 'magic', 30, 20000, 280, 260, '🔮', {magic_mugwort: 2, mana_stone: 3, iron_ingot: 1}),
-    row('enchant_stone_gold', '금급 마법부여석', 'magic', 50, 30000, 600, 700, '🔮', {mystic_herb: 2, mana_stone: 5, gold_ingot: 1})
+    row('enchant_stone_gold', '금급 마법부여석', 'magic', 50, 30000, 600, 700, '🔮', {mystic_herb: 2, mana_stone: 5, gold_ingot: 1}),
+    row('wild_berry', '산딸기', 'foraging', 1, 3000, 25, 1, '🍓'), row('wild_mushroom', '들버섯', 'foraging', 10, 5000, 60, 3, '🍄'),
+    row('wild_herb', '산약초', 'foraging', 30, 8000, 150, 12, '🌱'), row('rare_mushroom', '영지버섯', 'foraging', 50, 12000, 400, 50, '🌰')
 ].map(r => [r.id, r]));
 // 수확 시 씨앗 1개를 심어 한 번에 돌려받는 개수. 재파종 분을 남기고 잉여를 판매/요리에 쓴다.
 export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3, chamomile: 3, mugwort: 3, magic_mugwort: 3, mystic_herb: 3 };
-export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리', farming: '농사', ranching: '목장', magic: '마법' };
-export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking', 'farming', 'ranching', 'magic'];
+export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리', farming: '농사', ranching: '목장', magic: '마법', foraging: '채집' };
+export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking', 'farming', 'ranching', 'magic', 'foraging'];
 // 액티브 단일 작업 슬롯을 쓰지 않고 항상 배경에서 병행 진행되는 스킬. begin()/저장 검증/화면 라우팅이 함께 참조한다.
 export const passiveSkills: SkillId[] = ['farming', 'ranching'];
-export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대', cooking: '조리도구', farming: '괭이', ranching: '사료통', magic: '마법봉' };
+export const toolNames: Record<SkillId, string> = { logging: '도끼', mining: '곡괭이', blacksmithing: '망치', fishing: '낚싯대', cooking: '조리도구', farming: '괭이', ranching: '사료통', magic: '마법봉', foraging: '바구니' };
 export const toolTiers: {
     name: string;
     level: number;
