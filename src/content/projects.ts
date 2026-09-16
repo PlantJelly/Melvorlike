@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower' | 'overgrown_trail';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower' | 'overgrown_trail' | 'ruined_sawmill';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -152,6 +152,22 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: [],
     restorationPoints: 1,
     introducedVersion: 17,
+  },
+  ruined_sawmill: {
+    id: 'ruined_sawmill',
+    name: '무너진 제재소',
+    description: '멈춰 선 물레바퀴와 톱니를 손보면 나무를 깎고 다듬는 목공을 시작할 수 있습니다.',
+    icon: '🪚',
+    clearingDurationMs: 110_000,
+    salvage: {wood: 11, stone: 9},
+    // 산딸기는 채집 산출물이라, 숲길을 먼저 끝내야 실제로 납품을 완료할 수 있다
+    // (다리의 벽돌·숲길의 마법부여석과 같은 방식 — 재료로 순서를 유도).
+    materials: {wood: 24, wild_berry: 14},
+    restorationDurationMs: 130_000,
+    unlockSkills: ['woodworking'],
+    unlockFeatures: [],
+    restorationPoints: 1,
+    introducedVersion: 18,
   },
 };
 
