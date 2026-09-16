@@ -69,7 +69,7 @@ describe('길드: 마일스톤 퀘스트', () => {
     delete raw.milestones;
 
     const loaded = decodeSave(JSON.stringify(raw));
-    expect(loaded.version).toBe(12);
+    expect(loaded.version).toBe(13);
     expect(loaded.milestones).toEqual({claimed: [], exchangeUsed: false});
     expect(milestoneReady(loaded, 'first_gather')).toBe(true);
     expect(milestoneReady(loaded, 'any_skill_10')).toBe(true);

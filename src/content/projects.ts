@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -69,6 +69,22 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: [],
     restorationPoints: 1,
     introducedVersion: 12,
+  },
+  guild_hall: {
+    id: 'guild_hall',
+    name: '먼지 쌓인 길드 회관',
+    description: '회관에 쌓인 먼지를 걷어내면 길드 환전과 퀘스트를 다시 이용할 수 있습니다.',
+    icon: '🏛️',
+    clearingDurationMs: 60_000,
+    salvage: {wood: 6, stone: 4},
+    // 구운 생선은 요리 산출물이라, 식당을 먼저 끝내야 실제로 납품을 완료할 수 있다
+    // (다리의 벽돌·식당의 피라미와 같은 방식 — 하드 선행조건 없이 재료로 순서를 유도).
+    materials: {wood: 14, grilled_fish: 5},
+    restorationDurationMs: 80_000,
+    unlockSkills: [],
+    unlockFeatures: ['guild'],
+    restorationPoints: 1,
+    introducedVersion: 13,
   },
 };
 
