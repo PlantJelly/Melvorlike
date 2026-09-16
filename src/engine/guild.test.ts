@@ -7,8 +7,9 @@ import { decodeSave } from './save';
 describe('길드: 원재료 구매', () => {
   it('원재료를 구매하면 골드가 줄고 인벤토리가 는다 — 스킬과 무관하게 이미 해금된 재료면 가능', () => {
     const s = initial(0);
+    s.gold = 10000;
     expect(buyResource(s, 'wheat', 3)).toBe(true);
-    expect(s.gold).toBe(1000 - 2 * 5 * 3);
+    expect(s.gold).toBe(10000 - ResourceDB.wheat.buy * 3);
     expect(s.inventory.wheat).toBe(3);
     expect(buyResource(s, 'wood', 1)).toBe(true); // 농사가 아닌 벌목 재료도 구매 가능
     expect(s.inventory.wood).toBe(1);

@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { advance, begin, farmReady, farmRemainingMs, harvest, unlockedGame as initial, plant } from './model';
 import { decodeSave } from './save';
+import { ResourceDB } from '../content/resources';
+import { experienceToNextLevel } from './formulas';
+
+// 한 번의 산출로 얻는 경험치가 커서 레벨업을 여러 번 유발할 수 있으므로, 엔진의 레벨업
+// 누적 로직을 그대로 재현해 기대값을 계산한다(addExperience와 동일한 규칙).
+function levelAfterExp(startExp: number) {
+  let level = 1, exp = startExp, maxExp = experienceToNextLevel(1);
+  while (exp >= maxExp) { exp -= maxExp; level++; maxExp = experienceToNextLevel(level); }
+  return {level, exp};
+}
 
 describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
   it('심으면 씨앗 1개를 소모하고, 이미 심었거나 레벨/재고 부족이면 막는다', () => {
@@ -25,7 +35,9 @@ describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
     advance(s, 180000);
     expect(harvest(s)).toBe(true);
     expect(s.inventory.wheat).toBe(3);
-    expect(s.skills.farming.exp).toBe(30);
+    const expected = levelAfterExp(ResourceDB.wheat.exp);
+    expect(s.skills.farming.level).toBe(expected.level);
+    expect(s.skills.farming.exp).toBe(expected.exp);
     expect(s.farmPlot).toBeNull();
     expect(harvest(s)).toBe(false);
   });

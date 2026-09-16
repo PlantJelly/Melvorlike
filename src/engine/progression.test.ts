@@ -25,7 +25,7 @@ describe('성장 곡선 시뮬레이터', () => {
     const rate = resourceRate('wheat', bare, 1);
     expect(rate.actionsPerHour).toBe(20);
     expect(rate.unitsPerHour).toBe(60);
-    expect(rate.grossGoldPerHour).toBe(120);
+    expect(rate.grossGoldPerHour).toBe(60 * ResourceDB.wheat.sell);
   });
 
   it('벌목 Lv10까지 현재 기준 59회, 177초가 걸린다', () => {
