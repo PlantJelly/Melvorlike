@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -119,6 +119,23 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: [],
     restorationPoints: 1,
     introducedVersion: 15,
+  },
+  fallen_tower: {
+    id: 'fallen_tower',
+    name: '쓰러진 마법탑',
+    description: '무너진 첨탑을 다시 세우고 마법진을 정비하면 마법과 장신구 제작을 시작할 수 있습니다.',
+    icon: '🗼',
+    clearingDurationMs: 90_000,
+    salvage: {wood: 9, stone: 7},
+    // 양털은 목장 산출물이라, 축사를 먼저 끝내야 실제로 납품을 완료할 수 있다(밭의
+    // 밀과 같은 방식 — 재료로 순서를 유도). 마법 자체의 산출물(마법부여석)은 이
+    // 구역이 열리기 전까지 존재할 수 없어 자기 자신을 참조할 수 없다.
+    materials: {wood: 20, wool: 12},
+    restorationDurationMs: 110_000,
+    unlockSkills: ['magic'],
+    unlockFeatures: ['equipment'],
+    restorationPoints: 1,
+    introducedVersion: 16,
   },
 };
 

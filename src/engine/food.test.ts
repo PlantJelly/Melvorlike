@@ -116,7 +116,7 @@ describe('저장 이전과 콘텐츠 참조', () => {
     const {cooking: _skill, ...skills} = s.skills;
     const {cooking: _tool, ...tools} = s.tools;
     const loaded = decodeSave(JSON.stringify({version:2, gold:1234, skills, tools:{...tools,logging:1}, inventory:{wood:8}, lastSaveTime:1000, currentAction:{resourceId:'wood',progressMs:1000}}));
-    expect(loaded.version).toBe(15);
+    expect(loaded.version).toBe(16);
     expect(loaded.skills.cooking.level).toBe(1);
     expect(loaded.tools.cooking).toBe(0);
     expect(loaded.gold).toBe(1234);

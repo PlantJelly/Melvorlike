@@ -44,14 +44,14 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 export function decodeSave(text: string): Model {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
-  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
   // 체크섬은 v7 이전 저장에는 없었으므로 필드 자체가 없을 때만 건너뛴다.
   // 필드가 있는데 문자열이 아니거나 값이 다르면(타입이 깨졌어도) 거부한다.
   if (raw.checksum !== undefined) {
     const {checksum: saved, ...rest} = raw;
     if (typeof saved !== 'string' || checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
   }
-  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
+  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   // v1~v9는 모든 기능이 처음부터 보이던 기존 게임이다. v10 이상만 실제 해금 상태를 복원한다.
   const s = version < 10 ? unlockedGame(raw.lastSaveTime) : initial(raw.lastSaveTime);
