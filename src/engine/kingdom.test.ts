@@ -153,14 +153,15 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects;
     raw.currentAction = {resourceId: raw.currentAction.resourceId, progressMs: raw.currentAction.progressMs};
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.unlockedSkills).toEqual(old.unlockedSkills);
     expect(migrated.unlockedFeatures).toEqual(old.unlockedFeatures);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     // v9는 왕국 시스템 자체가 없던 시절의 저장이라(그 어떤 스킬도 잠겨있지 않았음), 부서진
     // 다리·무너진 식당·길드 회관·버려진 밭·낡은 축사·쓰러진 마법탑·무성해진 숲길·무너진
-    // 제재소·무너진 약방을 포함해 그 시점에 존재하는 모든 프로젝트가 이미 완료된 것으로
-    // 이전된다 — "이미 열려 있던 기능을 잃지 않는다" 원칙이 대장간에만 국한되지 않는다.
+    // 제재소·무너진 약방·무너진 재봉소를 포함해 그 시점에 존재하는 모든 프로젝트가 이미
+    // 완료된 것으로 이전된다 — "이미 열려 있던 기능을 잃지 않는다" 원칙이 대장간에만
+    // 국한되지 않는다.
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
     expect(migrated.projects.guild_hall.phase).toBe('complete');
@@ -170,6 +171,7 @@ describe('왕국 복원 프로젝트', () => {
     expect(migrated.projects.overgrown_trail.phase).toBe('complete');
     expect(migrated.projects.ruined_sawmill.phase).toBe('complete');
     expect(migrated.projects.ruined_apothecary.phase).toBe('complete');
+    expect(migrated.projects.ruined_tailor.phase).toBe('complete');
     expect(skillUnlocked(migrated, 'fishing')).toBe(true);
     expect(skillUnlocked(migrated, 'cooking')).toBe(true);
     expect(featureUnlocked(migrated, 'guild')).toBe(true);
@@ -180,6 +182,7 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'foraging')).toBe(true);
     expect(skillUnlocked(migrated, 'woodworking')).toBe(true);
     expect(skillUnlocked(migrated, 'apothecary')).toBe(true);
+    expect(skillUnlocked(migrated, 'sewing')).toBe(true);
     expect(migrated.inventory.wood).toBe(7);
     expect(migrated.currentAction).toEqual({kind: 'production', resourceId: 'wood', progressMs: 1_000});
   });
@@ -205,10 +208,11 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'fishing');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     // 대장간은 v10에서 이미 진행한 그대로 보존된다.
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(skillUnlocked(migrated, 'blacksmithing')).toBe(true);
@@ -232,6 +236,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('무너진 식당 도입 전(v11) 저장은 대장간·다리 상태를 보존하고 식당은 미시작으로 이전한다', () => {
@@ -263,10 +269,11 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'cooking');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(skillUnlocked(migrated, 'blacksmithing')).toBe(true);
@@ -288,6 +295,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('길드 회관 도입 전(v12) 저장은 대장간·다리·식당 상태를 보존하고 길드 회관은 미시작으로 이전한다', () => {
@@ -330,10 +339,11 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedFeatures = raw.unlockedFeatures.filter((id: string) => id !== 'guild');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
@@ -355,6 +365,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('버려진 밭 도입 전(v13) 저장은 대장간·다리·식당·길드 회관 상태를 보존하고 밭은 미시작으로 이전한다', () => {
@@ -407,10 +419,11 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'farming');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
@@ -432,6 +445,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('낡은 축사 도입 전(v14) 저장은 대장간·다리·식당·길드 회관·밭 상태를 보존하고 축사는 미시작으로 이전한다', () => {
@@ -494,10 +509,11 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'ranching');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
@@ -519,6 +535,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('쓰러진 마법탑 도입 전(v15) 저장은 대장간·다리·식당·길드 회관·밭·축사 상태를 보존하고 마법탑은 미시작으로 이전한다', () => {
@@ -591,11 +609,12 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'magic');
     raw.unlockedFeatures = raw.unlockedFeatures.filter((id: string) => id !== 'equipment');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
@@ -617,6 +636,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('무성해진 숲길 도입 전(v16) 저장은 대장간~마법탑 상태를 보존하고 숲길은 미시작으로 이전한다', () => {
@@ -699,10 +720,11 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'foraging');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
@@ -724,6 +746,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('v12 저장(대장간+다리+식당 시절)은 세 프로젝트만 검증하고, 그 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -739,6 +763,7 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // v11인데 아직 도입되지 않았어야 할 ruined_restaurant 키가 섞여 있으면 거부.
     const asV11 = {...raw, version: 11};
     expect(() => decodeSave(JSON.stringify(asV11))).toThrow('왕국 정보 오류');
@@ -746,8 +771,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingBridge = JSON.parse(JSON.stringify(raw));
     delete missingBridge.projects.broken_bridge;
     expect(() => decodeSave(JSON.stringify(missingBridge))).toThrow('왕국 정보 오류');
-    // v12 그대로는(길드 회관·밭·축사·마법탑·숲길·제재소·약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v12 그대로는(길드 회관·밭·축사·마법탑·숲길·제재소·약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('v13 저장(대장간+다리+식당+길드 회관 시절)은 네 프로젝트만 검증하고, 그 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -762,6 +787,7 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // v12인데 아직 도입되지 않았어야 할 guild_hall 키가 섞여 있으면 거부.
     const asV12 = {...raw, version: 12};
     expect(() => decodeSave(JSON.stringify(asV12))).toThrow('왕국 정보 오류');
@@ -769,8 +795,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingRestaurant = JSON.parse(JSON.stringify(raw));
     delete missingRestaurant.projects.ruined_restaurant;
     expect(() => decodeSave(JSON.stringify(missingRestaurant))).toThrow('왕국 정보 오류');
-    // v13 그대로는(밭·축사·마법탑·숲길·제재소·약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v13 그대로는(밭·축사·마법탑·숲길·제재소·약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('v14 저장(대장간+다리+식당+길드 회관+밭 시절)은 다섯 프로젝트만 검증하고, 그 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -784,6 +810,7 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // v13인데 아직 도입되지 않았어야 할 abandoned_field 키가 섞여 있으면 거부.
     const asV13 = {...raw, version: 13};
     expect(() => decodeSave(JSON.stringify(asV13))).toThrow('왕국 정보 오류');
@@ -791,8 +818,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingGuildHall = JSON.parse(JSON.stringify(raw));
     delete missingGuildHall.projects.guild_hall;
     expect(() => decodeSave(JSON.stringify(missingGuildHall))).toThrow('왕국 정보 오류');
-    // v14 그대로는(축사·마법탑·숲길·제재소·약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v14 그대로는(축사·마법탑·숲길·제재소·약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('v15 저장(대장간+다리+식당+길드 회관+밭+축사 시절)은 여섯 프로젝트만 검증하고, 그 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -805,6 +832,7 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // v14인데 아직 도입되지 않았어야 할 worn_out_barn 키가 섞여 있으면 거부.
     const asV14 = {...raw, version: 14};
     expect(() => decodeSave(JSON.stringify(asV14))).toThrow('왕국 정보 오류');
@@ -812,8 +840,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingField = JSON.parse(JSON.stringify(raw));
     delete missingField.projects.abandoned_field;
     expect(() => decodeSave(JSON.stringify(missingField))).toThrow('왕국 정보 오류');
-    // v15 그대로는(마법탑·숲길·제재소·약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v15 그대로는(마법탑·숲길·제재소·약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('v16 저장은 일곱 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -828,6 +856,7 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // v15인데 아직 도입되지 않았어야 할 fallen_tower 키가 섞여 있으면 거부.
     const asV15 = {...raw, version: 15};
     expect(() => decodeSave(JSON.stringify(asV15))).toThrow('왕국 정보 오류');
@@ -835,8 +864,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingBarn = JSON.parse(JSON.stringify(raw));
     delete missingBarn.projects.worn_out_barn;
     expect(() => decodeSave(JSON.stringify(missingBarn))).toThrow('왕국 정보 오류');
-    // v16 그대로는(숲길·제재소·약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v16 그대로는(숲길·제재소·약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('v17 저장은 여덟 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -849,6 +878,7 @@ describe('왕국 복원 프로젝트', () => {
     raw.version = 17;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // v16인데 아직 도입되지 않았어야 할 overgrown_trail 키가 섞여 있으면 거부.
     const asV16 = {...raw, version: 16};
     expect(() => decodeSave(JSON.stringify(asV16))).toThrow('왕국 정보 오류');
@@ -856,8 +886,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingTower = JSON.parse(JSON.stringify(raw));
     delete missingTower.projects.fallen_tower;
     expect(() => decodeSave(JSON.stringify(missingTower))).toThrow('왕국 정보 오류');
-    // v17 그대로는(제재소·약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v17 그대로는(제재소·약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('무너진 제재소 도입 전(v17) 저장은 대장간~숲길 상태를 보존하고 제재소는 미시작으로 이전한다', () => {
@@ -950,10 +980,11 @@ describe('왕국 복원 프로젝트', () => {
     raw.version = 17;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'woodworking');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
@@ -975,6 +1006,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(false);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('v18 저장은 아홉 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -986,6 +1019,7 @@ describe('왕국 복원 프로젝트', () => {
     // raw.version을 18로 명시적으로 고정해야 한다(D027/D028이 닫은 것과 같은 종류의 버그).
     raw.version = 18;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // v17인데 아직 도입되지 않았어야 할 ruined_sawmill 키가 섞여 있으면 거부.
     const asV17 = {...raw, version: 17};
     expect(() => decodeSave(JSON.stringify(asV17))).toThrow('왕국 정보 오류');
@@ -993,8 +1027,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingTrail = JSON.parse(JSON.stringify(raw));
     delete missingTrail.projects.overgrown_trail;
     expect(() => decodeSave(JSON.stringify(missingTrail))).toThrow('왕국 정보 오류');
-    // v18 그대로는(약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v18 그대로는(약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('무너진 약방 도입 전(v18) 저장은 대장간~제재소 상태를 보존하고 약방은 미시작으로 이전한다', () => {
@@ -1097,10 +1131,11 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.checksum;
     raw.version = 18;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'apothecary');
 
     const migrated = decodeSave(JSON.stringify(raw));
-    expect(migrated.version).toBe(19);
+    expect(migrated.version).toBe(20);
     expect(migrated.projects.ruined_forge.phase).toBe('complete');
     expect(migrated.projects.broken_bridge.phase).toBe('complete');
     expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
@@ -1122,6 +1157,8 @@ describe('왕국 복원 프로젝트', () => {
     expect(skillUnlocked(migrated, 'woodworking')).toBe(true);
     expect(migrated.projects.ruined_apothecary.phase).toBe('surveyable');
     expect(skillUnlocked(migrated, 'apothecary')).toBe(false);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
   });
 
   it('v19 저장은 열 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
@@ -1129,6 +1166,10 @@ describe('왕국 복원 프로젝트', () => {
     surveyProject(s, 'ruined_apothecary');
     const raw = JSON.parse(encodeSave(s));
     delete raw.checksum;
+    // encodeSave는 항상 현재(ambient) 버전으로 쓰므로, 이 테스트가 실제로 v19를 검증하려면
+    // raw.version을 19로 명시적으로 고정해야 한다(D027~D029가 닫은 것과 같은 종류의 버그).
+    raw.version = 19;
+    delete raw.projects.ruined_tailor;
     // v18인데 아직 도입되지 않았어야 할 ruined_apothecary 키가 섞여 있으면 거부.
     const asV18 = {...raw, version: 18};
     expect(() => decodeSave(JSON.stringify(asV18))).toThrow('왕국 정보 오류');
@@ -1136,6 +1177,162 @@ describe('왕국 복원 프로젝트', () => {
     const missingSawmill = JSON.parse(JSON.stringify(raw));
     delete missingSawmill.projects.ruined_sawmill;
     expect(() => decodeSave(JSON.stringify(missingSawmill))).toThrow('왕국 정보 오류');
+    // v19 그대로는(재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
+  });
+
+  it('무너진 재봉소 도입 전(v19) 저장은 대장간~약방 상태를 보존하고 재봉소는 미시작으로 이전한다', () => {
+    const s = initial(0);
+    finishClearing(s);
+    supplyForge(s);
+    startProjectWork(s, 'ruined_forge');
+    advance(s, s.lastSaveTime + project.restorationDurationMs);
+
+    const bridge = ProjectDB.broken_bridge;
+    surveyProject(s, 'broken_bridge');
+    startProjectWork(s, 'broken_bridge');
+    advance(s, s.lastSaveTime + bridge.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + bridge.materials.wood;
+    s.inventory.brick = (s.inventory.brick ?? 0) + bridge.materials.brick;
+    deliverProjectMaterial(s, 'broken_bridge', 'wood', bridge.materials.wood);
+    deliverProjectMaterial(s, 'broken_bridge', 'brick', bridge.materials.brick);
+    startProjectWork(s, 'broken_bridge');
+    advance(s, s.lastSaveTime + bridge.restorationDurationMs);
+
+    const restaurant = ProjectDB.ruined_restaurant;
+    surveyProject(s, 'ruined_restaurant');
+    startProjectWork(s, 'ruined_restaurant');
+    advance(s, s.lastSaveTime + restaurant.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + restaurant.materials.wood;
+    s.inventory.fish_small = (s.inventory.fish_small ?? 0) + restaurant.materials.fish_small;
+    deliverProjectMaterial(s, 'ruined_restaurant', 'wood', restaurant.materials.wood);
+    deliverProjectMaterial(s, 'ruined_restaurant', 'fish_small', restaurant.materials.fish_small);
+    startProjectWork(s, 'ruined_restaurant');
+    advance(s, s.lastSaveTime + restaurant.restorationDurationMs);
+
+    const guildHall = ProjectDB.guild_hall;
+    surveyProject(s, 'guild_hall');
+    startProjectWork(s, 'guild_hall');
+    advance(s, s.lastSaveTime + guildHall.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + guildHall.materials.wood;
+    s.inventory.grilled_fish = (s.inventory.grilled_fish ?? 0) + guildHall.materials.grilled_fish;
+    deliverProjectMaterial(s, 'guild_hall', 'wood', guildHall.materials.wood);
+    deliverProjectMaterial(s, 'guild_hall', 'grilled_fish', guildHall.materials.grilled_fish);
+    startProjectWork(s, 'guild_hall');
+    advance(s, s.lastSaveTime + guildHall.restorationDurationMs);
+
+    const field = ProjectDB.abandoned_field;
+    surveyProject(s, 'abandoned_field');
+    startProjectWork(s, 'abandoned_field');
+    advance(s, s.lastSaveTime + field.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + field.materials.wood;
+    s.inventory.stone = (s.inventory.stone ?? 0) + field.materials.stone;
+    deliverProjectMaterial(s, 'abandoned_field', 'wood', field.materials.wood);
+    deliverProjectMaterial(s, 'abandoned_field', 'stone', field.materials.stone);
+    startProjectWork(s, 'abandoned_field');
+    advance(s, s.lastSaveTime + field.restorationDurationMs);
+
+    const barn = ProjectDB.worn_out_barn;
+    surveyProject(s, 'worn_out_barn');
+    startProjectWork(s, 'worn_out_barn');
+    advance(s, s.lastSaveTime + barn.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + barn.materials.wood;
+    s.inventory.wheat = (s.inventory.wheat ?? 0) + barn.materials.wheat;
+    deliverProjectMaterial(s, 'worn_out_barn', 'wood', barn.materials.wood);
+    deliverProjectMaterial(s, 'worn_out_barn', 'wheat', barn.materials.wheat);
+    startProjectWork(s, 'worn_out_barn');
+    advance(s, s.lastSaveTime + barn.restorationDurationMs);
+
+    const tower = ProjectDB.fallen_tower;
+    surveyProject(s, 'fallen_tower');
+    startProjectWork(s, 'fallen_tower');
+    advance(s, s.lastSaveTime + tower.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + tower.materials.wood;
+    s.inventory.wool = (s.inventory.wool ?? 0) + tower.materials.wool;
+    deliverProjectMaterial(s, 'fallen_tower', 'wood', tower.materials.wood);
+    deliverProjectMaterial(s, 'fallen_tower', 'wool', tower.materials.wool);
+    startProjectWork(s, 'fallen_tower');
+    advance(s, s.lastSaveTime + tower.restorationDurationMs);
+
+    const trail = ProjectDB.overgrown_trail;
+    surveyProject(s, 'overgrown_trail');
+    startProjectWork(s, 'overgrown_trail');
+    advance(s, s.lastSaveTime + trail.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + trail.materials.wood;
+    s.inventory.enchant_stone_stone = (s.inventory.enchant_stone_stone ?? 0) + trail.materials.enchant_stone_stone;
+    deliverProjectMaterial(s, 'overgrown_trail', 'wood', trail.materials.wood);
+    deliverProjectMaterial(s, 'overgrown_trail', 'enchant_stone_stone', trail.materials.enchant_stone_stone);
+    startProjectWork(s, 'overgrown_trail');
+    advance(s, s.lastSaveTime + trail.restorationDurationMs);
+
+    const sawmill = ProjectDB.ruined_sawmill;
+    surveyProject(s, 'ruined_sawmill');
+    startProjectWork(s, 'ruined_sawmill');
+    advance(s, s.lastSaveTime + sawmill.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + sawmill.materials.wood;
+    s.inventory.wild_berry = (s.inventory.wild_berry ?? 0) + sawmill.materials.wild_berry;
+    deliverProjectMaterial(s, 'ruined_sawmill', 'wood', sawmill.materials.wood);
+    deliverProjectMaterial(s, 'ruined_sawmill', 'wild_berry', sawmill.materials.wild_berry);
+    startProjectWork(s, 'ruined_sawmill');
+    advance(s, s.lastSaveTime + sawmill.restorationDurationMs);
+
+    const apothecary = ProjectDB.ruined_apothecary;
+    surveyProject(s, 'ruined_apothecary');
+    startProjectWork(s, 'ruined_apothecary');
+    advance(s, s.lastSaveTime + apothecary.clearingDurationMs);
+    s.inventory.wood = (s.inventory.wood ?? 0) + apothecary.materials.wood;
+    s.inventory.plank = (s.inventory.plank ?? 0) + apothecary.materials.plank;
+    deliverProjectMaterial(s, 'ruined_apothecary', 'wood', apothecary.materials.wood);
+    deliverProjectMaterial(s, 'ruined_apothecary', 'plank', apothecary.materials.plank);
+    startProjectWork(s, 'ruined_apothecary');
+    advance(s, s.lastSaveTime + apothecary.restorationDurationMs);
+    expect(s.projects.ruined_apothecary.phase).toBe('complete');
+
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.version = 19;
+    delete raw.projects.ruined_tailor;
+    raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'sewing');
+
+    const migrated = decodeSave(JSON.stringify(raw));
+    expect(migrated.version).toBe(20);
+    expect(migrated.projects.ruined_forge.phase).toBe('complete');
+    expect(migrated.projects.broken_bridge.phase).toBe('complete');
+    expect(migrated.projects.ruined_restaurant.phase).toBe('complete');
+    expect(migrated.projects.guild_hall.phase).toBe('complete');
+    expect(migrated.projects.abandoned_field.phase).toBe('complete');
+    expect(migrated.projects.worn_out_barn.phase).toBe('complete');
+    expect(migrated.projects.fallen_tower.phase).toBe('complete');
+    expect(migrated.projects.overgrown_trail.phase).toBe('complete');
+    expect(migrated.projects.ruined_sawmill.phase).toBe('complete');
+    expect(migrated.projects.ruined_apothecary.phase).toBe('complete');
+    expect(skillUnlocked(migrated, 'blacksmithing')).toBe(true);
+    expect(skillUnlocked(migrated, 'fishing')).toBe(true);
+    expect(skillUnlocked(migrated, 'cooking')).toBe(true);
+    expect(featureUnlocked(migrated, 'guild')).toBe(true);
+    expect(skillUnlocked(migrated, 'farming')).toBe(true);
+    expect(skillUnlocked(migrated, 'ranching')).toBe(true);
+    expect(skillUnlocked(migrated, 'magic')).toBe(true);
+    expect(featureUnlocked(migrated, 'equipment')).toBe(true);
+    expect(skillUnlocked(migrated, 'foraging')).toBe(true);
+    expect(skillUnlocked(migrated, 'woodworking')).toBe(true);
+    expect(skillUnlocked(migrated, 'apothecary')).toBe(true);
+    expect(migrated.projects.ruined_tailor.phase).toBe('surveyable');
+    expect(skillUnlocked(migrated, 'sewing')).toBe(false);
+  });
+
+  it('v20 저장은 열한 프로젝트를 모두 검증하고, 저장 버전에 없어야 할 구역이 섞여 있으면 거부한다', () => {
+    const s = initial(0);
+    surveyProject(s, 'ruined_tailor');
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    // v19인데 아직 도입되지 않았어야 할 ruined_tailor 키가 섞여 있으면 거부.
+    const asV19 = {...raw, version: 19};
+    expect(() => decodeSave(JSON.stringify(asV19))).toThrow('왕국 정보 오류');
+    // v20인데 ruined_apothecary 키가 빠져 있으면(있어야 할 구역 누락) 거부.
+    const missingApothecary = JSON.parse(JSON.stringify(raw));
+    delete missingApothecary.projects.ruined_apothecary;
+    expect(() => decodeSave(JSON.stringify(missingApothecary))).toThrow('왕국 정보 오류');
   });
 
   it('무너진 식당 완료 시 요리를 영구 해금하고 복원도가 3이 된다', () => {
@@ -1191,6 +1388,7 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     raw.unlockedSkills = raw.unlockedSkills.filter((id: string) => id !== 'cooking');
     // v10인데 아직 도입되지 않았어야 할 broken_bridge 키가 섞여 있으면 거부.
     const asV10 = {...raw, version: 10};
@@ -1199,8 +1397,8 @@ describe('왕국 복원 프로젝트', () => {
     const missingForge = JSON.parse(JSON.stringify(raw));
     delete missingForge.projects.ruined_forge;
     expect(() => decodeSave(JSON.stringify(missingForge))).toThrow('왕국 정보 오류');
-    // v11 그대로는(식당·길드 회관·밭·축사·마법탑·숲길·제재소·약방 키가 없는 채) 정상 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    // v11 그대로는(식당·길드 회관·밭·축사·마법탑·숲길·제재소·약방·재봉소 키가 없는 채) 정상 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
   });
 
   it('부서진 다리 완료 시 낚시를 영구 해금하고 복원도가 2가 된다', () => {
@@ -1551,6 +1749,25 @@ describe('왕국 복원 프로젝트', () => {
     expect(s.projects.ruined_apothecary.phase).toBe('complete');
     expect(skillUnlocked(s, 'apothecary')).toBe(true);
     expect(kingdomRestoration(s)).toBe(10);
+
+    const tailor = ProjectDB.ruined_tailor;
+    expect(surveyProject(s, 'ruined_tailor')).toBe(true);
+    expect(startProjectWork(s, 'ruined_tailor')).toBe(true);
+    advance(s, s.lastSaveTime + tailor.clearingDurationMs);
+    expect(s.projects.ruined_tailor.phase).toBe('delivery');
+    s.inventory.wood = (s.inventory.wood ?? 0) + tailor.materials.wood;
+    // 산딸기 물약은 조제(이미 해금됨) 산출물이다 — 조제 자체는 다른 테스트가 검증하므로
+    // 여기서는 납품에 필요한 만큼 보유한 상태만 준비한다.
+    s.inventory.berry_tonic = (s.inventory.berry_tonic ?? 0) + tailor.materials.berry_tonic;
+    expect(deliverProjectMaterial(s, 'ruined_tailor', 'wood', tailor.materials.wood)).toBe(tailor.materials.wood);
+    expect(deliverProjectMaterial(s, 'ruined_tailor', 'berry_tonic', tailor.materials.berry_tonic)).toBe(tailor.materials.berry_tonic);
+    expect(s.projects.ruined_tailor.phase).toBe('restorable');
+    expect(startProjectWork(s, 'ruined_tailor')).toBe(true);
+    advance(s, s.lastSaveTime + tailor.restorationDurationMs);
+
+    expect(s.projects.ruined_tailor.phase).toBe('complete');
+    expect(skillUnlocked(s, 'sewing')).toBe(true);
+    expect(kingdomRestoration(s)).toBe(11);
   });
 
   it('모순된 프로젝트 단계와 현재 작업을 손상 저장으로 거부한다', () => {
@@ -1582,15 +1799,16 @@ describe('왕국 복원 프로젝트', () => {
     delete raw.checksum;
     raw.version = 14;
     // v14에는 아직 worn_out_barn(v15)·fallen_tower(v16)·overgrown_trail(v17)·ruined_sawmill(v18)·
-    // ruined_apothecary(v19)만 도입되지 않았다 — 그보다 먼저 도입된 구역(다리~밭)은 미완료
-    // 상태로라도 키 자체는 존재해야 한다.
+    // ruined_apothecary(v19)·ruined_tailor(v20)만 도입되지 않았다 — 그보다 먼저 도입된 구역
+    // (다리~밭)은 미완료 상태로라도 키 자체는 존재해야 한다.
     delete raw.projects.worn_out_barn;
     delete raw.projects.fallen_tower;
     delete raw.projects.overgrown_trail;
     delete raw.projects.ruined_sawmill;
     delete raw.projects.ruined_apothecary;
+    delete raw.projects.ruined_tailor;
     // 정상적인 v14 저장(대장간만 완료, 나머지는 미시작)은 통과해야 한다.
-    expect(decodeSave(JSON.stringify(raw)).version).toBe(19);
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(20);
 
     const sneakedSkill = JSON.parse(JSON.stringify(raw));
     sneakedSkill.unlockedSkills = [...sneakedSkill.unlockedSkills, 'magic'];

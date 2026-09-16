@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower' | 'overgrown_trail' | 'ruined_sawmill' | 'ruined_apothecary';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower' | 'overgrown_trail' | 'ruined_sawmill' | 'ruined_apothecary' | 'ruined_tailor';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -184,6 +184,22 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: [],
     restorationPoints: 1,
     introducedVersion: 19,
+  },
+  ruined_tailor: {
+    id: 'ruined_tailor',
+    name: '무너진 재봉소',
+    description: '먼지 쌓인 재단대와 실패를 정리하면 양털로 옷을 짓는 재봉을 시작할 수 있습니다.',
+    icon: '🪡',
+    clearingDurationMs: 130_000,
+    salvage: {wood: 13, stone: 11},
+    // 산딸기 물약은 조제 산출물이라, 약방을 먼저 끝내야 실제로 납품을 완료할 수 있다
+    // (다리의 벽돌·약방의 나무 판자와 같은 방식 — 재료로 순서를 유도).
+    materials: {wood: 28, berry_tonic: 10},
+    restorationDurationMs: 150_000,
+    unlockSkills: ['sewing'],
+    unlockFeatures: [],
+    restorationPoints: 1,
+    introducedVersion: 20,
   },
 };
 
