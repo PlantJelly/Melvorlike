@@ -1021,4 +1021,41 @@ describe('왕국 복원 프로젝트', () => {
     impossible.projects.ruined_forge.phase = 'complete';
     expect(() => decodeSave(JSON.stringify(impossible))).toThrow('왕국 정보 오류');
   });
+
+  it('아직 도입되지 않은 구역의 스킬·기능이 해금 목록에 몰래 섞여 있으면 거부한다(반대 방향 검증)', () => {
+    // v14(대장간~밭까지만 도입) 저장에는 fallen_tower(v16 도입) 키 자체가 없어
+    // 정방향(프로젝트별) 검사가 이 프로젝트를 아예 보지 않는다 — 그 빈틈에서 magic을
+    // unlockedSkills에 직접 끼워 넣어도 반대 방향 검증 이전에는 걸러지지 않았다.
+    const s = initial(0);
+    finishClearing(s);
+    supplyForge(s);
+    startProjectWork(s, 'ruined_forge');
+    advance(s, s.lastSaveTime + project.restorationDurationMs);
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.version = 14;
+    // v14에는 아직 worn_out_barn(v15)·fallen_tower(v16)만 도입되지 않았다 — 그보다
+    // 먼저 도입된 구역(다리~밭)은 미완료 상태로라도 키 자체는 존재해야 한다.
+    delete raw.projects.worn_out_barn;
+    delete raw.projects.fallen_tower;
+    // 정상적인 v14 저장(대장간만 완료, 나머지는 미시작)은 통과해야 한다.
+    expect(decodeSave(JSON.stringify(raw)).version).toBe(16);
+
+    const sneakedSkill = JSON.parse(JSON.stringify(raw));
+    sneakedSkill.unlockedSkills = [...sneakedSkill.unlockedSkills, 'magic'];
+    expect(() => decodeSave(JSON.stringify(sneakedSkill))).toThrow('왕국 정보 오류');
+
+    const sneakedFeature = JSON.parse(JSON.stringify(raw));
+    sneakedFeature.unlockedFeatures = [...sneakedFeature.unlockedFeatures, 'equipment'];
+    expect(() => decodeSave(JSON.stringify(sneakedFeature))).toThrow('왕국 정보 오류');
+  });
+
+  it('시작 스킬을 제외한 모든 해금은 실제로 완료된 프로젝트로만 설명 가능해야 한다', () => {
+    const s = unlockedGame(0);
+    // unlockedGame()은 정의된 모든 프로젝트를 완료 처리해서 만들어지므로, 완료된
+    // 프로젝트들이 주는 스킬·기능의 합집합이 정확히 전체 해금 목록과 일치해야 한다.
+    const restored = decodeSave(encodeSave(s));
+    expect(restored.unlockedSkills).toEqual(s.unlockedSkills);
+    expect(restored.unlockedFeatures).toEqual(s.unlockedFeatures);
+  });
 });

@@ -4,7 +4,7 @@ import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { guildTiers, milestoneIds, type MilestoneId } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
-import {ProjectDB, featureIds, projectIds, starterSkills, type FeatureId, type ProjectId, type ProjectPhase} from '../content/projects';
+import {ProjectDB, featureIds, projectIds, starterSkills, starterFeatures, type FeatureId, type ProjectId, type ProjectPhase} from '../content/projects';
 export const SAVE_KEY = 'melvorlike_save';
 
 // 키를 정렬해 직렬화한다 — 인코딩 시점과 디코딩 시점의 JS 객체 키 순서가 달라도
@@ -107,6 +107,20 @@ export function decodeSave(text: string): Model {
       const completed = phase === 'complete';
       if (project.unlockSkills.some(id => s.unlockedSkills.includes(id) !== completed) || project.unlockFeatures.some(id => s.unlockedFeatures.includes(id) !== completed)) throw Error('왕국 정보 오류');
     }
+    // 반대 방향 검증: 위 루프는 그 저장 버전에 이미 등장한 프로젝트에 대해서만 도는데,
+    // 아직 도입되지 않은 프로젝트(예: 낮은 버전 저장에 섞여 들어간 나중 구역의 스킬)는
+    // 여기서 걸러지지 않는다 — s.projects는 도입 전 구역도 항상 initial()의 미완료
+    // 기본값을 유지하므로, 전체 프로젝트를 대상으로 완료된 것만 모아 해금 목록과 다시
+    // 대조한다. 시작 스킬/기능이거나 실제로 완료된 프로젝트가 준 것이 아니면 거부한다.
+    const grantedSkills = new Set<string>(starterSkills);
+    const grantedFeatures = new Set<string>(starterFeatures);
+    for (const id of projectIds) {
+      if (s.projects[id].phase === 'complete') {
+        for (const skill of ProjectDB[id].unlockSkills) grantedSkills.add(skill);
+        for (const feature of ProjectDB[id].unlockFeatures) grantedFeatures.add(feature);
+      }
+    }
+    if (unlockedSkills.some(id => !grantedSkills.has(id)) || unlockedFeatures.some(id => !grantedFeatures.has(id))) throw Error('왕국 정보 오류');
   }
   // 기준 모델이 만든 dailyQuests는 아직 스킬이 복원되기 전(레벨 1 기준)으로 뽑힌 것이므로,
   // v8 이전 저장(뒤의 dailyQuests 블록이 실행되지 않음)은 방금 복원한 실제 레벨로 다시 뽑는다.
