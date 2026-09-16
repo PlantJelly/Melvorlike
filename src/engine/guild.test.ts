@@ -43,6 +43,14 @@ describe('길드: 환전', () => {
     expect(s.inventory.wood).toBe(Math.floor(4 * exchangeRate));
   });
 
+  it('채집도 벌목/채광/낚시와 마찬가지로 상위 티어를 하위 티어(산딸기)로 환전할 수 있다', () => {
+    const s = initial(0);
+    s.inventory.wild_mushroom = 4;
+    expect(exchangeResource(s, 'wild_mushroom', 4)).toBe(true);
+    expect(s.inventory.wild_mushroom).toBe(0);
+    expect(s.inventory.wild_berry).toBe(Math.floor(4 * exchangeRate));
+  });
+
   it('길드 등급이 낮으면 깊은 티어 차이는 환전할 수 없고, 승급하면 가능해진다', () => {
     const s = initial(0);
     s.gold = 20000;
@@ -72,8 +80,8 @@ describe('길드: 환전', () => {
     }
   });
 
-  it('최하위 재료(wood/stone/fish_small)는 환전 대상 목록에 없다 — 역방향 경로가 구조적으로 존재하지 않는다', () => {
-    for (const baseline of ['wood', 'stone', 'fish_small']) {
+  it('최하위 재료(wood/stone/fish_small/wild_berry)는 환전 대상 목록에 없다 — 역방향 경로가 구조적으로 존재하지 않는다', () => {
+    for (const baseline of ['wood', 'stone', 'fish_small', 'wild_berry']) {
       expect(Object.hasOwn(ExchangeDB, baseline)).toBe(false);
     }
   });

@@ -9,6 +9,9 @@ export const ExchangeDB: Record<string, ExchangeDef> = {
   gold_ore: {targetId: 'stone', tierGap: 2},
   fish_carp: {targetId: 'fish_small', tierGap: 1},
   fish_salmon: {targetId: 'fish_small', tierGap: 2},
+  wild_mushroom: {targetId: 'wild_berry', tierGap: 1},
+  wild_herb: {targetId: 'wild_berry', tierGap: 2},
+  rare_mushroom: {targetId: 'wild_berry', tierGap: 3},
 };
 // 환전 시 1개당 받는 수량 = tierGap 단계마다 이 배율씩 복리 적용(내림).
 export const exchangeRate = 1.5;
