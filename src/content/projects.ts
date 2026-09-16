@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -85,6 +85,22 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: ['guild'],
     restorationPoints: 1,
     introducedVersion: 13,
+  },
+  abandoned_field: {
+    id: 'abandoned_field',
+    name: '버려진 밭',
+    description: '잡초로 뒤덮인 밭을 정리하고 다시 일구면 농사를 시작할 수 있습니다.',
+    icon: '🌾',
+    clearingDurationMs: 70_000,
+    salvage: {wood: 7, stone: 5},
+    // 길드 회관은 스킬이 아니라 서비스형 기능(guild)만 열어서 재사용할 산출물이 없다 —
+    // 이 구역부터는 재료 의존 체인이 끊기고 첫 구역(대장간)처럼 나무·돌만 사용한다.
+    materials: {wood: 16, stone: 12},
+    restorationDurationMs: 90_000,
+    unlockSkills: ['farming'],
+    unlockFeatures: [],
+    restorationPoints: 1,
+    introducedVersion: 14,
   },
 };
 

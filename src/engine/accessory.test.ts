@@ -114,7 +114,7 @@ describe('마법부여·장신구', () => {
     const {magic: _magicTool, ...tools} = current.tools;
     const {accessories: _accessories, ...withoutAccessories} = current;
     const loaded = decodeSave(JSON.stringify({...withoutAccessories, version: 6, skills, tools}));
-    expect(loaded.version).toBe(13);
+    expect(loaded.version).toBe(14);
     expect(loaded.skills.magic.level).toBe(1);
     expect(loaded.tools.magic).toBe(0);
     expect(loaded.accessories).toEqual(emptyAccessories());
