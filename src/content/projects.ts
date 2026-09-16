@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -101,6 +101,24 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: [],
     restorationPoints: 1,
     introducedVersion: 14,
+  },
+  worn_out_barn: {
+    id: 'worn_out_barn',
+    name: '낡은 축사',
+    description: '허물어진 축사를 손보고 여물통을 채우면 동물을 다시 기를 수 있습니다.',
+    icon: '🐄',
+    clearingDurationMs: 80_000,
+    salvage: {wood: 8, stone: 6},
+    // 밀은 농사 산출물이자 기존 목장 시스템의 사료라, 밭을 먼저 끝내야 실제로 납품을
+    // 완료할 수 있다(다리의 벽돌·식당의 피라미와 같은 방식 — 재료로 순서를 유도).
+    // 버려진 밭(직전 구역)이 서비스형 기능만 열어 끊겼던 D023의 재료 의존 체인이
+    // 여기서 다시 이어진다.
+    materials: {wood: 18, wheat: 10},
+    restorationDurationMs: 100_000,
+    unlockSkills: ['ranching'],
+    unlockFeatures: [],
+    restorationPoints: 1,
+    introducedVersion: 15,
   },
 };
 
