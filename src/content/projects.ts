@@ -1,6 +1,6 @@
 import type { SkillId } from './types';
 
-export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower' | 'overgrown_trail' | 'ruined_sawmill';
+export type ProjectId = 'ruined_forge' | 'broken_bridge' | 'ruined_restaurant' | 'guild_hall' | 'abandoned_field' | 'worn_out_barn' | 'fallen_tower' | 'overgrown_trail' | 'ruined_sawmill' | 'ruined_apothecary';
 export type FeatureId = 'tools' | 'equipment' | 'guild';
 export type ProjectPhase = 'surveyable' | 'clearing' | 'delivery' | 'restorable' | 'restoring' | 'complete';
 
@@ -168,6 +168,22 @@ export const ProjectDB: Record<ProjectId, ProjectDef> = {
     unlockFeatures: [],
     restorationPoints: 1,
     introducedVersion: 18,
+  },
+  ruined_apothecary: {
+    id: 'ruined_apothecary',
+    name: '무너진 약방',
+    description: '먼지 쌓인 조제대와 약장을 정비하면 채집한 재료로 물약을 조제할 수 있습니다.',
+    icon: '⚗️',
+    clearingDurationMs: 120_000,
+    salvage: {wood: 12, stone: 10},
+    // 나무 판자는 목공 산출물이라, 제재소를 먼저 끝내야 실제로 납품을 완료할 수 있다
+    // (다리의 벽돌·제재소의 산딸기와 같은 방식 — 재료로 순서를 유도).
+    materials: {wood: 26, plank: 12},
+    restorationDurationMs: 140_000,
+    unlockSkills: ['apothecary'],
+    unlockFeatures: [],
+    restorationPoints: 1,
+    introducedVersion: 19,
   },
 };
 
