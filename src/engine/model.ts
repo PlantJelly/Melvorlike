@@ -31,7 +31,9 @@ import { SAPLING_CHANCE, saplingHarvest, saplingOf } from '../content/saplings';
 
 import { farmAutomation, plotUpgrades } from '../content/farm';
 
-export const SAVE_VERSION = 23;
+import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
+
+export const SAVE_VERSION = 24;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -42,7 +44,8 @@ export interface ProjectState {
   delivered: Record<string, number>;
 }
 
-export interface FarmPlot { cropId: string; progressMs: number }
+// fertilizer는 이 칸에 파종할 때 쓴 비료. 수확될 때까지 유지된다.
+export interface FarmPlot { cropId: string; progressMs: number; fertilizer?: FertilizerId }
 
 export type CurrentAction =
   | {kind: 'production'; resourceId: string; progressMs: number}
@@ -78,6 +81,10 @@ export interface Model {
   veinProgress: number;
   // 나무묘목 누적량(만분율, CHANCE_SCALE 미만). 벌목 산출 횟수 × SAPLING_CHANCE만큼 쌓인다.
   saplingProgress: number;
+  // 보유 비료 수량과 배양·회수비료 확률 누적량(만분율, CHANCE_SCALE 미만).
+  fertilizers: Record<FertilizerId, number>;
+  bumperProgress: number;
+  recoveryProgress: number;
   lastSaveTime: number;
   notice: string;
 }
@@ -146,7 +153,9 @@ function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: 
     inventory: {}, currentAction: null, meal: null, farmPlots: [null], farmAuto: false, ranch: {}, guild: 0,
     unlockedSkills: [...unlockedSkills], unlockedFeatures: [...unlockedFeatures], projects: projectStates(completedProjects),
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
-    accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0, lastSaveTime: time, notice: '',
+    accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0,
+    fertilizers: Object.fromEntries(fertilizerIds.map(id => [id, 0])) as Model['fertilizers'], bumperProgress: 0, recoveryProgress: 0,
+    lastSaveTime: time, notice: '',
   };
   s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
   return s;
@@ -183,13 +192,19 @@ export function accessoryBonus(s: Model, optionId: AccessoryOptionId) {
   return total;
 }
 
-export function speedMultiplier(s: Model, skill: SkillId) {
+export function speedMultiplier(s: Model, skill: SkillId, extraBonus = 0) {
   const food = s.meal && s.meal.remainingMs > 0 ? FoodDB[s.meal.foodId] : null;
   return getSpeedMultiplier(
     toolTiers[s.tools[skill]].bonus,
     food?.skills.includes(skill) ? food.speedBonus : 0,
     accessoryBonus(s, 'speed'),
+    extraBonus,
   );
+}
+
+// 칸마다 비료(속성비료)가 달라 성장 속도가 다를 수 있다.
+export function plotSpeed(s: Model, plot: FarmPlot) {
+  return speedMultiplier(s, 'farming', plot.fertilizer ? FertilizerDB[plot.fertilizer].speedBonus ?? 0 : 0);
 }
 
 export function duration(s: Model, id: string) {
@@ -254,7 +269,7 @@ function advanceSegment(s: Model, elapsed: number) {
 
 // 경험치를 더하기 전 레벨로 확률을 정한다. 한 번의 정산 안에서 레벨이 오르는 경우만
 // 짧은 틱 정산과 미세하게 달라질 수 있다(같은 레벨 구간 안에서는 항상 동일).
-type ChanceKey = 'veinProgress' | 'saplingProgress';
+type ChanceKey = 'veinProgress' | 'saplingProgress' | 'bumperProgress' | 'recoveryProgress';
 
 // 확률만큼 적립하고 1회분이 쌓인 횟수를 돌려준다(D034).
 function accrue(s: Model, key: ChanceKey, amount: number) {
@@ -316,24 +331,24 @@ function advanceProjectAction(s: Model, action: Extract<CurrentAction, {kind: 'p
 // 자동화가 있으면 다 자랄 때마다 거두고 같은 씨앗(묘목)이 있으면 남은 시간으로 곧바로 다시 키운다.
 // 자동 수확은 경과 시간 전체를 한 번에 정산하므로 경험치 음식은 적용하지 않는다(mealExpBonus 참고).
 function advanceFarm(s: Model, elapsed: number) {
-  const speed = speedMultiplier(s, 'farming');
   for (let i = 0; i < s.farmPlots.length; i++) {
-    const plot = s.farmPlots[i];
+    let plot = s.farmPlots[i];
     if (!plot) continue;
     const duration = ResourceDB[plot.cropId].baseDurationMs;
-    let work = elapsed * speed;
     if (!s.farmAuto) {
-      plot.progressMs = Math.min(duration, plot.progressMs + work);
+      plot.progressMs = Math.min(duration, plot.progressMs + elapsed * plotSpeed(s, plot));
       continue;
     }
+    // 다시 심을 때 비료가 떨어져 속도가 바뀔 수 있으므로 남은 작업량이 아니라 남은 실제 시간으로 반복한다.
+    let time = elapsed;
     for (;;) {
+      const rate = plotSpeed(s, plot);
       const need = duration - plot.progressMs;
-      if (work + 1e-7 < need) { plot.progressMs += work; break; }
-      work = Math.max(0, work - need);
-      collectHarvest(s, plot.cropId, 0);
-      if ((s.inventory[plot.cropId] ?? 0) < 1) { s.farmPlots[i] = null; break; }
-      s.inventory[plot.cropId]--;
-      plot.progressMs = 0;
+      if (time * rate + 1e-7 < need) { plot.progressMs += time * rate; break; }
+      time = Math.max(0, time - need / rate);
+      collectHarvest(s, plot.cropId, 0, plot.fertilizer);
+      if (!sow(s, i, plot.cropId, plot.fertilizer, true)) { s.farmPlots[i] = null; break; }
+      plot = s.farmPlots[i]!;
     }
   }
 }
@@ -352,7 +367,7 @@ export function farmRemainingMs(s: Model, index = 0) {
   const plot = s.farmPlots[index];
   if (!plot) return 0;
   const r = ResourceDB[plot.cropId];
-  return Math.max(0, r.baseDurationMs - plot.progressMs) / speedMultiplier(s, r.skill);
+  return Math.max(0, r.baseDurationMs - plot.progressMs) / plotSpeed(s, plot);
 }
 
 // 사육 중인 모든 동물을 병행 정산한다. 사료가 모자라면 주기 1회분에서 진행을 멈춰
@@ -615,14 +630,37 @@ export function upgradeGuild(s: Model) {
   return true;
 }
 
+// 씨앗 1개(회수비료 적중 시 0개)와 비료 1개를 써서 index 칸에 심는다. 자동 재파종에서는 비료가
+// 떨어졌으면 비료 없이 심고(optionalFertilizer), 수동 파종에서는 고른 비료가 없으면 실패한다.
+function sow(s: Model, index: number, cropId: string, fertilizer: FertilizerId | undefined, optionalFertilizer: boolean) {
+  if ((s.inventory[cropId] ?? 0) < 1) return false;
+  if (fertilizer && s.fertilizers[fertilizer] < 1) {
+    if (!optionalFertilizer) return false;
+    fertilizer = undefined;
+  }
+  if (fertilizer) s.fertilizers[fertilizer]--;
+  const chance = fertilizer ? FertilizerDB[fertilizer].seedReturnChance ?? 0 : 0;
+  if (!chance || !accrue(s, 'recoveryProgress', chance)) s.inventory[cropId]--;
+  s.farmPlots[index] = fertilizer ? {cropId, progressMs: 0, fertilizer} : {cropId, progressMs: 0};
+  return true;
+}
+
 // 비어 있는 첫 밭에 심는다. 모든 칸이 차 있으면 실패한다.
-export function plant(s: Model, id: string) {
+export function plant(s: Model, id: string, fertilizer?: FertilizerId) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
   const index = s.farmPlots.indexOf(null);
-  if (!skillUnlocked(s, 'farming') || !r || r.skill !== 'farming' || index < 0 || s.skills.farming.level < r.reqLevel || (s.inventory[id] ?? 0) < 1) return false;
-  s.inventory[id]--;
-  s.farmPlots[index] = { cropId: id, progressMs: 0 };
+  if (!skillUnlocked(s, 'farming') || !r || r.skill !== 'farming' || index < 0 || s.skills.farming.level < r.reqLevel) return false;
+  if (fertilizer !== undefined && !fertilizerIds.includes(fertilizer)) return false;
+  if (!sow(s, index, id, fertilizer, false)) return false;
   s.notice = '';
+  return true;
+}
+
+export function buyFertilizer(s: Model, id: FertilizerId, count: number) {
+  const f = fertilizerIds.includes(id) ? FertilizerDB[id] : undefined;
+  if (!skillUnlocked(s, 'farming') || !f || !Number.isInteger(count) || count <= 0 || s.gold < f.goldCost * count) return false;
+  s.gold -= f.goldCost * count;
+  s.fertilizers[id] += count;
   return true;
 }
 
@@ -631,8 +669,10 @@ export function harvestOutput(cropId: string) {
   return saplingHarvest[cropId] ?? {resourceId: cropId, count: cropYield[cropId] ?? 1};
 }
 
-function collectHarvest(s: Model, cropId: string, bonus: number) {
-  const out = harvestOutput(cropId);
+function collectHarvest(s: Model, cropId: string, bonus: number, fertilizer?: FertilizerId) {
+  const out = {...harvestOutput(cropId)};
+  const chance = fertilizer ? FertilizerDB[fertilizer].doubleChance ?? 0 : 0;
+  if (chance && accrue(s, 'bumperProgress', chance)) out.count *= 2;
   s.inventory[out.resourceId] = (s.inventory[out.resourceId] ?? 0) + out.count;
   addExperience(s, 'farming', ResourceDB[cropId].exp, bonus);
   return out;
@@ -646,7 +686,7 @@ export function harvest(s: Model) {
   for (let i = 0; i < s.farmPlots.length; i++) {
     const plot = s.farmPlots[i];
     if (!plot || !plotReady(plot)) continue;
-    const out = collectHarvest(s, plot.cropId, mealExpBonus(s, 'farming'));
+    const out = collectHarvest(s, plot.cropId, mealExpBonus(s, 'farming'), plot.fertilizer);
     gained[out.resourceId] = (gained[out.resourceId] ?? 0) + out.count;
     exp += ResourceDB[plot.cropId].exp;
     s.farmPlots[i] = null;

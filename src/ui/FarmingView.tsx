@@ -1,9 +1,10 @@
-import { For, Show } from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 import { ResourceDB } from '../content/resources';
 import { farmAutomation, type FarmUpgrade } from '../content/farm';
+import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 import { state } from '../state/gameState';
 import { afford, duration, farmRemainingMs, harvestOutput, nextPlotUpgrade, plotReady } from '../engine/model';
-import { buySeed, plantCrop, harvestCrop, expandFarmAction, automateFarmAction } from '../engine/actions';
+import { buySeed, plantCrop, harvestCrop, expandFarmAction, automateFarmAction, buyFertilizerAction } from '../engine/actions';
 import { costText, fmt } from './ProductionView';
 
 function minutes(ms: number) {
@@ -39,6 +40,9 @@ function UpgradeCard(props: {title: string; description: string; upgrade: FarmUp
 
 export function FarmingView() {
   const skill = () => state().skills.farming;
+  // 다음 파종에 쓸 비료. 재고가 없으면 심기 버튼이 비활성화된다.
+  const [fertilizer, setFertilizer] = createSignal<FertilizerId | ''>('');
+  const fertilizerReady = () => !fertilizer() || state().fertilizers[fertilizer() as FertilizerId] > 0;
   return <>
     <h1>농사</h1>
     <p class="muted">레벨 {skill().level} · 경험치 {fmt(skill().exp)} / {fmt(skill().maxExp)}</p>
@@ -49,11 +53,29 @@ export function FarmingView() {
       <For each={plots()}>{(plot, i) => <Show when={plot} fallback={<small>{i() + 1}번 밭 · 비어 있음</small>}>{p => {
         const crop = () => ResourceDB[p().cropId];
         return <>
-          <small>{i() + 1}번 밭 · {crop().icon} {crop().name} · {plotReady(p()) ? '수확할 수 있습니다' : `${minutes(farmRemainingMs(state(), i()))}분 후 수확 가능`}</small>
+          <small>{i() + 1}번 밭 · {crop().icon} {crop().name}{p().fertilizer ? ` · ${FertilizerDB[p().fertilizer!].icon} ${FertilizerDB[p().fertilizer!].name}` : ''} · {plotReady(p()) ? '수확할 수 있습니다' : `${minutes(farmRemainingMs(state(), i()))}분 후 수확 가능`}</small>
           <progress aria-label={`${i() + 1}번 밭 진행률`} max="100" value={p().progressMs / crop().baseDurationMs * 100}/>
         </>;
       }}</Show>}</For>
     </section>
+    <h2>비료</h2>
+    <p class="muted">파종할 때 한 칸에 하나를 쓰고, 그 칸의 작물을 거둘 때까지 효과가 이어집니다. 확률 효과는 확률만큼 쌓였다가 한 번씩 발동합니다.</p>
+    <div class="cards">
+      <For each={fertilizerIds}>{id => {
+        const f = FertilizerDB[id];
+        return <article>
+          <div class="item-icon">{f.icon}</div>
+          <h2>{f.name}</h2>
+          <p>보유 <strong>{fmt(state().fertilizers[id])}</strong></p>
+          <p class="muted">{f.description}</p>
+          <p class="recipe">{fmt(f.goldCost)} G</p>
+          <div class="button-row">
+            <button disabled={state().gold < f.goldCost} onClick={() => buyFertilizerAction(id, 1)}>1개 구매</button>
+            <button disabled={state().gold < f.goldCost * 10} onClick={() => buyFertilizerAction(id, 10)}>10개 구매</button>
+          </div>
+        </article>;
+      }}</For>
+    </div>
     <div class="cards">
       <Show when={nextPlotUpgrade(state())}>{upgrade =>
         <UpgradeCard title={`밭 늘리기 (${plots().length + 1}칸)`} description="나무 판자로 울타리를 세워 밭을 한 칸 더 일굽니다." upgrade={upgrade()} onBuy={expandFarmAction}/>
@@ -62,6 +84,10 @@ export function FarmingView() {
         <UpgradeCard title="자동 파종/수확" description="다 자란 작물을 자동으로 거두고, 같은 씨앗(묘목)이 있으면 곧바로 다시 심습니다." upgrade={farmAutomation} onBuy={automateFarmAction}/>
       </Show>
     </div>
+    <label class="muted">파종할 때 쓸 비료 <select aria-label="파종 비료" value={fertilizer()} onChange={e => setFertilizer(e.currentTarget.value as FertilizerId | '')}>
+      <option value="">사용 안 함</option>
+      <For each={fertilizerIds}>{id => <option value={id}>{FertilizerDB[id].name} (보유 {state().fertilizers[id]})</option>}</For>
+    </select></label>
     <div class="cards">
       <For each={Object.values(ResourceDB).filter(r => r.skill === 'farming')}>{r => {
         const out = harvestOutput(r.id);
@@ -74,7 +100,7 @@ export function FarmingView() {
           <p class="recipe">{sapling ? '묘목' : '씨앗'} {fmt(r.buy)} G{sapling ? ' · 벌목 중에도 얻을 수 있습니다' : ''}</p>
           <div class="button-row">
             <button disabled={skill().level < r.reqLevel || state().gold < r.buy} onClick={() => buySeed(r.id, 1)}>{sapling ? '묘목 구매' : '씨앗 구매'}</button>
-            <button disabled={skill().level < r.reqLevel || !hasEmpty() || (state().inventory[r.id] ?? 0) < 1} onClick={() => plantCrop(r.id)}>
+            <button disabled={skill().level < r.reqLevel || !hasEmpty() || (state().inventory[r.id] ?? 0) < 1 || !fertilizerReady()} onClick={() => plantCrop(r.id, fertilizer() || undefined)}>
               {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : '심기'}
             </button>
           </div>

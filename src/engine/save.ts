@@ -7,6 +7,7 @@ import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOption
 import {ProjectDB, featureIds, projectIds, starterSkills, starterFeatures, type FeatureId, type ProjectId, type ProjectPhase} from '../content/projects';
 import {CHANCE_SCALE} from '../content/chance';
 import {MAX_FARM_PLOTS, farmAutomation, plotUpgrades} from '../content/farm';
+import {fertilizerIds, type FertilizerId} from '../content/fertilizers';
 export const SAVE_KEY = 'melvorlike_save';
 
 // 키를 정렬해 직렬화한다 — 인코딩 시점과 디코딩 시점의 JS 객체 키 순서가 달라도
@@ -188,7 +189,10 @@ export function decodeSave(text: string): Model {
     if (!object(plot) || typeof plot.cropId !== 'string' || !Object.hasOwn(ResourceDB, plot.cropId) || ResourceDB[plot.cropId].skill !== 'farming' || !finite(plot.progressMs)) throw Error('농사밭 정보 오류');
     const r = ResourceDB[plot.cropId];
     if (!skillUnlocked(s, 'farming') || plot.progressMs > r.baseDurationMs || s.skills.farming.level < r.reqLevel) throw Error('농사밭 정보 오류');
-    return {cropId: r.id, progressMs: plot.progressMs};
+    // 칸별 비료는 v24부터 저장된다.
+    if (plot.fertilizer === undefined) return {cropId: r.id, progressMs: plot.progressMs};
+    if (version < 24 || typeof plot.fertilizer !== 'string' || !fertilizerIds.includes(plot.fertilizer as FertilizerId)) throw Error('농사밭 정보 오류');
+    return {cropId: r.id, progressMs: plot.progressMs, fertilizer: plot.fertilizer as FertilizerId};
   };
   // v4~v22는 밭 1칸(farmPlot), v23부터 밭 배열(farmPlots)과 자동화 여부를 저장한다.
   if (version >= 23) {
@@ -276,6 +280,21 @@ export function decodeSave(text: string): Model {
     const sapling = raw.saplingProgress;
     if (!finite(sapling) || !Number.isInteger(sapling) || sapling >= CHANCE_SCALE) throw Error('묘목 정보 오류');
     s.saplingProgress = sapling;
+  }
+  // v24 이전 저장은 비료가 없고 배양·회수 누적량이 0에서 시작한다.
+  if (version >= 24) {
+    const stock = raw.fertilizers;
+    if (!object(stock) || Object.keys(stock).length !== fertilizerIds.length) throw Error('비료 정보 오류');
+    for (const id of fertilizerIds) {
+      const n = stock[id];
+      if (!finite(n) || !Number.isSafeInteger(n)) throw Error('비료 정보 오류');
+      s.fertilizers[id] = n;
+    }
+    for (const key of ['bumperProgress', 'recoveryProgress'] as const) {
+      const value = raw[key];
+      if (!finite(value) || !Number.isInteger(value) || value >= CHANCE_SCALE) throw Error('비료 정보 오류');
+      s[key] = value;
+    }
   }
   return s;
 }

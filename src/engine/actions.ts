@@ -1,9 +1,10 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, upgrade, sell, eat, buyResource, plant, harvest, expandFarm, automateFarm, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
+import { begin, upgrade, sell, eat, buyResource, plant, harvest, expandFarm, automateFarm, buyFertilizer, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
 import type { SkillId } from '../content/types';
 import type { AccessorySlotId } from '../content/accessories';
 import type { MilestoneId } from '../content/guild';
 import type { ProjectId } from '../content/projects';
+import type { FertilizerId } from '../content/fertilizers';
 
 export function startAction(_skill: SkillId, id: string) {
   mutate(s => { begin(s, id); });
@@ -41,8 +42,8 @@ export function buySeed(id: string, n = 1) {
   mutate(s => { buyResource(s, id, n); });
   saveGame();
 }
-export function plantCrop(id: string) {
-  mutate(s => { plant(s, id); });
+export function plantCrop(id: string, fertilizer?: FertilizerId) {
+  mutate(s => { plant(s, id, fertilizer); });
   saveGame();
 }
 export function harvestCrop() {
@@ -91,5 +92,9 @@ export function expandFarmAction() {
 }
 export function automateFarmAction() {
   mutate(s => { automateFarm(s); });
+  saveGame();
+}
+export function buyFertilizerAction(id: FertilizerId, n: number) {
+  mutate(s => { buyFertilizer(s, id, n); });
   saveGame();
 }
