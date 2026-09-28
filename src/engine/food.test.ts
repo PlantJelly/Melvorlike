@@ -70,7 +70,8 @@ describe('낚시와 음식', () => {
     expect(a.meal).toBeNull();
     expect(b.meal).toBeNull();
     expect(a.currentAction?.progressMs).toBeCloseTo(b.currentAction!.progressMs, 5);
-    expect(a.inventory.fish_small).toBe(247);
+    // 247번 던졌고, 낚시 레벨이 오르며 줄어드는 꽝 확률로 34번은 빈손이었다(경험치는 247번 모두 받음).
+    expect(a.inventory.fish_small).toBe(213);
   });
 
   it('만료 경계에서 작업 중간 진행량을 보존하고 새 속도로 이어간다', () => {

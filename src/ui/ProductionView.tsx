@@ -7,6 +7,7 @@ import { startAction } from '../engine/actions';
 import { FoodButtons } from './Food';
 import { CHANCE_SCALE } from '../content/chance';
 import { COAL_CHANCE, veinChance } from '../content/mining';
+import { junkChance } from '../content/fishing';
 import { SAPLING_CHANCE } from '../content/saplings';
 
 // game_design §2.4: 화로/용광로는 별도 건물이 아니라 같은 대장간의 레벨 구간별 명칭이다.
@@ -27,7 +28,7 @@ export function ProductionView(props: {skill: SkillId}) {
   return <>
     <h1>{skillNames[props.skill]}</h1>
     <p class="muted">레벨 {skill().level} · 경험치 {fmt(skill().exp)} / {fmt(skill().maxExp)}</p>
-    <Show when={props.skill === 'fishing'}><p class="intro-note">개울에서 시작해 더 높은 레벨의 낚시터를 여세요. 잡은 물고기는 요리 재료가 됩니다.</p></Show>
+    <Show when={props.skill === 'fishing'}><p class="intro-note">개울에서 시작해 더 높은 레벨의 낚시터를 여세요. 잡은 물고기는 요리 재료가 됩니다. 낚시터마다 꽝이 나올 수 있고, 낚시 레벨이 오를수록 줄어듭니다(꽝이어도 경험치는 얻습니다).</p></Show>
     <Show when={props.skill === 'logging'}><p class="intro-note">묘목 확률 {(SAPLING_CHANCE / 100).toFixed(2)}% · 묘목 기운 {Math.floor(state().saplingProgress / CHANCE_SCALE * 100)}% — 나무를 벨 때마다 쌓이고 100%가 되면 그 나무의 묘목을 얻습니다. 농사가 열려 있으면 밭에 심어 원목을 대량으로 수확할 수 있습니다.</p></Show>
     <Show when={props.skill === 'mining'}><p class="intro-note">광맥 발견 확률 {(veinChance(skill().level) / 100).toFixed(2)}% · 광맥 기운 {Math.floor(state().veinProgress / CHANCE_SCALE * 100)}% — 채굴할 때마다 쌓이고 100%가 되면 한 단계 위 광물과 마나석을 1개씩 더 얻습니다. 어떤 광물을 캐든 석탄이 {COAL_CHANCE / 100}% 확률로 함께 나오며(보유 {fmt(state().inventory.coal ?? 0)}), 구리·철 주괴의 연료로 쓰입니다.</p></Show>
     <Show when={props.skill === 'blacksmithing'}><p class="intro-note">대장간 설비: <strong>{forgeName(skill().level)}</strong>{skill().level < FURNACE_LEVEL ? ` — 대장작업 Lv${FURNACE_LEVEL}에 용광로로 확장됩니다.` : ' — 철 이상의 주괴를 제련할 수 있습니다.'}</p></Show>
@@ -39,7 +40,7 @@ export function ProductionView(props: {skill: SkillId}) {
           <div class="item-icon">{r.icon}</div>
           <h2>{r.name}</h2>
           <p>보유 <strong>{fmt(state().inventory[r.id] ?? 0)}</strong></p>
-          <p class="muted">{(duration(state(), r.id) / 1000).toFixed(1)}초 · 경험치 +{r.exp}</p>
+          <p class="muted">{(duration(state(), r.id) / 1000).toFixed(1)}초 · 경험치 +{r.exp}{r.skill === 'fishing' && skill().level >= r.reqLevel ? ` · 꽝 ${(junkChance(r.id, r.reqLevel, skill().level) / 100).toFixed(1)}%` : ''}</p>
           <Show when={r.recipe}><p class="recipe">{costText(r.recipe!)}</p></Show>
           <button class="production-button"
             disabled={skill().level < r.reqLevel || !afford(state(), r.recipe ?? {}) || running(r.id)}

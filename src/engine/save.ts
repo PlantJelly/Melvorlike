@@ -287,6 +287,12 @@ export function decodeSave(text: string): Model {
     if (!finite(coal) || !Number.isInteger(coal) || coal >= CHANCE_SCALE) throw Error('석탄 정보 오류');
     s.coalProgress = coal;
   }
+  // v27 이전 저장에는 낚시 꽝 누적량이 없으므로 0에서 시작한다.
+  if (version >= 27) {
+    const junk = raw.junkProgress;
+    if (!finite(junk) || !Number.isInteger(junk) || junk >= CHANCE_SCALE) throw Error('낚시 정보 오류');
+    s.junkProgress = junk;
+  }
   // v24 이전 저장은 비료가 없고 배양·회수 누적량이 0에서 시작한다.
   if (version >= 24) {
     const stock = raw.fertilizers;

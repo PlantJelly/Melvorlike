@@ -78,9 +78,10 @@ describe('성장 곡선 시뮬레이터', () => {
   it('첫 구운 생선의 원재료와 가공 시간을 계산한다', () => {
     const route = planProduction('grilled_fish', 1, bare);
     expect(route.rawRequirements).toEqual({fish_small: 2});
-    expect(route.timeBySkillMs.fishing).toBe(7000);
+    // Lv1 개울은 꽝 20% — 피라미 2마리를 기대값으로 얻으려면 3번 던져야 한다.
+    expect(route.timeBySkillMs.fishing).toBe(3 * 3500);
     expect(route.timeBySkillMs.cooking).toBe(5000);
-    expect(route.activeTimeMs).toBe(12000);
+    expect(route.activeTimeMs).toBe(15500);
   });
 
   it('생산 경로의 잘못된 자원과 요구량을 거부한다', () => {

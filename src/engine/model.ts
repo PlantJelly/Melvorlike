@@ -27,13 +27,14 @@ import {
 import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
 import { CHANCE_SCALE } from '../content/chance';
 import { COAL_CHANCE, veinBonusOre, veinChance } from '../content/mining';
+import { junkChance } from '../content/fishing';
 import { SAPLING_CHANCE, saplingHarvest, saplingOf } from '../content/saplings';
 
 import { farmAutomation, plotUpgrades } from '../content/farm';
 
 import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 
-export const SAVE_VERSION = 26;
+export const SAVE_VERSION = 27;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -87,6 +88,8 @@ export interface Model {
   saplingProgress: number;
   // 석탄 누적량(만분율, CHANCE_SCALE 미만). 채광 산출 횟수 × COAL_CHANCE만큼 쌓인다.
   coalProgress: number;
+  // 낚시 꽝 누적량(만분율, CHANCE_SCALE 미만). 낚시 산출 횟수 × 낚시터·레벨별 꽝 확률만큼 쌓인다.
+  junkProgress: number;
   // 보유 비료 수량과 배양·회수비료 확률 누적량(만분율, CHANCE_SCALE 미만).
   fertilizers: Record<FertilizerId, number>;
   bumperProgress: number;
@@ -159,7 +162,7 @@ function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: 
     inventory: {}, currentAction: null, meal: null, farmPlots: [null], farmAuto: false, ranch: {}, ranchCounts: {}, barnLevel: 0, guild: 0,
     unlockedSkills: [...unlockedSkills], unlockedFeatures: [...unlockedFeatures], projects: projectStates(completedProjects),
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
-    accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0, coalProgress: 0,
+    accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0, coalProgress: 0, junkProgress: 0,
     fertilizers: Object.fromEntries(fertilizerIds.map(id => [id, 0])) as Model['fertilizers'], bumperProgress: 0, recoveryProgress: 0,
     lastSaveTime: time, notice: '',
   };
@@ -258,14 +261,21 @@ function advanceSegment(s: Model, elapsed: number) {
   if (r.recipe) {
     count = Math.min(count, ...Object.entries(r.recipe).map(([id, n]) => Math.floor((s.inventory[id] ?? 0) / n)));
   }
-  if (count) {
-    if (r.recipe) spend(s, r.recipe, count);
-    s.inventory[r.id] = (s.inventory[r.id] ?? 0) + count;
-    if (r.skill === 'mining') { discoverVeins(s, r.id, count); dropCoal(s, count); }
-    if (r.skill === 'logging') dropSaplings(s, r.id, count);
-    addExperience(s, r.skill, r.exp * count, mealExpBonus(s, r.skill));
-    action.progressMs = Math.max(0, action.progressMs - count * r.baseDurationMs);
+  // 광맥·꽝처럼 레벨에 따라 달라지는 확률이 있으므로, 레벨이 오르는 지점마다 나눠 정산한다.
+  // 그래야 오프라인에서 한 번에 정산해도 짧은 틱으로 한 번씩 정산한 것과 결과가 같다.
+  const bonus = mealExpBonus(s, r.skill);
+  for (let left = count; left > 0;) {
+    const n = Math.min(left, actionsUntilLevelUp(s, r.skill, r.exp * (1 + accessoryBonus(s, 'experience') + bonus)));
+    if (r.recipe) spend(s, r.recipe, n);
+    // 낚시 꽝은 물고기만 줄이고 경험치는 그대로 준다.
+    const junk = r.skill === 'fishing' ? accrue(s, 'junkProgress', n * junkChance(r.id, r.reqLevel, s.skills.fishing.level)) : 0;
+    s.inventory[r.id] = (s.inventory[r.id] ?? 0) + n - junk;
+    if (r.skill === 'mining') { discoverVeins(s, r.id, n); dropCoal(s, n); }
+    if (r.skill === 'logging') dropSaplings(s, r.id, n);
+    addExperience(s, r.skill, r.exp * n, bonus);
+    left -= n;
   }
+  if (count) action.progressMs = Math.max(0, action.progressMs - count * r.baseDurationMs);
   if (r.recipe && !afford(s, r.recipe)) {
     s.currentAction = null;
     s.notice = '재료가 부족해 제작을 멈췄습니다.';
@@ -273,9 +283,15 @@ function advanceSegment(s: Model, elapsed: number) {
   return count;
 }
 
-// 경험치를 더하기 전 레벨로 확률을 정한다. 한 번의 정산 안에서 레벨이 오르는 경우만
-// 짧은 틱 정산과 미세하게 달라질 수 있다(같은 레벨 구간 안에서는 항상 동일).
-type ChanceKey = 'veinProgress' | 'saplingProgress' | 'coalProgress' | 'bumperProgress' | 'recoveryProgress';
+// 이번 레벨에서 다음 레벨업을 일으키는 작업까지 몇 번 남았는지(그 작업 포함). 레벨업을 일으킨 작업은
+// 짧은 틱 정산에서도 오르기 전 레벨의 확률을 쓰므로 그 작업까지를 한 구간으로 묶는다.
+function actionsUntilLevelUp(s: Model, skillId: SkillId, expPerAction: number) {
+  const skill = s.skills[skillId];
+  if (skill.level >= MAX_SKILL_LEVEL || expPerAction <= 0) return Infinity;
+  return Math.max(1, Math.ceil((skill.maxExp - skill.exp) / expPerAction - 1e-9));
+}
+
+type ChanceKey = 'veinProgress' | 'saplingProgress' | 'coalProgress' | 'junkProgress' | 'bumperProgress' | 'recoveryProgress';
 
 // 확률만큼 적립하고 1회분이 쌓인 횟수를 돌려준다(D034).
 function accrue(s: Model, key: ChanceKey, amount: number) {
