@@ -1,7 +1,7 @@
 import { For, Show } from 'solid-js';
-import { ResourceDB, cropYield } from '../content/resources';
+import { ResourceDB } from '../content/resources';
 import { state } from '../state/gameState';
-import { duration, farmReady, farmRemainingMs } from '../engine/model';
+import { duration, farmReady, farmRemainingMs, harvestOutput } from '../engine/model';
 import { buySeed, plantCrop, harvestCrop } from '../engine/actions';
 import { fmt } from './ProductionView';
 
@@ -37,21 +37,23 @@ export function FarmingView() {
       </Show>
     </section>
     <div class="cards">
-      <For each={Object.values(ResourceDB).filter(r => r.skill === 'farming')}>{r =>
-        <article>
+      <For each={Object.values(ResourceDB).filter(r => r.skill === 'farming')}>{r => {
+        const out = harvestOutput(r.id);
+        const sapling = out.resourceId !== r.id;
+        return <article>
           <div class="item-icon">{r.icon}</div>
           <h2>{r.name}</h2>
           <p>보유 <strong>{fmt(state().inventory[r.id] ?? 0)}</strong></p>
-          <p class="muted">성장 {minutes(duration(state(), r.id))}분 · 수확 {cropYield[r.id]}개 · 경험치 +{r.exp}</p>
-          <p class="recipe">씨앗 {fmt(r.buy)} G</p>
+          <p class="muted">성장 {minutes(duration(state(), r.id))}분 · 수확 {sapling ? `${ResourceDB[out.resourceId].name} ` : ''}{fmt(out.count)}개 · 경험치 +{r.exp}</p>
+          <p class="recipe">{sapling ? '묘목' : '씨앗'} {fmt(r.buy)} G{sapling ? ' · 벌목 중에도 얻을 수 있습니다' : ''}</p>
           <div class="button-row">
-            <button disabled={skill().level < r.reqLevel || state().gold < r.buy} onClick={() => buySeed(r.id, 1)}>씨앗 구매</button>
+            <button disabled={skill().level < r.reqLevel || state().gold < r.buy} onClick={() => buySeed(r.id, 1)}>{sapling ? '묘목 구매' : '씨앗 구매'}</button>
             <button disabled={skill().level < r.reqLevel || !!plot() || (state().inventory[r.id] ?? 0) < 1} onClick={() => plantCrop(r.id)}>
               {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : '심기'}
             </button>
           </div>
-        </article>
-      }</For>
+        </article>;
+      }}</For>
     </div>
   </>;
 }

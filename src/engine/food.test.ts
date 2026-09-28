@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { saplingHarvest, saplingOf } from '../content/saplings';
 import { SAVE_VERSION } from './model';
 import { FoodDB } from '../content/foods';
 import { ResourceDB, cropYield, playable } from '../content/resources';
@@ -155,7 +156,13 @@ describe('저장 이전과 콘텐츠 참조', () => {
     for (const r of Object.values(ResourceDB)) {
       expect(playable).toContain(r.skill);
       expect(r.baseDurationMs).toBeGreaterThan(0);
-      if (r.skill === 'farming') expect(cropYield[r.id]).toBeGreaterThan(0);
+      // 농사 산출물은 작물(같은 작물 반환)이거나 묘목(원목 반환) 중 하나로만 정의돼야 한다.
+      if (r.skill === 'farming') {
+        const sapling = saplingHarvest[r.id];
+        expect(!!sapling !== !!cropYield[r.id]).toBe(true);
+        if (sapling) expect(ResourceDB[sapling.resourceId].skill).toBe('logging');
+      }
+      if (r.skill === 'logging') expect(ResourceDB[saplingOf[r.id]].skill).toBe('farming');
       for (const [id, n] of Object.entries(r.recipe ?? {})) {
         expect(ResourceDB[id]).toBeDefined();
         expect(n).toBeGreaterThan(0);

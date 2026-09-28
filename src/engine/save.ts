@@ -5,7 +5,7 @@ import { FoodDB } from '../content/foods';
 import { guildTiers, milestoneIds, type MilestoneId } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 import {ProjectDB, featureIds, projectIds, starterSkills, starterFeatures, type FeatureId, type ProjectId, type ProjectPhase} from '../content/projects';
-import {VEIN_SCALE} from '../content/mining';
+import {CHANCE_SCALE} from '../content/chance';
 export const SAVE_KEY = 'melvorlike_save';
 
 // 키를 정렬해 직렬화한다 — 인코딩 시점과 디코딩 시점의 JS 객체 키 순서가 달라도
@@ -254,8 +254,14 @@ export function decodeSave(text: string): Model {
   // v21 이전 저장에는 광맥 누적량이 없으므로 0에서 시작한다.
   if (version >= 21) {
     const vein = raw.veinProgress;
-    if (!finite(vein) || !Number.isInteger(vein) || vein >= VEIN_SCALE) throw Error('광맥 정보 오류');
+    if (!finite(vein) || !Number.isInteger(vein) || vein >= CHANCE_SCALE) throw Error('광맥 정보 오류');
     s.veinProgress = vein;
+  }
+  // v22 이전 저장에는 묘목 누적량이 없으므로 0에서 시작한다.
+  if (version >= 22) {
+    const sapling = raw.saplingProgress;
+    if (!finite(sapling) || !Number.isInteger(sapling) || sapling >= CHANCE_SCALE) throw Error('묘목 정보 오류');
+    s.saplingProgress = sapling;
   }
   return s;
 }

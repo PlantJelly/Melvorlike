@@ -1330,6 +1330,7 @@ describe('왕국 복원 프로젝트', () => {
     // encodeSave는 현재 버전으로 쓰므로 v20을 검증하려면 버전을 고정하고 v21에 추가된 필드를 뺀다.
     raw.version = 20;
     delete raw.veinProgress;
+    delete raw.saplingProgress;
     // v19인데 아직 도입되지 않았어야 할 ruined_tailor 키가 섞여 있으면 거부.
     const asV19 = {...raw, version: 19};
     expect(() => decodeSave(JSON.stringify(asV19))).toThrow('왕국 정보 오류');

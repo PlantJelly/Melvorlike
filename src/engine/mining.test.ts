@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { advance, begin, unlockedGame as initial } from './model';
 import { decodeSave, encodeSave } from './save';
-import { VEIN_SCALE, veinChance } from '../content/mining';
+import { CHANCE_SCALE, veinChance } from '../content/mining';
 
 describe('채광: 광맥 발견', () => {
   it('확률은 채광 레벨에 비례해 오른다', () => {
@@ -12,12 +12,12 @@ describe('채광: 광맥 발견', () => {
   it('산출 횟수 × 확률이 1회분을 넘을 때마다 상위 광물과 마나석을 1개씩 추가로 준다', () => {
     const s = initial(0);
     begin(s, 'stone');
-    const actions = Math.ceil(VEIN_SCALE / veinChance(1));
+    const actions = Math.ceil(CHANCE_SCALE / veinChance(1));
     advance(s, actions * 4000);
     expect(s.inventory.stone).toBe(actions);
     expect(s.inventory.copper).toBe(1);
     expect(s.inventory.mana_stone).toBe(1);
-    expect(s.veinProgress).toBe(actions * veinChance(1) - VEIN_SCALE);
+    expect(s.veinProgress).toBe(actions * veinChance(1) - CHANCE_SCALE);
     expect(s.notice).toContain('광맥 발견');
   });
 
@@ -50,14 +50,14 @@ describe('채광: 광맥 발견', () => {
     advance(b, 7000 * 400);
     expect(b.inventory).toEqual(a.inventory);
     expect(b.veinProgress).toBe(a.veinProgress);
-    expect(a.inventory.gold_ore).toBe(Math.floor(400 * veinChance(99) / VEIN_SCALE));
+    expect(a.inventory.gold_ore).toBe(Math.floor(400 * veinChance(99) / CHANCE_SCALE));
   });
 
   it('광맥 누적량은 저장·복원되고, 범위를 벗어난 값은 거부한다', () => {
     const s = initial(0);
     s.veinProgress = 4321;
     expect(decodeSave(encodeSave(s)).veinProgress).toBe(4321);
-    for (const veinProgress of [-1, 1.5, VEIN_SCALE, '1', null]) {
+    for (const veinProgress of [-1, 1.5, CHANCE_SCALE, '1', null]) {
       expect(() => decodeSave(JSON.stringify({...s, veinProgress}))).toThrow('광맥 정보 오류');
     }
   });
