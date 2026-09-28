@@ -22,7 +22,7 @@ describe('백업 내보내기/복원', () => {
     expect(restored.skills).toEqual(s.skills);
     expect(restored.tools).toEqual(s.tools);
     expect(restored.currentAction).toEqual(s.currentAction);
-    expect(restored.farmPlot).toEqual(s.farmPlot);
+    expect(restored.farmPlots[0]).toEqual(s.farmPlots[0]);
     expect(restored.ranch).toEqual(s.ranch);
     expect(restored.guild).toBe(s.guild);
     expect(restored.milestones).toEqual(s.milestones);

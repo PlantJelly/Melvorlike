@@ -1,4 +1,4 @@
-import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, SAVE_VERSION, type Model, type DailyQuest, type ProjectState } from './model';
+import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
@@ -6,6 +6,7 @@ import { guildTiers, milestoneIds, type MilestoneId } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 import {ProjectDB, featureIds, projectIds, starterSkills, starterFeatures, type FeatureId, type ProjectId, type ProjectPhase} from '../content/projects';
 import {CHANCE_SCALE} from '../content/chance';
+import {MAX_FARM_PLOTS, farmAutomation, plotUpgrades} from '../content/farm';
 export const SAVE_KEY = 'melvorlike_save';
 
 // 키를 정렬해 직렬화한다 — 인코딩 시점과 디코딩 시점의 JS 객체 키 순서가 달라도
@@ -182,12 +183,25 @@ export function decodeSave(text: string): Model {
     if (!object(meal) || typeof meal.foodId !== 'string' || !Object.hasOwn(FoodDB, meal.foodId) || !finite(meal.remainingMs) || meal.remainingMs <= 0) throw Error('음식 정보 오류');
     s.meal = {foodId: meal.foodId, remainingMs: meal.remainingMs};
   }
-  if (version >= 4 && raw.farmPlot !== null) {
-    const plot = raw.farmPlot;
+  const decodePlot = (plot: unknown): FarmPlot | null => {
+    if (plot === null) return null;
     if (!object(plot) || typeof plot.cropId !== 'string' || !Object.hasOwn(ResourceDB, plot.cropId) || ResourceDB[plot.cropId].skill !== 'farming' || !finite(plot.progressMs)) throw Error('농사밭 정보 오류');
     const r = ResourceDB[plot.cropId];
     if (!skillUnlocked(s, 'farming') || plot.progressMs > r.baseDurationMs || s.skills.farming.level < r.reqLevel) throw Error('농사밭 정보 오류');
-    s.farmPlot = {cropId: r.id, progressMs: plot.progressMs};
+    return {cropId: r.id, progressMs: plot.progressMs};
+  };
+  // v4~v22는 밭 1칸(farmPlot), v23부터 밭 배열(farmPlots)과 자동화 여부를 저장한다.
+  if (version >= 23) {
+    const plots = raw.farmPlots;
+    if (!Array.isArray(plots) || plots.length < 1 || plots.length > MAX_FARM_PLOTS || typeof raw.farmAuto !== 'boolean') throw Error('농사밭 정보 오류');
+    // 칸을 늘린 만큼 그 업그레이드의 요구 레벨을 이미 넘었어야 한다(장신구 재질 검증과 같은 원칙).
+    if (plots.length > 1 && s.skills.farming.level < plotUpgrades[plots.length - 2].reqLevel) throw Error('농사밭 정보 오류');
+    if (raw.farmAuto && s.skills.farming.level < farmAutomation.reqLevel) throw Error('농사밭 정보 오류');
+    s.farmPlots = plots.map(decodePlot);
+    s.farmAuto = raw.farmAuto;
+  } else if (version >= 4) {
+    // 키가 없으면 빈 밭으로 본다 — 빈 칸 외의 상태를 만들어낼 수 없는 누락이라 안전하다.
+    s.farmPlots = [decodePlot(raw.farmPlot ?? null)];
   }
   if (version >= 5) {
     if (!object(raw.ranch)) throw Error('목장 정보 오류');

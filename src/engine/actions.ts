@@ -1,5 +1,5 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, upgrade, sell, eat, buyResource, plant, harvest, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
+import { begin, upgrade, sell, eat, buyResource, plant, harvest, expandFarm, automateFarm, buyAnimal, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
 import type { SkillId } from '../content/types';
 import type { AccessorySlotId } from '../content/accessories';
 import type { MilestoneId } from '../content/guild';
@@ -83,5 +83,13 @@ export function upgradeAccessoryAction(slotId: AccessorySlotId) {
 }
 export function rerollAccessoryAction(slotId: AccessorySlotId, stoneId: string) {
   mutate(s => { rerollAccessory(s, slotId, stoneId); });
+  saveGame();
+}
+export function expandFarmAction() {
+  mutate(s => { expandFarm(s); });
+  saveGame();
+}
+export function automateFarmAction() {
+  mutate(s => { automateFarm(s); });
   saveGame();
 }
