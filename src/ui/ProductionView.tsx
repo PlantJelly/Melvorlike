@@ -2,7 +2,7 @@ import { For, Show, createSignal } from 'solid-js';
 import type { SkillId } from '../content/types';
 import { ResourceDB, skillNames } from '../content/resources';
 import { state } from '../state/gameState';
-import { afford, duration } from '../engine/model';
+import { afford, duration, recipeFor } from '../engine/model';
 import { queueActionAction, startAction } from '../engine/actions';
 import { FoodButtons } from './Food';
 import { CHANCE_SCALE } from '../content/chance';
@@ -50,9 +50,9 @@ export function ProductionView(props: {skill: SkillId}) {
           <h2>{r.name}</h2>
           <p>보유 <strong>{fmt(state().inventory[r.id] ?? 0)}</strong></p>
           <p class="muted">{(duration(state(), r.id) / 1000).toFixed(1)}초 · 경험치 +{r.exp}{r.skill === 'fishing' && skill().level >= r.reqLevel ? ` · 꽝 ${(junkChance(r.id, r.reqLevel, skill().level) / 100).toFixed(1)}%` : ''}</p>
-          <Show when={r.recipe}><p class="recipe">{costText(r.recipe!)}</p></Show>
+          <Show when={r.recipe}><p class="recipe">{costText(recipeFor(state(), r.id))}</p></Show>
           <button class="production-button"
-            disabled={skill().level < r.reqLevel || !afford(state(), r.recipe ?? {}) || running(r.id)}
+            disabled={skill().level < r.reqLevel || !afford(state(), recipeFor(state(), r.id)) || running(r.id)}
             onClick={() => startAction(r.skill, r.id, target())}>
             {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : running(r.id) ? '진행 중' : r.recipe ? '제작 시작' : '채집 시작'}
           </button>

@@ -6,6 +6,7 @@ import { guildTiers, milestoneIds, type MilestoneId } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 import {ProjectDB, featureIds, projectIds, starterSkills, starterFeatures, type FeatureId, type ProjectId, type ProjectPhase} from '../content/projects';
 import {CHANCE_SCALE} from '../content/chance';
+import {LEGENDARY_RARITY} from '../content/achievements';
 import {MAX_FARM_PLOTS, farmAutomation, plotUpgrades} from '../content/farm';
 import {fertilizerIds, type FertilizerId} from '../content/fertilizers';
 export const SAVE_KEY = 'melvorlike_save';
@@ -317,6 +318,15 @@ export function decodeSave(text: string): Model {
       if (!finite(value) || !Number.isInteger(value) || value >= CHANCE_SCALE) throw Error('비료 정보 오류');
       s[key] = value;
     }
+  }
+  // v29 이전 저장은 누적 골드를 알 수 없어 0에서 시작하고, 첫 전설 리롤 여부는 지금 장신구에서 추론한다.
+  const hasLegendary = Object.values(s.accessories).some(accessory => accessory?.rarity === LEGENDARY_RARITY);
+  if (version >= 29) {
+    if (!finite(raw.goldEarned) || typeof raw.legendaryRolled !== 'boolean' || (hasLegendary && !raw.legendaryRolled)) throw Error('업적 정보 오류');
+    s.goldEarned = raw.goldEarned;
+    s.legendaryRolled = raw.legendaryRolled;
+  } else {
+    s.legendaryRolled = hasLegendary;
   }
   // v25 이전 저장은 축사 강화 없이 동물종당 1마리다.
   if (version >= 25) {

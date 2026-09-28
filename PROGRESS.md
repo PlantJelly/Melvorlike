@@ -12,7 +12,7 @@
 - 이전 저장 수용 기준: v1~v9의 기존 스킬과 모든 진행 상태를 보존하고 대장간을 보상 재지급 없이 완료 처리한다.
 - 전체 방향: 액티브 10개(벌목/채광/낚시/야외 채집/대장작업/목공/요리/조제/재봉/마법), 패시브 2개(농사/목장). 병렬 자동 채집과 확률 정착민은 제외한다.
 
-### 편의 기능·업적 — `feature/convenience-achievements`(`feature/skill-remaining` 위에 쌓음) — 진행 중
+### 편의 기능·업적 — `feature/convenience-achievements`(`feature/skill-remaining` 위에 쌓음) — 2개 항목 구현 완료(브랜치), main 미병합
 
 - 요청: 사용자 명시 요청("그 전에 추가할만한것들 조사한다음 추가해줘", 2026-09-28) — 스킬 브랜치 병합 전에 추가할 가치가 있는 것을 조사하고 구현. 병합 지시 없음.
 - 조사 결과(기획 문서 근거가 있는 미구현 항목만 채택): content_spec §12·game_design §7 "후반 편의 방향 — 반복·목표 수량·다음 작업 예약만 검토(확정)", content_spec §9 업적 분류 예시(성장형·경제형·제작형·수집형·완주형, "모든 업적 보상은 반드시 실질 효과"), game_design §7 "도감/업적 구체 항목 — 신규 스킬 생산망 완성 뒤 재설계"(생산망은 이제 완성).
@@ -23,6 +23,8 @@
 - 수용 기준: 엔진 테스트(온라인/오프라인 동일성 포함), 이전 버전 저장 호환 테스트, `npm test`·`npm run build`, 브라우저 확인.
 - 진행:
   - 1 완료: 목표 수량 자동 정지 + 다음 작업 예약(`CurrentAction.target`, `Model.queuedAction`, `queueAction`/`clearQueuedAction`, 저장 v28). 목표 달성·재료 소진·프로젝트 단계 완료 시 남은 시간을 예약 작업에 넘긴다. 테스트 10개(queue.test.ts, 동일성·v27 경계 포함). 상세 D041.
+  - 2 완료: 업적(`src/content/achievements.ts`, `growthAchievements`/`economyAchievements`/`exchangeRateFor`/`saleBonus`/`recipeFor`, `Model.goldEarned`/`legendaryRolled`, 저장 v29, 업적 화면 `src/ui/AchievementsView.tsx`, 보관함 판매 보너스 표시). 테스트 7개(achievement.test.ts, 최대 환전 배율 순환 거래 방지·v28 경계 포함) + 장신구 저장 테스트 준비 데이터 1곳 갱신. 상세 D042.
+  - 검증(2): `npm test` 218/218, `npm run build` PASS. 브라우저(포트 5232): 벌목 Lv30에서 참나무 10개 판매 → 31G(3G×1.04), 보관함 "개당 3 G (판매 보너스 +4%)", 누계 10,327G → 업적 화면 "경제 1/3 · 환전 배율 ×1.55", 벌목 "2/5 달성 · 판매가 +4%", 제작 미달성 안내, 완주 목표 "0/12 스킬 · 11/11 구역", 콘솔 오류 없음.
   - 검증(1): `npm test` 211/211, `npm run build` PASS. 브라우저(워크트리 전용 dev 서버 5232): 벌목 화면 목표 수량 3 입력 → 나무 시작("목표까지 3개 남음"), 채광 화면에서 목표 2로 돌 "다음 작업으로 예약"("다음 작업: 돌 2개 · 예약 취소") → 정산 후 나무 3·돌 2 생산 뒤 정지, 알림 표시, 콘솔 오류 없음.
 
 ### 스킬 개발 잔여 항목 2차 — `feature/skill-remaining` — 5개 항목 구현 완료(브랜치), main 미병합

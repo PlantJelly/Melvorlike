@@ -16,8 +16,9 @@ import { EquipmentView } from './ui/EquipmentView';
 import { SettingsView } from './ui/SettingsView';
 import { ProjectDB, projectIds } from './content/projects';
 import { KingdomView } from './ui/KingdomView';
+import { AchievementsView } from './ui/AchievementsView';
 
-type Page = SkillId | 'kingdom' | 'inventory' | 'tools' | 'guild' | 'equipment' | 'settings';
+type Page = SkillId | 'kingdom' | 'inventory' | 'tools' | 'guild' | 'equipment' | 'achievements' | 'settings';
 
 function App() {
   initGameLoop();
@@ -57,6 +58,7 @@ function App() {
       <Show when={featureUnlocked(state(), 'equipment')}><button classList={{selected: page() === 'equipment'}} onClick={() => setPage('equipment')}>장신구</button></Show>
       <button classList={{selected: page() === 'inventory'}} onClick={() => setPage('inventory')}>보관함</button>
       <Show when={featureUnlocked(state(), 'guild')}><button classList={{selected: page() === 'guild'}} onClick={() => setPage('guild')}>길드</button></Show>
+      <button classList={{selected: page() === 'achievements'}} onClick={() => setPage('achievements')}>업적</button>
       <button classList={{selected: page() === 'settings'}} onClick={() => setPage('settings')}>설정</button>
       <p class="aside-note">현재 목표<br/>{projectIds.every(id => state().projects[id].phase === 'complete') ? '복원된 시설과 생산 기술을 활용해 왕국을 성장시키세요.' : '왕국 화면에서 구역을 조사하고 복원해 새 생산 기술을 여세요.'}</p>
     </aside>
@@ -82,6 +84,7 @@ function App() {
       <Show when={page() === 'equipment'}><EquipmentView/></Show>
       <Show when={page() === 'inventory'}><InventoryView/></Show>
       <Show when={page() === 'guild'}><GuildView/></Show>
+      <Show when={page() === 'achievements'}><AchievementsView/></Show>
       <Show when={page() === 'settings'}><SettingsView/></Show>
     </main>
   </div>;

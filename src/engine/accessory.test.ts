@@ -126,6 +126,7 @@ describe('마법부여·장신구', () => {
     const s = initial(0);
     s.skills.blacksmithing.level = 50;
     s.accessories.crown = {tier: 3, optionId: 'speed', rarity: 4};
+    s.legendaryRolled = true; // 전설 희귀도는 리롤로만 얻으므로 저장에도 달성 표시가 함께 있어야 한다
     expect(decodeSave(JSON.stringify(s)).accessories.crown).toEqual(s.accessories.crown);
     expect(() => decodeSave(JSON.stringify({...s, accessories: {...s.accessories, crown: {tier: 0, optionId: 'speed', rarity: 2}}}))).toThrow();
     expect(() => decodeSave(JSON.stringify({...s, accessories: {...s.accessories, crown: {tier: 0, optionId: 'speed', rarity: null}}}))).toThrow();

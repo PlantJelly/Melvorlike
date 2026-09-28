@@ -1,9 +1,9 @@
 import { For, Show } from 'solid-js';
 import { ResourceDB, skillNames } from '../content/resources';
-import { ExchangeDB, exchangeRate, guildTiers, milestones } from '../content/guild';
+import { ExchangeDB, guildTiers, milestones } from '../content/guild';
 import { state } from '../state/gameState';
 import { buyResourceAction, exchangeResourceAction, upgradeGuildAction, completeDailyQuestAction, claimMilestoneAction } from '../engine/actions';
-import { dailyQuestReward, milestoneReady } from '../engine/model';
+import { dailyQuestReward, exchangeRateFor, milestoneReady } from '../engine/model';
 import { fmt } from './ProductionView';
 
 export function GuildView() {
@@ -72,7 +72,7 @@ export function GuildView() {
         const target = ResourceDB[ex.targetId];
         const owned = () => state().inventory[id] ?? 0;
         const allowed = () => ex.tierGap <= depth();
-        const rate = Math.pow(exchangeRate, ex.tierGap);
+        const rate = Math.pow(exchangeRateFor(state()), ex.tierGap);
         return <article>
           <div><h2>{r.icon} {r.name} → {target.icon} {target.name}</h2><small>{allowed() ? `1개당 ${target.name} ${Math.floor(rate)}개` : `${guildTiers[ex.tierGap - 1]?.name ?? '더 높은 등급'} 필요`}</small></div>
           <strong>보유 {fmt(owned())}개</strong>

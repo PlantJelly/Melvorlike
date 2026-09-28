@@ -34,7 +34,9 @@ import { farmAutomation, plotUpgrades } from '../content/farm';
 
 import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 
-export const SAVE_VERSION = 28;
+import { ECONOMY_EXCHANGE_BONUS, GROWTH_SALE_BONUS, LEGENDARY_RARITY, economyThresholds, growthLevels } from '../content/achievements';
+
+export const SAVE_VERSION = 29;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -99,6 +101,9 @@ export interface Model {
   fertilizers: Record<FertilizerId, number>;
   bumperProgress: number;
   recoveryProgress: number;
+  // 업적 판정용: 저장 이후 벌어들인 골드 누계(판매·퀘스트·마일스톤)와 첫 전설 리롤 여부.
+  goldEarned: number;
+  legendaryRolled: boolean;
   lastSaveTime: number;
   notice: string;
 }
@@ -169,6 +174,7 @@ function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: 
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
     accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0, coalProgress: 0, junkProgress: 0,
     fertilizers: Object.fromEntries(fertilizerIds.map(id => [id, 0])) as Model['fertilizers'], bumperProgress: 0, recoveryProgress: 0,
+    goldEarned: 0, legendaryRolled: false,
     lastSaveTime: time, notice: '',
   };
   s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
@@ -194,6 +200,37 @@ export function featureUnlocked(s: Model, feature: FeatureId) {
 
 export function kingdomRestoration(s: Model) {
   return projectIds.reduce((total, id) => total + (s.projects[id].phase === 'complete' ? ProjectDB[id].restorationPoints : 0), 0);
+}
+
+// ── 업적(content_spec §9) ── 달성 여부는 현재 상태에서 계산한다.
+export function growthAchievements(s: Model, skill: SkillId) {
+  return growthLevels.filter(level => s.skills[skill].level >= level).length;
+}
+
+export function economyAchievements(s: Model) {
+  return economyThresholds.filter(threshold => s.goldEarned >= threshold).length;
+}
+
+export function exchangeRateFor(s: Model) {
+  return exchangeRate + ECONOMY_EXCHANGE_BONUS * economyAchievements(s);
+}
+
+// 판매가 보너스 = 장신구 흥정 + 그 자원을 만드는 스킬의 성장형 업적.
+export function saleBonus(s: Model, resourceId: string) {
+  return accessoryBonus(s, 'sale') + GROWTH_SALE_BONUS * growthAchievements(s, ResourceDB[resourceId].skill);
+}
+
+function earnGold(s: Model, amount: number) {
+  s.gold += amount;
+  s.goldEarned += amount;
+}
+
+// 제작형 업적 보상: 전설 리롤을 달성하면 마법부여석의 농사 약초 재료가 1개 줄어든다(최소 1).
+export function recipeFor(s: Model, id: string): Record<string, number> {
+  const r = ResourceDB[id];
+  if (!r.recipe) return {};
+  if (!s.legendaryRolled || r.skill !== 'magic') return r.recipe;
+  return Object.fromEntries(Object.entries(r.recipe).map(([mid, n]) => [mid, ResourceDB[mid].skill === 'farming' ? Math.max(1, n - 1) : n]));
 }
 
 export function accessoryBonus(s: Model, optionId: AccessoryOptionId) {
@@ -263,8 +300,9 @@ function advanceSegment(s: Model, elapsed: number): number {
   const speed = speedMultiplier(s, r.skill);
   action.progressMs += elapsed * speed;
   let count = Math.floor((action.progressMs + 1e-7) / r.baseDurationMs);
+  const recipe = recipeFor(s, r.id);
   if (r.recipe) {
-    count = Math.min(count, ...Object.entries(r.recipe).map(([id, n]) => Math.floor((s.inventory[id] ?? 0) / n)));
+    count = Math.min(count, ...Object.entries(recipe).map(([id, n]) => Math.floor((s.inventory[id] ?? 0) / n)));
   }
   if (action.target !== undefined) count = Math.min(count, action.target);
   // 광맥·꽝처럼 레벨에 따라 달라지는 확률이 있으므로, 레벨이 오르는 지점마다 나눠 정산한다.
@@ -272,7 +310,7 @@ function advanceSegment(s: Model, elapsed: number): number {
   const bonus = mealExpBonus(s, r.skill);
   for (let left = count; left > 0;) {
     const n = Math.min(left, actionsUntilLevelUp(s, r.skill, r.exp * (1 + accessoryBonus(s, 'experience') + bonus)));
-    if (r.recipe) spend(s, r.recipe, n);
+    if (r.recipe) spend(s, recipe, n);
     // 낚시 꽝은 물고기만 줄이고 경험치는 그대로 준다.
     const junk = r.skill === 'fishing' ? accrue(s, 'junkProgress', n * junkChance(r.id, r.reqLevel, s.skills.fishing.level)) : 0;
     s.inventory[r.id] = (s.inventory[r.id] ?? 0) + n - junk;
@@ -284,7 +322,7 @@ function advanceSegment(s: Model, elapsed: number): number {
   if (count) action.progressMs = Math.max(0, action.progressMs - count * r.baseDurationMs);
   if (action.target !== undefined) action.target -= count;
   const reached = action.target === 0;
-  if (!reached && !(r.recipe && !afford(s, r.recipe))) return count;
+  if (!reached && !(r.recipe && !afford(s, recipe))) return count;
   // 멈춘 뒤 남은 작업량은 실제 시간으로 되돌려 예약 작업에 넘긴다 — 짧은 틱으로 나눠 정산해도,
   // 오프라인에서 한 번에 정산해도 예약 작업이 같은 시점에 시작된 것과 결과가 같다.
   const leftover = action.progressMs / speed;
@@ -524,7 +562,7 @@ export function producible(s: Model, id: string) {
 const validTarget = (target: number | undefined) => target === undefined || (Number.isSafeInteger(target) && target >= 1);
 
 export function begin(s: Model, id: string, target?: number) {
-  if (!producible(s, id) || !validTarget(target) || !afford(s, ResourceDB[id].recipe ?? {})) return false;
+  if (!producible(s, id) || !validTarget(target) || !afford(s, recipeFor(s, id))) return false;
   s.currentAction = target === undefined ? {kind: 'production', resourceId: id, progressMs: 0} : {kind: 'production', resourceId: id, progressMs: 0, target};
   s.notice = '';
   return true;
@@ -590,7 +628,7 @@ export function upgrade(s: Model, skill: SkillId) {
 export function sell(s: Model, id: string, count: number) {
   if (!Object.hasOwn(ResourceDB, id) || !Number.isInteger(count) || count <= 0 || (s.inventory[id] ?? 0) < count) return false;
   s.inventory[id] -= count;
-  s.gold += Math.floor(ResourceDB[id].sell * count * (1 + accessoryBonus(s, 'sale')));
+  earnGold(s, Math.floor(ResourceDB[id].sell * count * (1 + saleBonus(s, id))));
   return true;
 }
 
@@ -647,6 +685,7 @@ export function rerollAccessory(s: Model, slotId: AccessorySlotId, stoneId: stri
   s.inventory[stoneId]--;
   accessory.optionId = optionId;
   accessory.rarity = rarity;
+  if (rarity === LEGENDARY_RARITY) s.legendaryRolled = true;
   s.notice = `${accessoryOptions[optionId].name} · ${accessoryOptions[optionId].description} +${Math.round(accessoryOptions[optionId].values[rarity] * 100)}%`;
   return true;
 }
@@ -668,7 +707,7 @@ export function buyResource(s: Model, id: string, count: number) {
 export function exchangeResource(s: Model, id: string, count: number) {
   const ex = Object.hasOwn(ExchangeDB, id) ? ExchangeDB[id] : undefined;
   if (!featureUnlocked(s, 'guild') || !ex || !Number.isInteger(count) || count <= 0 || ex.tierGap > s.guild + 1 || (s.inventory[id] ?? 0) < count) return false;
-  const gained = Math.floor(count * Math.pow(exchangeRate, ex.tierGap));
+  const gained = Math.floor(count * Math.pow(exchangeRateFor(s), ex.tierGap));
   if (gained <= 0) return false;
   s.inventory[id] -= count;
   s.inventory[ex.targetId] = (s.inventory[ex.targetId] ?? 0) + gained;
@@ -698,7 +737,7 @@ export function claimMilestone(s: Model, id: MilestoneId) {
   const milestone = milestoneById[id];
   if (!featureUnlocked(s, 'guild') || !milestone || s.milestones.claimed.includes(id) || !milestoneReady(s, id)) return false;
   s.milestones.claimed.push(id);
-  s.gold += milestone.reward;
+  earnGold(s, milestone.reward);
   s.notice = `마일스톤 완료 · ${milestone.name} · ${milestone.reward} G 획득`;
   return true;
 }
@@ -706,7 +745,7 @@ export function claimMilestone(s: Model, id: MilestoneId) {
 // 판매가의 2배(그냥 파는 것보다 낫게)에 판매가 장신구 보너스를 반영한다 — sell()과 같은 규칙.
 // 엔진과 화면(GuildView)이 항상 같은 값을 쓰도록 이 함수 하나로 계산한다.
 export function dailyQuestReward(s: Model, quest: DailyQuest) {
-  return Math.floor(quest.amount * ResourceDB[quest.resourceId].sell * 2 * (1 + accessoryBonus(s, 'sale')));
+  return Math.floor(quest.amount * ResourceDB[quest.resourceId].sell * 2 * (1 + saleBonus(s, quest.resourceId)));
 }
 
 // 요구량만큼 인벤토리에서 소모하고 골드로 보상한다. resourceId까지 함께 확인해, 클릭과 날짜
@@ -718,7 +757,7 @@ export function completeDailyQuest(s: Model, index: number, resourceId: string) 
   const reward = dailyQuestReward(s, quest);
   s.inventory[quest.resourceId] -= quest.amount;
   quest.done = true;
-  s.gold += reward;
+  earnGold(s, reward);
   s.notice = `일일 퀘스트 완료 · ${r.name} ${quest.amount}개 납품 · ${reward} G 획득`;
   return true;
 }
