@@ -42,6 +42,18 @@ describe('농사: 씨앗 구매 → 파종 → 성장 → 수확', () => {
     expect(harvest(s)).toBe(false);
   });
 
+  it('황금옥수수는 농사 Lv40부터 심을 수 있는 작물씨 4번째 티어다', () => {
+    const s = initial(0);
+    s.inventory.golden_corn = 1;
+    s.skills.farming.level = 39;
+    expect(plant(s, 'golden_corn')).toBe(false);
+    s.skills.farming.level = 40;
+    expect(plant(s, 'golden_corn')).toBe(true);
+    advance(s, ResourceDB.golden_corn.baseDurationMs);
+    expect(harvest(s)).toBe(true);
+    expect(s.inventory.golden_corn).toBe(3);
+  });
+
   it('작물은 액티브 작업 슬롯으로 채집할 수 없다', () => {
     const s = initial(0);
     expect(begin(s, 'wheat')).toBe(false);

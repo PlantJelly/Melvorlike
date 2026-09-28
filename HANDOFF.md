@@ -1,13 +1,11 @@
 # Current handoff
 
-- Current goal: completed the independent review and main integration of the crafted-goods sell-price fix, requested by the user ("리뷰하고 문제없으면 머지해줘"). This closes the second stage of "전체 생산망 밸런스 조정": 요리/마법부여석/재봉 완제품의 판매가가 D032가 인상한 농사/목장 원재료 원가에 다시 맞춰졌다.
-- Branch: `main`. Feature branch `fix/crafted-goods-pricing` and `origin/main` were both verified at `91e22f7069b73d95923c831442b0da59c8c99296` after the fast-forward push (2026-09-17).
-- Checkpoint type: Stable integration record. Known pre-checkpoint parent: `ece1f6d`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
-- Review: independent full merge-base-to-HEAD diff review (this session), covering `src/content/resources.ts`(13개 가공품의 `sell`만 변경, `reqLevel`/`baseDurationMs`/`exp`/`recipe`/`icon` byte-for-byte 불변 확인). No blocking findings. Report stored outside the worktree at `git rev-parse --git-path development-workflow-review.md` (in the now-removed `fix-crafted-goods-pricing` worktree's git dir).
-- Verification (independently re-run this session, not reused): `npm test` 142/142, `npm run build` PASS on reviewed SHA `91e22f7`, reconfirmed again on the fast-forwarded `main` tip (same SHA). Went beyond the implementing turn's own checks: (1) 독립적으로 다시 작성한 스크립트로 마법/재봉 8개 값 전부가 목공/조제 검증된 비율(2.0/1.8/1.2308/0.8642)과 0.000% 오차로 일치함을 확인, (2) 요리 5개 값이 요리 자신의 미변경 라인(구운 생선 등)에서 나온 비율의 선형보간과 일치함을 확인, (3) 이 13개 자원의 `sell`/`buy`를 하드코딩 단언하는 테스트가 전무함을 재확인(전체 테스트 스위트 재검토).
-- CI/policy: 0 GitHub Actions workflows repo-wide (re-queried fresh), 0 check-runs for reviewed SHA `91e22f7` → NOT CONFIGURED.
-- Implemented (unchanged from feature branch): `enchant_stone_stone/copper/iron/gold`, `wool_garment/trimmed_garment/reinforced_garment/enchanted_garment`, `vegetable_porridge/lumberjack_lunchbox/miners_stew/blacksmith_meal/festival_dish`의 `sell`만 재산정. 상세 근거는 DECISIONS.md D033.
-- Known risks: none new. 범위 밖으로 남긴 것: 골드 경제 전반(도구/길드 승급/장신구 비용 대비 전체 획득 속도) — 사용자 별도 지시 대기.
-- Caution (이 세션에서 발견): `preview_start`의 이름 기반(`launch.json`) 서버는 워크트리가 아니라 항상 저장소 루트(낡은 브랜치, 저장 v3)에서 실행된다 — 워크트리 QA는 `npm run dev -- --port <다른 포트>`를 직접 실행하고 `url`로 붙여야 한다.
-- `91e22f7`: fix/crafted-goods-pricing을 main에 병합(사용자 명시 요청 "리뷰하고 문제없으면 머지해줘", 리뷰 PASS·충돌 없음·원격 SHA 일치 확인 후, fast-forward). 병합 상태에서 npm test 142/142·npm build PASS 재확인, origin/main 푸시·원격 SHA 일치 확인(2026-09-17).
-- Exact next action: **none pending — awaiting explicit user direction.** "전체 생산망 밸런스 조정"의 마지막 남은 항목(골드 경제 전반: 도구/길드 승급/장신구 비용 대비 획득 속도)이 아직 남아 있다 — 사용자가 계속 진행을 원하는지, 아니면 다른 작업으로 넘어갈지 명시적 지시 필요. Do not assume; do not start new work without an explicit instruction.
+- Current goal: "스킬 개발 마저 다 진행해줘"(2026-09-28) — 기획 문서에 있는데 아직 없는 스킬 항목 7개를 `feature/skill-completion`에서 순서대로 구현한다. 계획·범위·제외 항목은 PROGRESS.md "스킬 기획 잔여 항목 구현" 섹션.
+- Branch: `feature/skill-completion`, `origin/main` `31661da`에서 분기. 병합 지시 없음 — main에 반영하지 않는다.
+- Checkpoint type: Stable (항목 1·2 완료). Known pre-checkpoint parent: `31661da`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
+- Done: 1 달걀찜(경험치 음식, `FoodDef.expBonus`), 2 황금옥수수(농사 Lv40 작물). 저장 스키마 변경 없음(v20 유지).
+- Verification: `npm test` 146/146, `npm run build` PASS, 브라우저 확인(워크트리 전용 dev 서버 포트 5230) — 달걀찜 제작·섭취·음식 상태 표시, 황금옥수수 카드·심기, 콘솔 오류 없음.
+- Remaining: 3 광맥 발견(v21) → 4 나무묘목(v22) → 5 다중 밭+자동 파종/수확(v23) → 6 비료 3종(v24) → 7 목장 마릿수 확장(v25).
+- Open decision (사용자): 소 사료 적자(당근 10개 13,300G > 우유 6,500G) 처리 방식 — 이 브랜치 범위 밖.
+- Caution: 이름 기반 `preview_start`는 저장소 루트(옛 브랜치)를 띄운다. 워크트리에서 `npm run dev -- --port 5230 --strictPort`로 직접 띄우고 URL로 붙일 것.
+- Exact next action: 항목 3(광맥 발견) 구현 — 채광 산출 시 정수 누적으로 광맥을 판정, `Model.veinProgress` 추가와 저장 v21 이전.

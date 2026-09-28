@@ -22,6 +22,7 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('wheat', '밀', 'farming', 1, 180000, 1330, 75, '🌾'),
     row('potato', '감자', 'farming', 10, 480000, 5390, 390, '🥔'),
     row('carrot', '당근', 'farming', 25, 900000, 14900, 1330, '🥕'),
+    row('golden_corn', '황금옥수수', 'farming', 40, 1440000, 34900, 3790, '🌽'),
     row('chamomile', '캐모마일', 'farming', 1, 240000, 1780, 100, '🌼'),
     row('mugwort', '쑥', 'farming', 10, 540000, 6060, 440, '🌿'),
     row('magic_mugwort', '마법쑥', 'farming', 25, 960000, 15900, 1420, '🍃'),
@@ -43,7 +44,7 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('reinforced_garment', '보강 의복', 'sewing', 30, 9500, 230, 16530, '🧵', {wool: 5, iron_ingot: 1}), row('enchanted_garment', '마법 의복', 'sewing', 50, 13500, 500, 13991, '🧵', {wool: 6, gold_ingot: 1})
 ].map(r => [r.id, r]));
 // 수확 시 씨앗 1개를 심어 한 번에 돌려받는 개수. 재파종 분을 남기고 잉여를 판매/요리에 쓴다.
-export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3, chamomile: 3, mugwort: 3, magic_mugwort: 3, mystic_herb: 3 };
+export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3, golden_corn: 3, chamomile: 3, mugwort: 3, magic_mugwort: 3, mystic_herb: 3 };
 export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리', farming: '농사', ranching: '목장', magic: '마법', foraging: '채집', woodworking: '목공', apothecary: '조제', sewing: '재봉' };
 export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking', 'farming', 'ranching', 'magic', 'foraging', 'woodworking', 'apothecary', 'sewing'];
 // 액티브 단일 작업 슬롯을 쓰지 않고 항상 배경에서 병행 진행되는 스킬. begin()/저장 검증/화면 라우팅이 함께 참조한다.
