@@ -1,11 +1,11 @@
 # Current handoff
 
-- Current goal: "스킬 개발 마저 다 진행해줘"(2026-09-28) — 기획 문서에 남아 있던 스킬 항목 7개를 `feature/skill-completion`에서 모두 구현했다. 계획·범위·제외 항목·항목별 검증은 PROGRESS.md "스킬 기획 잔여 항목 구현" 섹션.
-- Branch: `feature/skill-completion`, `origin/main` `31661da`에서 분기. 병합 지시 없음 — main에 반영하지 않았다.
-- Checkpoint type: Stable (항목 1~7 모두 완료). Known pre-checkpoint parent: `2872fa5`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
-- Done: 1 달걀찜(경험치 음식), 2 황금옥수수, 3 광맥 발견(저장 v21), 4 나무묘목(v22), 5 다중 밭+자동 파종/수확(v23), 6 비료 3종(v24), 7 목장 마릿수 확장(v25). 확률 요소는 정수 누적(`CHANCE_SCALE`)으로 결정론적 처리(D034), 밭·축사 확장 설계와 밸런스 주의점은 D035·D036. 테스트는 현재 버전을 `SAVE_VERSION`으로 단언하고, 과거 버전 경계 테스트는 버전을 숫자로 고정한다.
-- Verification: `npm test` 181/181, `npm run build` PASS(최종 상태). 항목마다 워크트리 전용 dev 서버(포트 5230)에서 브라우저 확인 — 달걀찜 섭취·효과 표시, 황금옥수수 파종, 광맥(돌 96회 → 구리+1·마나석+1), 묘목(벌목 50회 → 묘목, 심기 → 나무 300개), 밭 2칸 자동 수확·재파종, 비료 구매·선택 파종·속도 반영, 축사 강화·2마리 사육(주기마다 달걀 2개·밀 10개).
-- Known risks: (1) 밭 3칸·목장 3마리를 채우면 패시브 시간당 경험치가 최대 3배가 되어 D032가 1칸·1마리 기준으로 맞춘 곡선을 넘는다 — 플레이테스트 후 재조정 필요. (2) 소 사료 적자(당근 10개 13,300G > 우유 6,500G)는 마릿수만큼 커진다 — 사용자 결정 대기. (3) 광맥 확률은 한 번의 정산 안에서 채광 레벨이 오르면 짧은 틱 정산과 미세하게 다를 수 있다(같은 레벨 구간에서는 동일).
-- 제외(이유, PROGRESS 참고): 석탄·화로/용광로 명칭, 낚시 꽝 확률, 후반 편의 기능.
-- Caution: 이름 기반 `preview_start`는 저장소 루트(옛 브랜치)를 띄운다 — 워크트리에서 `npm run dev -- --port 5230 --strictPort`로 직접 띄우고 URL로 붙일 것. 같은 파일을 셸로 연속 두 번 쓰면 Vite가 중간 상태를 캐시할 수 있다(`touch` 후 새로고침으로 해소). 셸 `node -e "..."` 안의 백틱은 셸이 해석하므로 스크립트 파일로 실행할 것.
-- Exact next action: 사용자 지시 대기. 병합을 원하면 이 브랜치 전체(`31661da..HEAD`)를 독립 리뷰한 뒤 병합 게이트를 확인한다. 소 사료 적자 처리 방식도 사용자 결정 필요.
+- Current goal: completed the independent review and main integration of `feature/skill-completion` ("리뷰하고 문제없으면 머지해줘"). 기획 문서에 남아 있던 스킬 항목 7개(달걀찜·황금옥수수·광맥 발견·나무묘목·다중 밭과 자동 파종/수확·비료 3종·목장 마릿수 확장)가 main에 반영됐다. 저장 형식 v25.
+- Branch: `main`. `feature/skill-completion`과 `origin/main` 모두 `e3f4f666c111c4ccac74787aae1fc42701571cbe`에서 확인(2026-09-28, fast-forward). 이어서 병합 기록 문서 커밋 `4aba0db`(PROGRESS·implementation_status)를 푸시했다.
+- Checkpoint type: Stable integration record. Known pre-checkpoint parent: `4aba0db`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
+- Review: merge-base(`31661da`)~HEAD 전체 diff 독립 리뷰. 블로킹 결함 1건(성장 시뮬레이터가 묘목 수확을 "묘목 1개"로 계산해 시간당 판매가를 1/3로 보고)을 찾아 `e3f4f66`에서 수정한 뒤 최종 HEAD에서 PASS. 보고서는 `.git/worktrees/skill-completion/development-workflow-review.md`(워크트리 밖).
+- Verification: `npm test` 182/182, `npm run build`, `git diff --check`, `git merge-tree`(충돌 없음) PASS — 리뷰 HEAD와 병합 후 main에서 모두 재확인. 추가로 main(`31661da`) 코드로 만든 실제 v20 저장을 새 코드로 열어 v25 이전·1시간 정산·재저장 왕복이 정상임을 확인. CI는 구성돼 있지 않음(GitHub Actions 0건).
+- Design records: D034(확률 요소의 결정론적 누적, `SAVE_VERSION` 상수), D035(다중 밭·자동화), D036(축사 강화).
+- Known risks / open items: (1) 밭 3칸·목장 3마리를 채우면 패시브 시간당 경험치가 최대 3배 — 플레이테스트 후 재조정 필요. (2) 소 사료 적자(당근 10개 13,300G > 우유 6,500G), 마릿수만큼 커짐 — 사용자 결정 대기(우유값 인상 / 사료량 축소 / 보류). (3) 묘목·황금옥수수가 길드 일일 퀘스트 대상이 될 수 있음(기존 원재료 규칙과 동일, 변경 안 함). (4) 제외 항목: 석탄·주괴 레시피 개편, 낚시 꽝 확률, 후반 편의 기능.
+- Caution: 이름 기반 `preview_start`는 저장소 루트(옛 브랜치)를 띄운다 — 워크트리에서 `npm run dev -- --port <포트> --strictPort`로 직접 띄워 URL로 붙일 것.
+- Exact next action: **none pending — awaiting explicit user direction.** 소 사료 적자 처리 방식 결정, 또는 다음 작업(업적·도감, 편의 기능, 밸런스 플레이테스트 등) 지시 필요.
