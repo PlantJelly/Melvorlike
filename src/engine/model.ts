@@ -1,5 +1,5 @@
 import { ResourceDB, toolTiers, playable, cropYield, passiveSkills, skillNames } from '../content/resources';
-import { AnimalDB } from '../content/animals';
+import { AnimalDB, barnUpgrades } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { ExchangeDB, exchangeRate, guildTiers, milestoneById, type MilestoneId } from '../content/guild';
 import {
@@ -33,7 +33,7 @@ import { farmAutomation, plotUpgrades } from '../content/farm';
 
 import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 
-export const SAVE_VERSION = 24;
+export const SAVE_VERSION = 25;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -69,6 +69,10 @@ export interface Model {
   farmAuto: boolean;
   // 키 존재 여부가 보유 여부. 값은 다음 산출까지의 진행량(속도 보정 전).
   ranch: Record<string, number>;
+  // 2마리 이상 키우는 종만 기록한다(없으면 1마리). 한 종의 동물들은 같은 주기로 함께 산출한다.
+  ranchCounts: Record<string, number>;
+  // barnUpgrades 중 완료한 단계 수. 동물종당 최대 사육 수 = 1 + barnLevel.
+  barnLevel: number;
   // guildTiers 인덱스. 등급이 오를수록 환전 가능한 티어 차이가 늘어난다.
   guild: number;
   // day는 UTC 날짜 id(dayId 참고). 날짜가 바뀌면 advance()가 완료 여부와 무관하게 새로 갱신한다.
@@ -150,7 +154,7 @@ function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: 
     version: SAVE_VERSION, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: experienceToNextLevel(1) }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
-    inventory: {}, currentAction: null, meal: null, farmPlots: [null], farmAuto: false, ranch: {}, guild: 0,
+    inventory: {}, currentAction: null, meal: null, farmPlots: [null], farmAuto: false, ranch: {}, ranchCounts: {}, barnLevel: 0, guild: 0,
     unlockedSkills: [...unlockedSkills], unlockedFeatures: [...unlockedFeatures], projects: projectStates(completedProjects),
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
     accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0,
@@ -372,19 +376,22 @@ export function farmRemainingMs(s: Model, index = 0) {
 
 // 사육 중인 모든 동물을 병행 정산한다. 사료가 모자라면 주기 1회분에서 진행을 멈춰
 // 무한정 적체됐다가 사료를 채우는 순간 몰아서 나오는 것을 막는다(D007 참고).
+// 한 종을 여러 마리 키우면 주기마다 마릿수만큼 사료를 먹고 마릿수만큼 산출한다. 한 주기에 필요한 사료가
+// 모자라면 그 종 전체가 대기한다(일부 마리만 먹이는 규칙은 두지 않는다).
 function advanceRanch(s: Model, elapsed: number) {
   for (const id of Object.keys(s.ranch)) {
     const a = AnimalDB[id];
     const p = ResourceDB[a.productId];
+    const heads = animalCount(s, id);
     let progressMs = s.ranch[id] + elapsed * speedMultiplier(s, p.skill);
     const timeCount = Math.floor((progressMs + 1e-7) / p.baseDurationMs);
     if (timeCount > 0) {
-      const affordable = Math.floor((s.inventory[a.feedId] ?? 0) / a.feedAmount);
+      const affordable = Math.floor((s.inventory[a.feedId] ?? 0) / (a.feedAmount * heads));
       const count = Math.min(timeCount, affordable);
       if (count > 0) {
-        s.inventory[a.feedId] -= a.feedAmount * count;
-        s.inventory[p.id] = (s.inventory[p.id] ?? 0) + count;
-        addExperience(s, p.skill, p.exp * count);
+        s.inventory[a.feedId] -= a.feedAmount * heads * count;
+        s.inventory[p.id] = (s.inventory[p.id] ?? 0) + heads * count;
+        addExperience(s, p.skill, p.exp * heads * count);
       }
       progressMs = count < timeCount ? p.baseDurationMs : progressMs - count * p.baseDurationMs;
     }
@@ -402,7 +409,29 @@ function ranchCycleReady(s: Model, id: string) {
 export function ranchStarved(s: Model, id: string) {
   if (!Object.hasOwn(s.ranch, id)) return false;
   const a = AnimalDB[id];
-  return ranchCycleReady(s, id) && (s.inventory[a.feedId] ?? 0) < a.feedAmount;
+  return ranchCycleReady(s, id) && (s.inventory[a.feedId] ?? 0) < a.feedAmount * animalCount(s, id);
+}
+
+export function animalCount(s: Model, id: string) {
+  return Object.hasOwn(s.ranch, id) ? s.ranchCounts[id] ?? 1 : 0;
+}
+
+export function barnCapacity(s: Model) {
+  return 1 + s.barnLevel;
+}
+
+export function nextBarnUpgrade(s: Model) {
+  return barnUpgrades[s.barnLevel];
+}
+
+export function expandBarn(s: Model) {
+  const upgrade = nextBarnUpgrade(s);
+  if (!upgrade || !skillUnlocked(s, 'ranching') || s.skills.ranching.level < upgrade.reqLevel || s.gold < upgrade.goldCost || !afford(s, upgrade.cost)) return false;
+  s.gold -= upgrade.goldCost;
+  spend(s, upgrade.cost);
+  s.barnLevel++;
+  s.notice = `축사 강화 완료 · 동물종당 최대 ${barnCapacity(s)}마리까지 키울 수 있습니다.`;
+  return true;
 }
 
 export function ranchRemainingMs(s: Model, id: string) {
@@ -724,12 +753,18 @@ export function automateFarm(s: Model) {
 
 export { nextPlotUpgrade };
 
+// 처음 사면 사육을 시작하고, 이미 키우는 종은 축사 수용량까지 한 마리씩 늘린다(진행 중인 주기는 유지).
 export function buyAnimal(s: Model, id: string) {
   const a = Object.hasOwn(AnimalDB, id) ? AnimalDB[id] : undefined;
-  if (!skillUnlocked(s, 'ranching') || !a || Object.hasOwn(s.ranch, id)) return false;
+  if (!skillUnlocked(s, 'ranching') || !a || animalCount(s, id) >= barnCapacity(s)) return false;
   const p = ResourceDB[a.productId];
   if (s.skills.ranching.level < p.reqLevel || s.gold < a.buyGold) return false;
   s.gold -= a.buyGold;
+  if (Object.hasOwn(s.ranch, id)) {
+    s.ranchCounts[id] = animalCount(s, id) + 1;
+    s.notice = `${a.name} ${s.ranchCounts[id]}마리 · 주기마다 사료 ${a.feedAmount * s.ranchCounts[id]}개를 먹고 ${p.name} ${s.ranchCounts[id]}개를 만듭니다.`;
+    return true;
+  }
   s.ranch[id] = 0;
   s.notice = `${a.name} 입주 · 사료(${ResourceDB[a.feedId].name})를 채워두면 자동으로 ${p.name}을(를) 만듭니다.`;
   return true;

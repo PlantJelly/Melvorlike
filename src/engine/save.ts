@@ -1,6 +1,6 @@
 import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
-import { AnimalDB } from '../content/animals';
+import { AnimalDB, barnUpgrades } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { guildTiers, milestoneIds, type MilestoneId } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
@@ -294,6 +294,18 @@ export function decodeSave(text: string): Model {
       const value = raw[key];
       if (!finite(value) || !Number.isInteger(value) || value >= CHANCE_SCALE) throw Error('비료 정보 오류');
       s[key] = value;
+    }
+  }
+  // v25 이전 저장은 축사 강화 없이 동물종당 1마리다.
+  if (version >= 25) {
+    const barnLevel = raw.barnLevel;
+    if (!finite(barnLevel) || !Number.isInteger(barnLevel) || barnLevel > barnUpgrades.length) throw Error('목장 정보 오류');
+    if (barnLevel > 0 && s.skills.ranching.level < barnUpgrades[barnLevel - 1].reqLevel) throw Error('목장 정보 오류');
+    s.barnLevel = barnLevel;
+    if (!object(raw.ranchCounts)) throw Error('목장 정보 오류');
+    for (const [id, count] of Object.entries(raw.ranchCounts)) {
+      if (!Object.hasOwn(s.ranch, id) || !finite(count) || !Number.isInteger(count) || count < 1 || count > 1 + barnLevel) throw Error('목장 정보 오류');
+      s.ranchCounts[id] = count;
     }
   }
   return s;
