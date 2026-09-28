@@ -1,10 +1,11 @@
-import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, type Model, type DailyQuest, type ProjectState } from './model';
+import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, SAVE_VERSION, type Model, type DailyQuest, type ProjectState } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { guildTiers, milestoneIds, type MilestoneId } from '../content/guild';
 import {accessoryOptionIds, accessorySlots, accessoryTiers, type AccessoryOptionId} from '../content/accessories';
 import {ProjectDB, featureIds, projectIds, starterSkills, starterFeatures, type FeatureId, type ProjectId, type ProjectPhase} from '../content/projects';
+import {VEIN_SCALE} from '../content/mining';
 export const SAVE_KEY = 'melvorlike_save';
 
 // 키를 정렬해 직렬화한다 — 인코딩 시점과 디코딩 시점의 JS 객체 키 순서가 달라도
@@ -44,14 +45,14 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 export function decodeSave(text: string): Model {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { throw Error('저장 파일 형식이 올바르지 않습니다'); }
-  if (!object(raw) || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(raw.version as number)) throw Error('지원하지 않는 저장 버전');
+  if (!object(raw) || !Number.isInteger(raw.version) || (raw.version as number) < 1 || (raw.version as number) > SAVE_VERSION) throw Error('지원하지 않는 저장 버전');
   // 체크섬은 v7 이전 저장에는 없었으므로 필드 자체가 없을 때만 건너뛴다.
   // 필드가 있는데 문자열이 아니거나 값이 다르면(타입이 깨졌어도) 거부한다.
   if (raw.checksum !== undefined) {
     const {checksum: saved, ...rest} = raw;
     if (typeof saved !== 'string' || checksum(rest) !== saved) throw Error('저장 데이터가 손상되었거나 수정되었습니다');
   }
-  const version = raw.version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;
+  const version = raw.version as number;
   if (!finite(raw.gold) || !finite(raw.lastSaveTime) || !object(raw.skills)) throw Error('저장 값 오류');
   // v1~v9는 모든 기능이 처음부터 보이던 기존 게임이다. v10 이상만 실제 해금 상태를 복원한다.
   const s = version < 10 ? unlockedGame(raw.lastSaveTime) : initial(raw.lastSaveTime);
@@ -249,6 +250,12 @@ export function decodeSave(text: string): Model {
     }
     s.milestones = {claimed, exchangeUsed: state.exchangeUsed};
     if (claimed.some(id => !milestoneReady(s, id))) throw Error('마일스톤 정보 오류');
+  }
+  // v21 이전 저장에는 광맥 누적량이 없으므로 0에서 시작한다.
+  if (version >= 21) {
+    const vein = raw.veinProgress;
+    if (!finite(vein) || !Number.isInteger(vein) || vein >= VEIN_SCALE) throw Error('광맥 정보 오류');
+    s.veinProgress = vein;
   }
   return s;
 }

@@ -5,6 +5,7 @@ import { state } from '../state/gameState';
 import { afford, duration } from '../engine/model';
 import { startAction } from '../engine/actions';
 import { FoodButtons } from './Food';
+import { VEIN_SCALE, veinChance } from '../content/mining';
 
 export const fmt = (n: number) => n.toLocaleString('ko-KR', {maximumFractionDigits: 0});
 export const costText = (cost: Record<string, number>) => Object.entries(cost)
@@ -20,6 +21,7 @@ export function ProductionView(props: {skill: SkillId}) {
     <h1>{skillNames[props.skill]}</h1>
     <p class="muted">레벨 {skill().level} · 경험치 {fmt(skill().exp)} / {fmt(skill().maxExp)}</p>
     <Show when={props.skill === 'fishing'}><p class="intro-note">개울에서 시작해 더 높은 레벨의 낚시터를 여세요. 잡은 물고기는 요리 재료가 됩니다.</p></Show>
+    <Show when={props.skill === 'mining'}><p class="intro-note">광맥 발견 확률 {(veinChance(skill().level) / 100).toFixed(2)}% · 광맥 기운 {Math.floor(state().veinProgress / VEIN_SCALE * 100)}% — 채굴할 때마다 쌓이고 100%가 되면 한 단계 위 광물과 마나석을 1개씩 더 얻습니다.</p></Show>
     <Show when={props.skill === 'cooking'}><p class="intro-note">음식 효과는 한 종류만 적용됩니다. 같은 음식은 지속시간이 늘어나며, 접속을 종료해도 시간이 흐릅니다.</p></Show>
     <div class="cards">
       <For each={Object.values(ResourceDB).filter(r => r.skill === props.skill)}>{r =>

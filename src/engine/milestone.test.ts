@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SAVE_VERSION } from './model';
 import { milestones, type MilestoneId } from '../content/guild';
 import { claimMilestone, exchangeResource, unlockedGame as initial, milestoneReady } from './model';
 import { decodeSave, encodeSave } from './save';
@@ -69,7 +70,7 @@ describe('길드: 마일스톤 퀘스트', () => {
     delete raw.milestones;
 
     const loaded = decodeSave(JSON.stringify(raw));
-    expect(loaded.version).toBe(20);
+    expect(loaded.version).toBe(SAVE_VERSION);
     expect(loaded.milestones).toEqual({claimed: [], exchangeUsed: false});
     expect(milestoneReady(loaded, 'first_gather')).toBe(true);
     expect(milestoneReady(loaded, 'any_skill_10')).toBe(true);

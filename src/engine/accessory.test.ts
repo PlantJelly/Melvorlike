@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest';
+import { SAVE_VERSION } from './model';
 import {accessoryTiers, emptyAccessories} from '../content/accessories';
 import {
   advance,
@@ -114,7 +115,7 @@ describe('마법부여·장신구', () => {
     const {magic: _magicTool, ...tools} = current.tools;
     const {accessories: _accessories, ...withoutAccessories} = current;
     const loaded = decodeSave(JSON.stringify({...withoutAccessories, version: 6, skills, tools}));
-    expect(loaded.version).toBe(20);
+    expect(loaded.version).toBe(SAVE_VERSION);
     expect(loaded.skills.magic.level).toBe(1);
     expect(loaded.tools.magic).toBe(0);
     expect(loaded.accessories).toEqual(emptyAccessories());

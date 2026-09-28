@@ -25,6 +25,9 @@ import {
   type ProjectPhase,
 } from '../content/projects';
 import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
+import { VEIN_SCALE, veinBonusOre, veinChance } from '../content/mining';
+
+export const SAVE_VERSION = 21;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -40,7 +43,7 @@ export type CurrentAction =
   | {kind: 'project'; projectId: ProjectId; stage: 'clearing' | 'restoring'; progressMs: number};
 
 export interface Model {
-  version: 20;
+  version: typeof SAVE_VERSION;
   gold: number;
   skills: Record<SkillId, { level: number; exp: number; maxExp: number }>;
   inventory: Record<string, number>;
@@ -63,6 +66,8 @@ export interface Model {
   milestones: { claimed: MilestoneId[]; exchangeUsed: boolean };
   // 슬롯별 장신구는 없거나 정확히 하나만 존재한다. 승급은 동일 객체의 재질만 올려 옵션을 보존한다.
   accessories: Record<AccessorySlotId, AccessoryState | null>;
+  // 광맥 발견 누적량(만분율, VEIN_SCALE 미만). 채광 산출 횟수 × 레벨별 확률만큼 쌓인다.
+  veinProgress: number;
   lastSaveTime: number;
   notice: string;
 }
@@ -125,13 +130,13 @@ function projectStates(completed: boolean): Record<ProjectId, ProjectState> {
 
 function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: FeatureId[], completedProjects: boolean): Model {
   const s: Model = {
-    version: 20, gold: 1000,
+    version: SAVE_VERSION, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: experienceToNextLevel(1) }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
     inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, guild: 0,
     unlockedSkills: [...unlockedSkills], unlockedFeatures: [...unlockedFeatures], projects: projectStates(completedProjects),
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
-    accessories: emptyAccessories(), lastSaveTime: time, notice: '',
+    accessories: emptyAccessories(), veinProgress: 0, lastSaveTime: time, notice: '',
   };
   s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
   return s;
@@ -225,6 +230,7 @@ function advanceSegment(s: Model, elapsed: number) {
   if (count) {
     if (r.recipe) spend(s, r.recipe, count);
     s.inventory[r.id] = (s.inventory[r.id] ?? 0) + count;
+    if (r.skill === 'mining') discoverVeins(s, r.id, count);
     addExperience(s, r.skill, r.exp * count, mealExpBonus(s, r.skill));
     action.progressMs = Math.max(0, action.progressMs - count * r.baseDurationMs);
   }
@@ -233,6 +239,20 @@ function advanceSegment(s: Model, elapsed: number) {
     s.notice = '재료가 부족해 제작을 멈췄습니다.';
   }
   return count;
+}
+
+// 경험치를 더하기 전 레벨로 확률을 정한다. 한 번의 정산 안에서 레벨이 오르는 경우만
+// 짧은 틱 정산과 미세하게 달라질 수 있다(같은 레벨 구간 안에서는 항상 동일).
+function discoverVeins(s: Model, oreId: string, count: number) {
+  const bonusOre = veinBonusOre[oreId];
+  if (!bonusOre) return;
+  s.veinProgress += count * veinChance(s.skills.mining.level);
+  const veins = Math.floor(s.veinProgress / VEIN_SCALE);
+  if (!veins) return;
+  s.veinProgress -= veins * VEIN_SCALE;
+  s.inventory[bonusOre] = (s.inventory[bonusOre] ?? 0) + veins;
+  s.inventory.mana_stone = (s.inventory.mana_stone ?? 0) + veins;
+  s.notice = `광맥 발견! ${ResourceDB[bonusOre].name} +${veins} · ${ResourceDB.mana_stone.name} +${veins}`;
 }
 
 function addUnique<T>(values: T[], additions: T[]) {

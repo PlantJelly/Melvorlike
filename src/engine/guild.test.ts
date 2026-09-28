@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SAVE_VERSION } from './model';
 import { ExchangeDB, exchangeRate, guildTiers } from '../content/guild';
 import { ResourceDB } from '../content/resources';
 import { buyResource, exchangeResource, unlockedGame as initial, upgradeGuild } from './model';
@@ -128,7 +129,7 @@ describe('길드: 저장 이전', () => {
   it('v5 저장을 불러오면 길드는 기본값으로 시작하고, v6 저장은 길드 등급을 복원한다', () => {
     const s = initial(0);
     const loaded = decodeSave(JSON.stringify({version: 5, gold: 500, skills: s.skills, tools: s.tools, inventory: {}, currentAction: null, meal: null, farmPlot: null, ranch: {}, lastSaveTime: 0}));
-    expect(loaded.version).toBe(20);
+    expect(loaded.version).toBe(SAVE_VERSION);
     expect(loaded.guild).toBe(0);
 
     const s2 = initial(0);
