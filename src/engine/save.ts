@@ -1,4 +1,4 @@
-import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
+import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, producible, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB, barnUpgrades } from '../content/animals';
 import { FoodDB } from '../content/foods';
@@ -42,6 +42,7 @@ export function encodeSave(s: Model): string {
 }
 
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+const validCount = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n >= 1;
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function decodeSave(text: string): Model {
@@ -166,7 +167,10 @@ export function decodeSave(text: string): Model {
         if (typeof a.resourceId !== 'string' || !Object.hasOwn(ResourceDB, a.resourceId)) throw Error('작업 정보 오류');
         const r = ResourceDB[a.resourceId];
         if (r.dropOnly || !skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
-        s.currentAction = {kind: 'production', resourceId: r.id, progressMs: a.progressMs};
+        // 목표 수량은 v28부터 저장된다.
+        if (a.target === undefined) s.currentAction = {kind: 'production', resourceId: r.id, progressMs: a.progressMs};
+        else if (version >= 28 && validCount(a.target)) s.currentAction = {kind: 'production', resourceId: r.id, progressMs: a.progressMs, target: a.target};
+        else throw Error('작업 정보 오류');
       } else if (a.kind === 'project') {
         if (typeof a.projectId !== 'string' || !projectIds.includes(a.projectId as ProjectId) || (a.stage !== 'clearing' && a.stage !== 'restoring')) throw Error('작업 정보 오류');
         const projectId = a.projectId as ProjectId;
@@ -178,6 +182,12 @@ export function decodeSave(text: string): Model {
         s.currentAction = {kind: 'project', projectId, stage: a.stage, progressMs: a.progressMs};
       } else throw Error('작업 정보 오류');
     }
+  }
+  // v28 이전 저장에는 예약 작업이 없다. 예약은 지금 만들 수 있는 생산 작업이어야 한다(재료 보유는 시작 시점에 확인).
+  if (version >= 28 && raw.queuedAction !== null) {
+    const q = raw.queuedAction;
+    if (!object(q) || typeof q.resourceId !== 'string' || !producible(s, q.resourceId) || (q.target !== undefined && !validCount(q.target))) throw Error('작업 정보 오류');
+    s.queuedAction = q.target === undefined ? {resourceId: q.resourceId} : {resourceId: q.resourceId, target: q.target as number};
   }
   if (version >= 3 && raw.meal !== null) {
     const meal = raw.meal;

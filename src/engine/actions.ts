@@ -1,13 +1,21 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, upgrade, sell, eat, buyResource, plant, harvest, expandFarm, automateFarm, buyFertilizer, buyAnimal, expandBarn, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
+import { begin, queueAction, clearQueuedAction, upgrade, sell, eat, buyResource, plant, harvest, expandFarm, automateFarm, buyFertilizer, buyAnimal, expandBarn, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
 import type { SkillId } from '../content/types';
 import type { AccessorySlotId } from '../content/accessories';
 import type { MilestoneId } from '../content/guild';
 import type { ProjectId } from '../content/projects';
 import type { FertilizerId } from '../content/fertilizers';
 
-export function startAction(_skill: SkillId, id: string) {
-  mutate(s => { begin(s, id); });
+export function startAction(_skill: SkillId, id: string, target?: number) {
+  mutate(s => { begin(s, id, target); });
+  saveGame();
+}
+export function queueActionAction(id: string, target?: number) {
+  mutate(s => { queueAction(s, id, target); });
+  saveGame();
+}
+export function clearQueuedActionAction() {
+  mutate(s => { clearQueuedAction(s); });
   saveGame();
 }
 export function stopAction() {

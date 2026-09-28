@@ -34,7 +34,7 @@ import { farmAutomation, plotUpgrades } from '../content/farm';
 
 import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 
-export const SAVE_VERSION = 27;
+export const SAVE_VERSION = 28;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -48,8 +48,11 @@ export interface ProjectState {
 // fertilizer는 이 칸에 파종할 때 쓴 비료. 수확될 때까지 유지된다.
 export interface FarmPlot { cropId: string; progressMs: number; fertilizer?: FertilizerId }
 
+export interface QueuedAction { resourceId: string; target?: number }
+
 export type CurrentAction =
-  | {kind: 'production'; resourceId: string; progressMs: number}
+  // target: 남은 목표 수량. 있으면 그만큼 만든 뒤 멈춘다(content_spec §12 "목표 수량에서 자동 정지").
+  | {kind: 'production'; resourceId: string; progressMs: number; target?: number}
   | {kind: 'project'; projectId: ProjectId; stage: 'clearing' | 'restoring'; progressMs: number};
 
 export interface Model {
@@ -60,6 +63,8 @@ export interface Model {
   tools: Record<SkillId, number>;
   // progressMs는 속도 보정 전 작업량. 속도가 변해도 진행률은 유지한다.
   currentAction: CurrentAction | null;
+  // 현재 작업이 목표 달성·재료 소진·프로젝트 단계 완료로 멈추면 이어서 시작할 생산 작업 1개(content_spec §12 "다음 작업 예약").
+  queuedAction: QueuedAction | null;
   unlockedSkills: SkillId[];
   unlockedFeatures: FeatureId[];
   projects: Record<ProjectId, ProjectState>;
@@ -159,7 +164,7 @@ function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: 
     version: SAVE_VERSION, gold: 1000,
     skills: Object.fromEntries(playable.map(id => [id, { level: 1, exp: 0, maxExp: experienceToNextLevel(1) }])) as Model['skills'],
     tools: Object.fromEntries(playable.map(id => [id, 0])) as Model['tools'],
-    inventory: {}, currentAction: null, meal: null, farmPlots: [null], farmAuto: false, ranch: {}, ranchCounts: {}, barnLevel: 0, guild: 0,
+    inventory: {}, currentAction: null, queuedAction: null, meal: null, farmPlots: [null], farmAuto: false, ranch: {}, ranchCounts: {}, barnLevel: 0, guild: 0,
     unlockedSkills: [...unlockedSkills], unlockedFeatures: [...unlockedFeatures], projects: projectStates(completedProjects),
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
     accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0, coalProgress: 0, junkProgress: 0,
@@ -247,20 +252,21 @@ function addExperience(s: Model, skillId: SkillId, amount: number, bonus = 0) {
 }
 
 // 한 구간 안에서는 속도가 일정하므로 횟수별 반복 없이 전체 생산량을 계산한다.
-function advanceSegment(s: Model, elapsed: number) {
+function advanceSegment(s: Model, elapsed: number): number {
   const action = s.currentAction;
   if (!action) return 0;
   if (action.kind === 'project') {
-    advanceProjectAction(s, action, elapsed);
-    return 0;
+    const leftover = advanceProjectAction(s, action, elapsed);
+    return leftover === null ? 0 : continueWithQueued(s, leftover);
   }
   const r = ResourceDB[action.resourceId];
-  action.progressMs += elapsed * speedMultiplier(s, r.skill);
+  const speed = speedMultiplier(s, r.skill);
+  action.progressMs += elapsed * speed;
   let count = Math.floor((action.progressMs + 1e-7) / r.baseDurationMs);
-  if (!count) return 0;
   if (r.recipe) {
     count = Math.min(count, ...Object.entries(r.recipe).map(([id, n]) => Math.floor((s.inventory[id] ?? 0) / n)));
   }
+  if (action.target !== undefined) count = Math.min(count, action.target);
   // 광맥·꽝처럼 레벨에 따라 달라지는 확률이 있으므로, 레벨이 오르는 지점마다 나눠 정산한다.
   // 그래야 오프라인에서 한 번에 정산해도 짧은 틱으로 한 번씩 정산한 것과 결과가 같다.
   const bonus = mealExpBonus(s, r.skill);
@@ -276,11 +282,29 @@ function advanceSegment(s: Model, elapsed: number) {
     left -= n;
   }
   if (count) action.progressMs = Math.max(0, action.progressMs - count * r.baseDurationMs);
-  if (r.recipe && !afford(s, r.recipe)) {
-    s.currentAction = null;
-    s.notice = '재료가 부족해 제작을 멈췄습니다.';
+  if (action.target !== undefined) action.target -= count;
+  const reached = action.target === 0;
+  if (!reached && !(r.recipe && !afford(s, r.recipe))) return count;
+  // 멈춘 뒤 남은 작업량은 실제 시간으로 되돌려 예약 작업에 넘긴다 — 짧은 틱으로 나눠 정산해도,
+  // 오프라인에서 한 번에 정산해도 예약 작업이 같은 시점에 시작된 것과 결과가 같다.
+  const leftover = action.progressMs / speed;
+  s.currentAction = null;
+  s.notice = reached ? `${r.name} 목표 수량을 채워 작업을 멈췄습니다.` : '재료가 부족해 제작을 멈췄습니다.';
+  return count + continueWithQueued(s, leftover);
+}
+
+// 예약 작업이 있으면 시작하고 남은 시간을 이어서 정산한다. 시작하지 못하면(재료 부족 등) 예약을 지운다.
+function continueWithQueued(s: Model, leftover: number): number {
+  const queued = s.queuedAction;
+  if (!queued) return 0;
+  s.queuedAction = null;
+  const name = ResourceDB[queued.resourceId].name;
+  if (!begin(s, queued.resourceId, queued.target)) {
+    s.notice = `예약한 작업(${name})을 시작하지 못했습니다 · 재료나 레벨을 확인하세요.`;
+    return 0;
   }
-  return count;
+  s.notice = `예약한 작업 시작 · ${name}`;
+  return leftover > 0 ? advanceSegment(s, leftover) : 0;
 }
 
 // 이번 레벨에서 다음 레벨업을 일으키는 작업까지 몇 번 남았는지(그 작업 포함). 레벨업을 일으킨 작업은
@@ -329,29 +353,33 @@ function addUnique<T>(values: T[], additions: T[]) {
   for (const value of additions) if (!values.includes(value)) values.push(value);
 }
 
-function advanceProjectAction(s: Model, action: Extract<CurrentAction, {kind: 'project'}>, elapsed: number) {
+// 단계가 끝나면 끝난 뒤 남은 시간(예약 작업에 넘길 몫)을, 아니면 null을 돌려준다.
+function advanceProjectAction(s: Model, action: Extract<CurrentAction, {kind: 'project'}>, elapsed: number): number | null {
   const project = ProjectDB[action.projectId];
   const state = s.projects[action.projectId];
   if (action.stage === 'clearing') {
-    if (state.phase !== 'clearing') { s.currentAction = null; return; }
+    if (state.phase !== 'clearing') { s.currentAction = null; return null; }
+    const leftover = Math.max(0, state.clearingProgressMs + elapsed - project.clearingDurationMs);
     state.clearingProgressMs = Math.min(project.clearingDurationMs, state.clearingProgressMs + elapsed);
     action.progressMs = state.clearingProgressMs;
-    if (state.clearingProgressMs + 1e-7 < project.clearingDurationMs) return;
+    if (state.clearingProgressMs + 1e-7 < project.clearingDurationMs) return null;
     state.phase = 'delivery';
     for (const [id, count] of Object.entries(project.salvage)) s.inventory[id] = (s.inventory[id] ?? 0) + count;
     s.currentAction = null;
     s.notice = `${project.name} 정리 완료 · 회수품을 확보했습니다.`;
-    return;
+    return leftover;
   }
-  if (state.phase !== 'restoring') { s.currentAction = null; return; }
+  if (state.phase !== 'restoring') { s.currentAction = null; return null; }
+  const leftover = Math.max(0, state.restorationProgressMs + elapsed - project.restorationDurationMs);
   state.restorationProgressMs = Math.min(project.restorationDurationMs, state.restorationProgressMs + elapsed);
   action.progressMs = state.restorationProgressMs;
-  if (state.restorationProgressMs + 1e-7 < project.restorationDurationMs) return;
+  if (state.restorationProgressMs + 1e-7 < project.restorationDurationMs) return null;
   state.phase = 'complete';
   addUnique(s.unlockedSkills, project.unlockSkills);
   addUnique(s.unlockedFeatures, project.unlockFeatures);
   s.currentAction = null;
   s.notice = `${project.name} 복원 완료 · ${project.unlockSkills.map(skill => skillNames[skill]).join(', ')} 해금`;
+  return leftover;
 }
 
 // 밭은 재접속 여부와 무관하게 항상 흐른다. 자동화가 없으면 다 자란 뒤 수확 전까지 멈추고,
@@ -486,12 +514,34 @@ export function advance(s: Model, time: number) {
   return count;
 }
 
-export function begin(s: Model, id: string) {
+// 액티브 슬롯으로 만들 수 있는 자원인지(재료 보유는 따지지 않음). 작업 시작·예약·저장 검증이 함께 쓴다.
+export function producible(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
   // 패시브 스킬(농사/목장) 산출물은 밭/축사에서만 나온다. 액티브 슬롯으로도 생산되면 이중 생산이 된다.
-  if (!r || r.dropOnly || !skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
-  s.currentAction = {kind: 'production', resourceId: id, progressMs: 0};
+  return !!r && !r.dropOnly && skillUnlocked(s, r.skill) && !passiveSkills.includes(r.skill) && s.skills[r.skill].level >= r.reqLevel;
+}
+
+const validTarget = (target: number | undefined) => target === undefined || (Number.isSafeInteger(target) && target >= 1);
+
+export function begin(s: Model, id: string, target?: number) {
+  if (!producible(s, id) || !validTarget(target) || !afford(s, ResourceDB[id].recipe ?? {})) return false;
+  s.currentAction = target === undefined ? {kind: 'production', resourceId: id, progressMs: 0} : {kind: 'production', resourceId: id, progressMs: 0, target};
   s.notice = '';
+  return true;
+}
+
+// 작업 중이면 다음 작업으로 예약하고(기존 예약은 교체), 쉬는 중이면 바로 시작한다.
+export function queueAction(s: Model, id: string, target?: number) {
+  if (!s.currentAction) return begin(s, id, target);
+  if (!producible(s, id) || !validTarget(target)) return false;
+  s.queuedAction = target === undefined ? {resourceId: id} : {resourceId: id, target};
+  s.notice = `다음 작업 예약 · ${ResourceDB[id].name}${target ? ` ${target}개` : ''}`;
+  return true;
+}
+
+export function clearQueuedAction(s: Model) {
+  if (!s.queuedAction) return false;
+  s.queuedAction = null;
   return true;
 }
 

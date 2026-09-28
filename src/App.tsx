@@ -4,7 +4,7 @@ import type { SkillId } from './content/types';
 import { initGameLoop } from './engine/gameLoop';
 import { state } from './state/gameState';
 import { duration, featureUnlocked, kingdomRestoration, skillUnlocked } from './engine/model';
-import { stopAction } from './engine/actions';
+import { clearQueuedActionAction, stopAction } from './engine/actions';
 import { ProductionView, fmt } from './ui/ProductionView';
 import { ToolsView } from './ui/ToolsView';
 import { InventoryView } from './ui/InventoryView';
@@ -66,6 +66,8 @@ function App() {
       <section class="current">
         <div><span class="label">현재 작업</span><h2>{resource() ? `${resource()!.icon} ${resource()!.name}` : project() ? `${project()!.icon} ${project()!.name}` : '작업을 선택하세요'}</h2></div>
         <Show when={active()}><button onClick={stopAction}>작업 중지</button></Show>
+        <Show when={active()?.kind === 'production' && (active() as {target?: number}).target}>{remaining => <small>목표까지 {remaining()}개 남음</small>}</Show>
+        <Show when={state().queuedAction}>{q => <small>다음 작업: {ResourceDB[q().resourceId].icon} {ResourceDB[q().resourceId].name}{q().target ? ` ${q().target}개` : ''} <button onClick={clearQueuedActionAction}>예약 취소</button></small>}</Show>
         <progress aria-label="현재 작업 진행률" max="100" value={active() ? Math.min(100, active()!.progressMs / activeDuration() * 100) : 0}/>
         <small>{resource() ? `${(duration(state(), resource()!.id) / 1000).toFixed(1)}초마다 1개 · 화면을 바꿔도 계속 진행됩니다` : project() ? `${projectStage() === 'clearing' ? '폐허 정리' : '복원 공사'} · 화면을 바꿔도 계속 진행됩니다` : '한 번에 하나의 작업이 진행됩니다.'}</small>
       </section>
