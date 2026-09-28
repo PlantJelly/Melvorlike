@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { advance, automateFarm, begin, craftAccessory, duration, eat, expandFarm, unlockedGame as initial, upgradeAccessory } from './model';
+import { advance, automateFarm, begin, craftAccessory, duration, eat, expandBarn, expandFarm, unlockedGame as initial, upgradeAccessory } from './model';
+import { barnUpgrades } from '../content/animals';
 import { ResourceDB } from '../content/resources';
 import { FoodDB } from '../content/foods';
 import { accessoryTiers } from '../content/accessories';
@@ -35,7 +36,7 @@ describe('조제 보조재와 소비처', () => {
     const s = initial(0);
     s.skills.farming.level = 40;
     s.gold = 1_000_000;
-    s.inventory = {plank: 100, oak_plank: 100};
+    s.inventory = {plank: 100, oak_plank: 100, rope: 100};
     expect(expandFarm(s)).toBe(false);
     expect(automateFarm(s)).toBe(false);
     s.inventory.glue = plotUpgrades[0].cost.glue + farmAutomation.cost.glue;
@@ -68,5 +69,55 @@ describe('조제 보조재와 소비처', () => {
     expect(FoodDB.field_ration.durationMs).toBeGreaterThan(FoodDB.vegetable_porridge.durationMs * 3);
     expect(duration(s, 'wood')).toBeCloseTo(3000 / 1.05);
     expect(duration(s, 'wheat')).toBeCloseTo(180000 / 1.05);
+  });
+});
+
+describe('재봉 자재와 소비처', () => {
+  it('밧줄은 양털로, 천은 양털과 염료로 재봉에서 만든다', () => {
+    const s = initial(0);
+    s.skills.sewing.level = 10;
+    s.inventory = {wool: 3, dye: 1};
+    begin(s, 'rope');
+    advance(s, 4000);
+    expect(s.inventory.rope).toBe(1);
+    begin(s, 'cloth');
+    advance(s, 4000 + 6500);
+    expect(s.inventory.cloth).toBe(1);
+    expect(s.inventory.wool).toBe(0);
+    expect(s.inventory.dye).toBe(0);
+    for (const id of ['rope', 'cloth']) {
+      const r = ResourceDB[id];
+      const cost = Object.entries(r.recipe!).reduce((sum, [mid, n]) => sum + ResourceDB[mid].sell * n, 0);
+      expect(r.sell).toBeGreaterThan(cost);
+    }
+  });
+
+  it('축사 강화는 1단계에 밧줄, 2단계에 천이 있어야 한다', () => {
+    const s = initial(0);
+    s.skills.ranching.level = 40;
+    s.gold = 1_000_000;
+    s.inventory = {plank: 100, oak_plank: 100};
+    expect(expandBarn(s)).toBe(false);
+    s.inventory.rope = barnUpgrades[0].cost.rope;
+    expect(expandBarn(s)).toBe(true);
+    expect(expandBarn(s)).toBe(false);
+    s.inventory.cloth = barnUpgrades[1].cost.cloth;
+    expect(expandBarn(s)).toBe(true);
+    expect(s.inventory.rope).toBe(0);
+    expect(s.inventory.cloth).toBe(0);
+  });
+
+  it('밭 3칸째와 자동화는 밧줄이 있어야 한다', () => {
+    const s = initial(0);
+    s.skills.farming.level = 40;
+    s.gold = 1_000_000;
+    s.inventory = {plank: 100, oak_plank: 100, glue: 100};
+    expect(expandFarm(s)).toBe(true); // 2칸째는 밧줄 불필요
+    expect(expandFarm(s)).toBe(false);
+    expect(automateFarm(s)).toBe(false);
+    s.inventory.rope = plotUpgrades[1].cost.rope + farmAutomation.cost.rope;
+    expect(expandFarm(s)).toBe(true);
+    expect(automateFarm(s)).toBe(true);
+    expect(s.inventory.rope).toBe(0);
   });
 });

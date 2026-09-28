@@ -7,7 +7,7 @@ const setup = (level = 40) => {
   const s = initial(0);
   s.skills.ranching.level = level;
   s.gold = 1_000_000;
-  s.inventory = {plank: 100, oak_plank: 100, glue: 100};
+  s.inventory = {plank: 100, oak_plank: 100, glue: 100, rope: 100, cloth: 100};
   return s;
 };
 

@@ -19,8 +19,8 @@ export const AnimalDB: Record<string, AnimalDef> = {
 // 축사 강화(content_spec §3 "목장 레벨업 시 최대 사육 마릿수 증가, 건물처럼 골드+재료 강화").
 // 인덱스 i는 동물종당 최대 사육 수를 (i + 2)마리로 늘리는 비용. 수치는 플레이테스트 전 임시값.
 export const barnUpgrades: {reqLevel: number; goldCost: number; cost: Record<string, number>}[] = [
-  {reqLevel: 15, goldCost: 8000, cost: {plank: 30}},
-  {reqLevel: 35, goldCost: 30000, cost: {oak_plank: 30}},
+  {reqLevel: 15, goldCost: 8000, cost: {plank: 30, rope: 5}},
+  {reqLevel: 35, goldCost: 30000, cost: {oak_plank: 30, cloth: 5}},
 ];
 
 export const MAX_ANIMALS_PER_SPECIES = 1 + barnUpgrades.length;

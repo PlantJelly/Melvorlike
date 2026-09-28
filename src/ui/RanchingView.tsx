@@ -37,7 +37,7 @@ export function RanchingView() {
       return <div class="cards">
         <article>
           <h2>축사 강화 ({barnCapacity(state()) + 1}마리)</h2>
-          <p class="muted">목재 칸막이를 늘려 동물종당 한 마리를 더 키울 수 있게 합니다.</p>
+          <p class="muted">목재 칸막이와 재봉 자재로 축사를 넓혀 동물종당 한 마리를 더 키울 수 있게 합니다.</p>
           <p class="recipe">{fmt(upgrade().goldCost)} G · {costText(upgrade().cost)}</p>
           <button disabled={locked() || state().gold < upgrade().goldCost || !afford(state(), upgrade().cost)} onClick={expandBarnAction}>
             {locked() ? `레벨 ${upgrade().reqLevel}에 해금` : '강화하기'}

@@ -75,6 +75,7 @@ describe('농사: 비료 3종', () => {
     s.skills.farming.level = 25;
     s.inventory.oak_plank = 30;
     s.inventory.glue = 15;
+    s.inventory.rope = 5;
     automateFarm(s);
     buyFertilizer(s, 'speed', 2);
     plant(s, 'wheat', 'speed');

@@ -53,6 +53,10 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('preservative', '보존제', 'apothecary', 30, 9500, 230, 37, '🧂', {wild_herb: 2, wild_mushroom: 2}),
     row('berry_tonic', '산딸기 물약', 'apothecary', 1, 4000, 30, 6, '🧪', {wild_berry: 3}), row('mushroom_balm', '들버섯 연고', 'apothecary', 10, 6500, 95, 18, '🧪', {wild_mushroom: 3, wild_berry: 1}),
     row('herb_elixir', '산약초 영약', 'apothecary', 30, 9500, 230, 48, '🧪', {wild_herb: 3, wild_mushroom: 1}), row('rare_remedy', '영지버섯 묘약', 'apothecary', 50, 13500, 500, 140, '🧪', {rare_mushroom: 3, wild_herb: 1}),
+    // 재봉 자재(game_design §2.12 "밧줄·천 … 왕국 시설과 생산 보조품"): 축사·밭 시설에 쓰인다.
+    // 시간·경험치는 같은 레벨의 기존 재봉 레시피, 판매가는 D033 비율(2.0/1.8)을 따른다.
+    row('rope', '밧줄', 'sewing', 1, 4000, 30, 5360, '🪢', {wool: 1}),
+    row('cloth', '천', 'sewing', 10, 6500, 95, 9673, '🧣', {wool: 2, dye: 1}),
     row('wool_garment', '양털 옷', 'sewing', 1, 4000, 30, 16080, '🧵', {wool: 3}), row('trimmed_garment', '장식 의복', 'sewing', 10, 6500, 95, 19318, '🧵', {wool: 4, copper_ingot: 1}),
     row('reinforced_garment', '보강 의복', 'sewing', 30, 9500, 230, 16530, '🧵', {wool: 5, iron_ingot: 1}), row('enchanted_garment', '마법 의복', 'sewing', 50, 13500, 500, 13991, '🧵', {wool: 6, gold_ingot: 1})
 ].map(r => [r.id, r]));
