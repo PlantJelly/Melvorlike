@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { saplingHarvest } from '../content/saplings';
 import { ResourceDB } from '../content/resources';
 import { experienceToNextLevel } from './formulas';
 import { planProduction, planProductionRequirements, progressionScenarios, resourceRate, simulateSkillToLevel, totalExperienceToLevel } from './progression';
@@ -26,6 +27,13 @@ describe('성장 곡선 시뮬레이터', () => {
     expect(rate.actionsPerHour).toBe(20);
     expect(rate.unitsPerHour).toBe(60);
     expect(rate.grossGoldPerHour).toBe(60 * ResourceDB.wheat.sell);
+  });
+
+  it('묘목은 묘목이 아니라 수확하는 원목의 개수와 판매가로 계산한다', () => {
+    const rate = resourceRate('sapling_wood', bare, 1);
+    expect(rate.actionsPerHour).toBe(15);
+    expect(rate.unitsPerHour).toBe(15 * saplingHarvest.sapling_wood.count);
+    expect(rate.grossGoldPerHour).toBe(15 * saplingHarvest.sapling_wood.count * ResourceDB.wood.sell);
   });
 
   it('벌목 Lv10까지 현재 기준 59회, 177초가 걸린다', () => {

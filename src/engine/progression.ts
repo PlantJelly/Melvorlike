@@ -1,4 +1,5 @@
 import { ResourceDB, cropYield, passiveSkills, playable, toolTiers } from '../content/resources';
+import { saplingHarvest } from '../content/saplings';
 import type { ResourceDef, SkillId } from '../content/types';
 import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
 
@@ -61,8 +62,11 @@ function assertScenario(scenario: ProgressionScenario) {
   assertBonus(scenario.experienceBonus, '경험치');
 }
 
-function unitsPerAction(resource: ResourceDef) {
-  return resource.skill === 'farming' ? cropYield[resource.id] ?? 1 : 1;
+// 묘목은 자기 자신이 아니라 해당 티어 원목을 수확한다.
+function harvestFor(resource: ResourceDef) {
+  const sapling = saplingHarvest[resource.id];
+  if (sapling) return {count: sapling.count, sell: ResourceDB[sapling.resourceId].sell};
+  return {count: resource.skill === 'farming' ? cropYield[resource.id] ?? 1 : 1, sell: resource.sell};
 }
 
 export function toolTierAtLevel(level: number, automaticTools: boolean): number {
@@ -80,14 +84,14 @@ function rateFor(resource: ResourceDef, scenario: ProgressionScenario, level: nu
   const speed = getSpeedMultiplier(toolTiers[toolTier].bonus, scenario.foodSpeedBonus, scenario.accessorySpeedBonus);
   const durationMs = resource.baseDurationMs / speed;
   const actionsPerHour = 3_600_000 / durationMs;
-  const output = unitsPerAction(resource);
+  const output = harvestFor(resource);
   return {
     resourceId: resource.id,
     durationMs,
     actionsPerHour,
-    unitsPerHour: actionsPerHour * output,
+    unitsPerHour: actionsPerHour * output.count,
     experiencePerHour: actionsPerHour * resource.exp * (1 + scenario.experienceBonus),
-    grossGoldPerHour: actionsPerHour * output * resource.sell,
+    grossGoldPerHour: actionsPerHour * output.count * output.sell,
   };
 }
 
@@ -184,7 +188,8 @@ export function planProductionRequirements(
   const steps = order.map(resourceId => {
     const resource = ResourceDB[resourceId];
     const requiredUnits = required.get(resourceId)!;
-    const output = unitsPerAction(resource);
+    // 계획은 "그 자원 자체"를 몇 개 얻는지가 필요하다. 묘목은 레시피 재료가 아니어서 계획 대상이 되지 않는다.
+    const output = resource.skill === 'farming' ? cropYield[resource.id] ?? 1 : 1;
     const actions = Math.ceil(requiredUnits / output);
     const level = levels[resource.skill] ?? resource.reqLevel;
     const durationMs = resourceRate(resourceId, scenario, level).durationMs * actions;
