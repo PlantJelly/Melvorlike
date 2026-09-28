@@ -13,6 +13,7 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('grilled_fish', '구운 생선', 'cooking', 1, 5000, 35, 5, '🍢', {fish_small: 2}),
     row('fish_soup', '민물 생선탕', 'cooking', 10, 7000, 75, 12, '🍲', {fish_carp: 2}),
     row('smoked_salmon', '훈제 연어', 'cooking', 30, 10000, 180, 35, '🍣', {fish_salmon: 2, wood: 1}),
+    row('steamed_egg', '달걀찜', 'cooking', 10, 7000, 75, 1800, '🍮', {egg: 2}),
     row('vegetable_porridge', '야채죽', 'cooking', 1, 5000, 35, 2638, '🥣', {potato: 2, carrot: 1}),
     row('lumberjack_lunchbox', '나무꾼 도시락', 'cooking', 15, 7000, 90, 2039, '🍱', {potato: 1, carrot: 1, grilled_fish: 1}),
     row('miners_stew', '광부의 스튜', 'cooking', 15, 7000, 90, 10829, '🍛', {milk: 1, carrot: 2}),

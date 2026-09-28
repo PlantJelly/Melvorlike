@@ -189,9 +189,16 @@ function spend(s: Model, cost: Record<string, number>, count = 1) {
   for (const [id, n] of Object.entries(cost)) s.inventory[id] -= n * count;
 }
 
-function addExperience(s: Model, skillId: SkillId, amount: number) {
+// 경험치 음식은 음식 만료 시점으로 구간이 나뉘는 액티브 작업과 사용자가 직접 누르는 수확에만 적용한다.
+// 목장·자동 수확은 경과 시간 전체를 한 번에 정산하므로 여기에 적용하면 오프라인에서 효과가 과하게 붙는다.
+export function mealExpBonus(s: Model, skill: SkillId) {
+  const food = s.meal && s.meal.remainingMs > 0 ? FoodDB[s.meal.foodId] : null;
+  return food?.skills.includes(skill) ? food.expBonus ?? 0 : 0;
+}
+
+function addExperience(s: Model, skillId: SkillId, amount: number, bonus = 0) {
   const skill = s.skills[skillId];
-  skill.exp += amount * (1 + accessoryBonus(s, 'experience'));
+  skill.exp += amount * (1 + accessoryBonus(s, 'experience') + bonus);
   while (skill.level < MAX_SKILL_LEVEL && skill.exp >= skill.maxExp) {
     skill.exp -= skill.maxExp;
     skill.level++;
@@ -218,7 +225,7 @@ function advanceSegment(s: Model, elapsed: number) {
   if (count) {
     if (r.recipe) spend(s, r.recipe, count);
     s.inventory[r.id] = (s.inventory[r.id] ?? 0) + count;
-    addExperience(s, r.skill, r.exp * count);
+    addExperience(s, r.skill, r.exp * count, mealExpBonus(s, r.skill));
     action.progressMs = Math.max(0, action.progressMs - count * r.baseDurationMs);
   }
   if (r.recipe && !afford(s, r.recipe)) {
@@ -554,7 +561,7 @@ export function harvest(s: Model) {
   const r = ResourceDB[plot.cropId];
   const n = cropYield[plot.cropId] ?? 1;
   s.inventory[plot.cropId] = (s.inventory[plot.cropId] ?? 0) + n;
-  addExperience(s, 'farming', r.exp);
+  addExperience(s, 'farming', r.exp, mealExpBonus(s, 'farming'));
   s.farmPlot = null;
   s.notice = `${r.name} ${n}개 수확 · 경험치 +${r.exp}`;
   return true;

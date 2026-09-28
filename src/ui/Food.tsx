@@ -40,7 +40,7 @@ export function FoodButtons(props: {id: string}) {
 export function MealStatus() {
   const meal = () => state().meal;
   return <section class="meal-status" aria-label="음식 효과">
-    <Show when={meal()} fallback={<span>🍽️ 음식 효과 없음 · 요리한 음식을 먹으면 작업 속도가 높아집니다.</span>}>
+    <Show when={meal()} fallback={<span>🍽️ 음식 효과 없음 · 요리한 음식을 먹으면 작업 속도나 경험치가 높아집니다.</span>}>
       <strong>🍽️ {ResourceDB[meal()!.foodId].name}</strong>
       <span>{FoodDB[meal()!.foodId].description}</span>
       <span>남은 시간 {timeText(meal()!.remainingMs)}</span>
