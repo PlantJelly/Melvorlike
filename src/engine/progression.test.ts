@@ -66,6 +66,15 @@ describe('성장 곡선 시뮬레이터', () => {
     expect(route.activeTimeMs).toBe(51000);
   });
 
+  it('석탄은 계획의 채광 부산물로 먼저 충당하고, 모자란 만큼만 돌 채광을 더한다', () => {
+    const route = planProduction('iron_ingot', 1, bare, {mining: 10, blacksmithing: 10});
+    expect(route.rawRequirements).toEqual({iron: 3, coal: 2});
+    // 철 광석 3회 채굴 → 석탄 기대 1.5개, 부족한 0.5개는 돌 1회 채굴(4초)로 보충
+    expect(route.timeBySkillMs.mining).toBe(3 * 7000 + 4000);
+    const copper = planProduction('copper_ingot', 1, bare);
+    expect(copper.timeBySkillMs.mining).toBe(3 * 5000); // 구리 광석 3회에서 석탄 1.5개 — 추가 채굴 없음
+  });
+
   it('첫 구운 생선의 원재료와 가공 시간을 계산한다', () => {
     const route = planProduction('grilled_fish', 1, bare);
     expect(route.rawRequirements).toEqual({fish_small: 2});

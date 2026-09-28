@@ -5,7 +5,9 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('hardwood', '단단한 나무', 'logging', 30, 8000, 150, 12, '🌲'), row('magic_wood', '마법 나무', 'logging', 50, 12000, 400, 50, '✨'),
     row('stone', '돌', 'mining', 1, 4000, 25, 1, '🪨'), row('copper', '구리 광석', 'mining', 1, 5000, 35, 3, '⛏️'), row('iron', '철 광석', 'mining', 10, 7000, 70, 8, '⛏️'),
     row('gold_ore', '금 광석', 'mining', 50, 11000, 300, 35, '🟡'), row('mana_stone', '마나석', 'mining', 30, 9000, 180, 22, '🔷'),
-    row('brick', '돌 벽돌', 'blacksmithing', 1, 4000, 30, 5, '🧱', { stone: 2 }), row('copper_ingot', '구리 주괴', 'blacksmithing', 1, 6000, 40, 12, '▰', { copper: 3, wood: 1 }), row('iron_ingot', '철 주괴', 'blacksmithing', 10, 8000, 90, 30, '▰', { iron: 3, wood: 2 }),
+    row('brick', '돌 벽돌', 'blacksmithing', 1, 4000, 30, 5, '🧱', { stone: 2 }), row('copper_ingot', '구리 주괴', 'blacksmithing', 1, 6000, 40, 12, '▰', { copper: 3, coal: 1 }), row('iron_ingot', '철 주괴', 'blacksmithing', 10, 8000, 90, 30, '▰', { iron: 3, coal: 2 }),
+    // 석탄은 모든 채광의 부산물(game_design §2.2 "전 광산 공통 드랍, 별도 탄광 없음"). 판매가는 나무 연료와 같게 둬 주괴 원가가 바뀌지 않게 했다.
+    {...row('coal', '석탄', 'mining', 1, 4000, 0, 1, '⚫'), dropOnly: true},
     row('gold_ingot', '금 주괴', 'blacksmithing', 50, 12000, 320, 110, '▰', {gold_ore: 3, magic_wood: 1}),
     {...row('fish_small', '피라미', 'fishing', 1, 3500, 25, 2, '🐟'), area: '마을 개울'},
     {...row('fish_carp', '붕어', 'fishing', 10, 5500, 60, 5, '🐠'), area: '갈대 호수'},

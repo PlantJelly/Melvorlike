@@ -26,14 +26,14 @@ import {
 } from '../content/projects';
 import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
 import { CHANCE_SCALE } from '../content/chance';
-import { veinBonusOre, veinChance } from '../content/mining';
+import { COAL_CHANCE, veinBonusOre, veinChance } from '../content/mining';
 import { SAPLING_CHANCE, saplingHarvest, saplingOf } from '../content/saplings';
 
 import { farmAutomation, plotUpgrades } from '../content/farm';
 
 import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 
-export const SAVE_VERSION = 25;
+export const SAVE_VERSION = 26;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -85,6 +85,8 @@ export interface Model {
   veinProgress: number;
   // 나무묘목 누적량(만분율, CHANCE_SCALE 미만). 벌목 산출 횟수 × SAPLING_CHANCE만큼 쌓인다.
   saplingProgress: number;
+  // 석탄 누적량(만분율, CHANCE_SCALE 미만). 채광 산출 횟수 × COAL_CHANCE만큼 쌓인다.
+  coalProgress: number;
   // 보유 비료 수량과 배양·회수비료 확률 누적량(만분율, CHANCE_SCALE 미만).
   fertilizers: Record<FertilizerId, number>;
   bumperProgress: number;
@@ -157,7 +159,7 @@ function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: 
     inventory: {}, currentAction: null, meal: null, farmPlots: [null], farmAuto: false, ranch: {}, ranchCounts: {}, barnLevel: 0, guild: 0,
     unlockedSkills: [...unlockedSkills], unlockedFeatures: [...unlockedFeatures], projects: projectStates(completedProjects),
     dailyQuests: { day: dayId(time), quests: [] }, milestones: {claimed: [], exchangeUsed: false},
-    accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0,
+    accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0, coalProgress: 0,
     fertilizers: Object.fromEntries(fertilizerIds.map(id => [id, 0])) as Model['fertilizers'], bumperProgress: 0, recoveryProgress: 0,
     lastSaveTime: time, notice: '',
   };
@@ -259,7 +261,7 @@ function advanceSegment(s: Model, elapsed: number) {
   if (count) {
     if (r.recipe) spend(s, r.recipe, count);
     s.inventory[r.id] = (s.inventory[r.id] ?? 0) + count;
-    if (r.skill === 'mining') discoverVeins(s, r.id, count);
+    if (r.skill === 'mining') { discoverVeins(s, r.id, count); dropCoal(s, count); }
     if (r.skill === 'logging') dropSaplings(s, r.id, count);
     addExperience(s, r.skill, r.exp * count, mealExpBonus(s, r.skill));
     action.progressMs = Math.max(0, action.progressMs - count * r.baseDurationMs);
@@ -273,7 +275,7 @@ function advanceSegment(s: Model, elapsed: number) {
 
 // 경험치를 더하기 전 레벨로 확률을 정한다. 한 번의 정산 안에서 레벨이 오르는 경우만
 // 짧은 틱 정산과 미세하게 달라질 수 있다(같은 레벨 구간 안에서는 항상 동일).
-type ChanceKey = 'veinProgress' | 'saplingProgress' | 'bumperProgress' | 'recoveryProgress';
+type ChanceKey = 'veinProgress' | 'saplingProgress' | 'coalProgress' | 'bumperProgress' | 'recoveryProgress';
 
 // 확률만큼 적립하고 1회분이 쌓인 횟수를 돌려준다(D034).
 function accrue(s: Model, key: ChanceKey, amount: number) {
@@ -290,6 +292,11 @@ function dropSaplings(s: Model, logId: string, count: number) {
   if (!saplings) return;
   s.inventory[saplingId] = (s.inventory[saplingId] ?? 0) + saplings;
   s.notice = `${ResourceDB[saplingId].name} +${saplings} · 밭에 심으면 원목을 수확합니다.`;
+}
+
+function dropCoal(s: Model, count: number) {
+  const coal = accrue(s, 'coalProgress', count * COAL_CHANCE);
+  if (coal) s.inventory.coal = (s.inventory.coal ?? 0) + coal;
 }
 
 function discoverVeins(s: Model, oreId: string, count: number) {
@@ -466,7 +473,7 @@ export function advance(s: Model, time: number) {
 export function begin(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
   // 패시브 스킬(농사/목장) 산출물은 밭/축사에서만 나온다. 액티브 슬롯으로도 생산되면 이중 생산이 된다.
-  if (!r || !skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
+  if (!r || r.dropOnly || !skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || s.skills[r.skill].level < r.reqLevel || !afford(s, r.recipe ?? {})) return false;
   s.currentAction = {kind: 'production', resourceId: id, progressMs: 0};
   s.notice = '';
   return true;

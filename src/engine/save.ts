@@ -158,14 +158,14 @@ export function decodeSave(text: string): Model {
         if (typeof a.resourceId !== 'string' || !Object.hasOwn(ResourceDB, a.resourceId)) throw Error('작업 정보 오류');
         const r = ResourceDB[a.resourceId];
         // 패시브 스킬 산출물은 밭/축사에서만 나온다. begin()과 같은 규칙을 저장 데이터 검증에도 적용한다.
-        if (passiveSkills.includes(r.skill) || a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
+        if (r.dropOnly || passiveSkills.includes(r.skill) || a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
         // v2는 실제 경과 시간, v3+는 속도 보정 전 작업량으로 저장한다.
         const progressMs = a.progressMs * (version === 2 ? 1 + toolTiers[s.tools[r.skill]].bonus : 1);
         s.currentAction = {kind: 'production', resourceId: r.id, progressMs};
       } else if (a.kind === 'production') {
         if (typeof a.resourceId !== 'string' || !Object.hasOwn(ResourceDB, a.resourceId)) throw Error('작업 정보 오류');
         const r = ResourceDB[a.resourceId];
-        if (!skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
+        if (r.dropOnly || !skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
         s.currentAction = {kind: 'production', resourceId: r.id, progressMs: a.progressMs};
       } else if (a.kind === 'project') {
         if (typeof a.projectId !== 'string' || !projectIds.includes(a.projectId as ProjectId) || (a.stage !== 'clearing' && a.stage !== 'restoring')) throw Error('작업 정보 오류');
@@ -280,6 +280,12 @@ export function decodeSave(text: string): Model {
     const sapling = raw.saplingProgress;
     if (!finite(sapling) || !Number.isInteger(sapling) || sapling >= CHANCE_SCALE) throw Error('묘목 정보 오류');
     s.saplingProgress = sapling;
+  }
+  // v26 이전 저장에는 석탄 누적량이 없으므로 0에서 시작한다.
+  if (version >= 26) {
+    const coal = raw.coalProgress;
+    if (!finite(coal) || !Number.isInteger(coal) || coal >= CHANCE_SCALE) throw Error('석탄 정보 오류');
+    s.coalProgress = coal;
   }
   // v24 이전 저장은 비료가 없고 배양·회수 누적량이 0에서 시작한다.
   if (version >= 24) {

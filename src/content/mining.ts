@@ -12,6 +12,10 @@ export const veinBonusOre: Record<string, string> = {
   gold_ore: 'gold_ore',
 };
 
+// 석탄: 모든 채광 산출 1회당 50%(만분율) — 대장작업 주괴의 연료로 항상 흘러나오게 한다.
+// 금 주괴의 마법 나무는 연료가 아니라 제련 촉매로 보고 그대로 둔다.
+export const COAL_CHANCE = 5000;
+
 // Lv1 1.05% → Lv99 5.95%. 수치는 플레이테스트 전 임시값.
 export function veinChance(miningLevel: number) {
   return 100 + 5 * miningLevel;

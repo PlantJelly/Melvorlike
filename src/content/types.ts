@@ -13,4 +13,6 @@ export interface ResourceDef {
   /** 제작류 자원(대장작업 등)만 존재. 채집류는 없음. */
   recipe?: Record<string, number>;
   area?: string;
+  /** 직접 채집할 수 없고 다른 작업의 부산물로만 나온다(석탄). */
+  dropOnly?: boolean;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { advance, begin, unlockedGame as initial } from './model';
+import { advance, begin, SAVE_VERSION, unlockedGame as initial } from './model';
 import { decodeSave, encodeSave } from './save';
-import { CHANCE_SCALE, veinChance } from '../content/mining';
+import { CHANCE_SCALE, COAL_CHANCE, veinChance } from '../content/mining';
 
 describe('채광: 광맥 발견', () => {
   it('확률은 채광 레벨에 비례해 오른다', () => {
@@ -60,5 +60,58 @@ describe('채광: 광맥 발견', () => {
     for (const veinProgress of [-1, 1.5, CHANCE_SCALE, '1', null]) {
       expect(() => decodeSave(JSON.stringify({...s, veinProgress}))).toThrow('광맥 정보 오류');
     }
+  });
+});
+
+describe('채광: 석탄 부산물과 주괴 연료', () => {
+  it('어떤 광물을 캐든 산출 2회마다 석탄 1개가 함께 나온다', () => {
+    const s = initial(0);
+    begin(s, 'stone');
+    advance(s, 4000 * 4);
+    expect(s.inventory.stone).toBe(4);
+    expect(s.inventory.coal).toBe(2);
+    const copper = initial(0);
+    begin(copper, 'copper');
+    advance(copper, 5000 * 3);
+    expect(copper.inventory.coal).toBe(1);
+    expect(copper.coalProgress).toBe(COAL_CHANCE);
+  });
+
+  it('석탄은 직접 캘 수 없다', () => {
+    const s = initial(0);
+    expect(begin(s, 'coal')).toBe(false);
+    expect(s.currentAction).toBeNull();
+    expect(() => decodeSave(JSON.stringify({...s, currentAction: {kind: 'production', resourceId: 'coal', progressMs: 0}}))).toThrow('작업 정보 오류');
+  });
+
+  it('구리·철 주괴는 나무 대신 석탄을 연료로 쓴다', () => {
+    const s = initial(0);
+    s.skills.blacksmithing.level = 10;
+    s.inventory = {copper: 3, wood: 5};
+    expect(begin(s, 'copper_ingot')).toBe(false); // 나무만으로는 제련 불가
+    s.inventory = {copper: 3, coal: 1, iron: 3};
+    expect(begin(s, 'copper_ingot')).toBe(true);
+    advance(s, 6000);
+    expect(s.inventory.copper_ingot).toBe(1);
+    expect(s.inventory.coal).toBe(0);
+    s.inventory.coal = 2;
+    expect(begin(s, 'iron_ingot')).toBe(true);
+    advance(s, 6000 + 8000);
+    expect(s.inventory.iron_ingot).toBe(1);
+    expect(s.inventory.coal).toBe(0);
+  });
+
+  it('석탄 누적량은 저장·복원되고, v25 저장은 0에서 시작한다', () => {
+    const s = initial(0);
+    s.coalProgress = 5000;
+    expect(decodeSave(encodeSave(s)).coalProgress).toBe(5000);
+    expect(() => decodeSave(JSON.stringify({...s, coalProgress: CHANCE_SCALE}))).toThrow('석탄 정보 오류');
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.version = 25;
+    delete raw.coalProgress;
+    const migrated = decodeSave(JSON.stringify(raw));
+    expect(migrated.version).toBe(SAVE_VERSION);
+    expect(migrated.coalProgress).toBe(0);
   });
 });

@@ -6,8 +6,13 @@ import { afford, duration } from '../engine/model';
 import { startAction } from '../engine/actions';
 import { FoodButtons } from './Food';
 import { CHANCE_SCALE } from '../content/chance';
-import { veinChance } from '../content/mining';
+import { COAL_CHANCE, veinChance } from '../content/mining';
 import { SAPLING_CHANCE } from '../content/saplings';
+
+// game_design §2.4: 화로/용광로는 별도 건물이 아니라 같은 대장간의 레벨 구간별 명칭이다.
+// 철 주괴 해금 레벨(Lv10)부터 용광로로 부른다.
+const FURNACE_LEVEL = 10;
+const forgeName = (level: number) => level < FURNACE_LEVEL ? '화로' : '용광로';
 
 export const fmt = (n: number) => n.toLocaleString('ko-KR', {maximumFractionDigits: 0});
 export const costText = (cost: Record<string, number>) => Object.entries(cost)
@@ -24,10 +29,11 @@ export function ProductionView(props: {skill: SkillId}) {
     <p class="muted">레벨 {skill().level} · 경험치 {fmt(skill().exp)} / {fmt(skill().maxExp)}</p>
     <Show when={props.skill === 'fishing'}><p class="intro-note">개울에서 시작해 더 높은 레벨의 낚시터를 여세요. 잡은 물고기는 요리 재료가 됩니다.</p></Show>
     <Show when={props.skill === 'logging'}><p class="intro-note">묘목 확률 {(SAPLING_CHANCE / 100).toFixed(2)}% · 묘목 기운 {Math.floor(state().saplingProgress / CHANCE_SCALE * 100)}% — 나무를 벨 때마다 쌓이고 100%가 되면 그 나무의 묘목을 얻습니다. 농사가 열려 있으면 밭에 심어 원목을 대량으로 수확할 수 있습니다.</p></Show>
-    <Show when={props.skill === 'mining'}><p class="intro-note">광맥 발견 확률 {(veinChance(skill().level) / 100).toFixed(2)}% · 광맥 기운 {Math.floor(state().veinProgress / CHANCE_SCALE * 100)}% — 채굴할 때마다 쌓이고 100%가 되면 한 단계 위 광물과 마나석을 1개씩 더 얻습니다.</p></Show>
+    <Show when={props.skill === 'mining'}><p class="intro-note">광맥 발견 확률 {(veinChance(skill().level) / 100).toFixed(2)}% · 광맥 기운 {Math.floor(state().veinProgress / CHANCE_SCALE * 100)}% — 채굴할 때마다 쌓이고 100%가 되면 한 단계 위 광물과 마나석을 1개씩 더 얻습니다. 어떤 광물을 캐든 석탄이 {COAL_CHANCE / 100}% 확률로 함께 나오며(보유 {fmt(state().inventory.coal ?? 0)}), 구리·철 주괴의 연료로 쓰입니다.</p></Show>
+    <Show when={props.skill === 'blacksmithing'}><p class="intro-note">대장간 설비: <strong>{forgeName(skill().level)}</strong>{skill().level < FURNACE_LEVEL ? ` — 대장작업 Lv${FURNACE_LEVEL}에 용광로로 확장됩니다.` : ' — 철 이상의 주괴를 제련할 수 있습니다.'}</p></Show>
     <Show when={props.skill === 'cooking'}><p class="intro-note">음식 효과는 한 종류만 적용됩니다. 같은 음식은 지속시간이 늘어나며, 접속을 종료해도 시간이 흐릅니다.</p></Show>
     <div class="cards">
-      <For each={Object.values(ResourceDB).filter(r => r.skill === props.skill)}>{r =>
+      <For each={Object.values(ResourceDB).filter(r => r.skill === props.skill && !r.dropOnly)}>{r =>
         <article>
           <Show when={r.area}><span class="area-label">{r.area}</span></Show>
           <div class="item-icon">{r.icon}</div>

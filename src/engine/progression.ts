@@ -1,4 +1,6 @@
 import { ResourceDB, cropYield, passiveSkills, playable, toolTiers } from '../content/resources';
+import { COAL_CHANCE } from '../content/mining';
+import { CHANCE_SCALE } from '../content/chance';
 import { saplingHarvest } from '../content/saplings';
 import type { ResourceDef, SkillId } from '../content/types';
 import { experienceToNextLevel, getSpeedMultiplier, MAX_SKILL_LEVEL } from './formulas';
@@ -185,7 +187,7 @@ export function planProductionRequirements(
 
   const timeBySkillMs = Object.fromEntries(playable.map(skill => [skill, 0])) as Record<SkillId, number>;
   const rawRequirements: Record<string, number> = {};
-  const steps = order.map(resourceId => {
+  const steps = order.filter(resourceId => !ResourceDB[resourceId].dropOnly).map(resourceId => {
     const resource = ResourceDB[resourceId];
     const requiredUnits = required.get(resourceId)!;
     // 계획은 "그 자원 자체"를 몇 개 얻는지가 필요하다. 묘목은 레시피 재료가 아니어서 계획 대상이 되지 않는다.
@@ -197,6 +199,21 @@ export function planProductionRequirements(
     if (!resource.recipe) rawRequirements[resourceId] = requiredUnits;
     return {resourceId, requiredUnits, actions, producedUnits: actions * output, durationMs};
   });
+
+  // 석탄은 캘 수 없고 채광 산출마다 부산물로 나온다. 계획에 포함된 채광에서 나오는 기대량으로
+  // 먼저 충당하고, 모자라면 가장 빠른 돌 채광을 그만큼 더 한 것으로 계산한다.
+  const coalNeeded = required.get('coal') ?? 0;
+  if (coalNeeded > 0) {
+    rawRequirements.coal = coalNeeded;
+    const miningActions = steps.filter(step => ResourceDB[step.resourceId].skill === 'mining').reduce((sum, step) => sum + step.actions, 0);
+    const shortfall = coalNeeded - miningActions * COAL_CHANCE / CHANCE_SCALE;
+    if (shortfall > 0) {
+      const actions = Math.ceil(shortfall * CHANCE_SCALE / COAL_CHANCE);
+      const durationMs = resourceRate('stone', scenario, levels.mining ?? 1).durationMs * actions;
+      timeBySkillMs.mining += durationMs;
+      steps.push({resourceId: 'stone', requiredUnits: 0, actions, producedUnits: actions, durationMs});
+    }
+  }
 
   const activeTimeMs = playable
     .filter(skill => !passiveSkills.includes(skill))

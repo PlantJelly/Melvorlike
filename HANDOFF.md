@@ -1,11 +1,11 @@
 # Current handoff
 
-- Current goal: completed the independent review and main integration of `feature/skill-completion` ("리뷰하고 문제없으면 머지해줘"). 기획 문서에 남아 있던 스킬 항목 7개(달걀찜·황금옥수수·광맥 발견·나무묘목·다중 밭과 자동 파종/수확·비료 3종·목장 마릿수 확장)가 main에 반영됐다. 저장 형식 v25.
-- Branch: `main`. `feature/skill-completion`과 `origin/main` 모두 `e3f4f666c111c4ccac74787aae1fc42701571cbe`에서 확인(2026-09-28, fast-forward). 이어서 병합 기록 문서 커밋 `4aba0db`(PROGRESS·implementation_status)를 푸시했다.
-- Checkpoint type: Stable integration record. Known pre-checkpoint parent: `4aba0db`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
-- Review: merge-base(`31661da`)~HEAD 전체 diff 독립 리뷰. 블로킹 결함 1건(성장 시뮬레이터가 묘목 수확을 "묘목 1개"로 계산해 시간당 판매가를 1/3로 보고)을 찾아 `e3f4f66`에서 수정한 뒤 최종 HEAD에서 PASS. 보고서는 `.git/worktrees/skill-completion/development-workflow-review.md`(워크트리 밖).
-- Verification: `npm test` 182/182, `npm run build`, `git diff --check`, `git merge-tree`(충돌 없음) PASS — 리뷰 HEAD와 병합 후 main에서 모두 재확인. 추가로 main(`31661da`) 코드로 만든 실제 v20 저장을 새 코드로 열어 v25 이전·1시간 정산·재저장 왕복이 정상임을 확인. CI는 구성돼 있지 않음(GitHub Actions 0건).
-- Design records: D034(확률 요소의 결정론적 누적, `SAVE_VERSION` 상수), D035(다중 밭·자동화), D036(축사 강화).
-- Known risks / open items: (1) 밭 3칸·목장 3마리를 채우면 패시브 시간당 경험치가 최대 3배 — 플레이테스트 후 재조정 필요. (2) 소 사료 적자(당근 10개 13,300G > 우유 6,500G), 마릿수만큼 커짐 — 사용자 결정 대기(우유값 인상 / 사료량 축소 / 보류). (3) 묘목·황금옥수수가 길드 일일 퀘스트 대상이 될 수 있음(기존 원재료 규칙과 동일, 변경 안 함). (4) 제외 항목: 석탄·주괴 레시피 개편, 낚시 꽝 확률, 후반 편의 기능.
-- Caution: 이름 기반 `preview_start`는 저장소 루트(옛 브랜치)를 띄운다 — 워크트리에서 `npm run dev -- --port <포트> --strictPort`로 직접 띄워 URL로 붙일 것.
-- Exact next action: **none pending — awaiting explicit user direction.** 소 사료 적자 처리 방식 결정, 또는 다음 작업(업적·도감, 편의 기능, 밸런스 플레이테스트 등) 지시 필요.
+- Current goal: "스킬 개발 진행해야하는거 전부 진행시켜줘"(2026-09-28) — 남은 스킬 항목 5개를 `feature/skill-remaining`에서 순서대로 구현한다. 계획·범위·제외 항목은 PROGRESS.md "스킬 개발 잔여 항목 2차" 섹션.
+- Branch: `feature/skill-remaining`, `origin/main` `3dfadd2`에서 분기. 병합 지시 없음 — main에 반영하지 않는다.
+- Checkpoint type: Stable (항목 1·2 완료). Known pre-checkpoint parent: `3dfadd2`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
+- Done: 1 대장간 설비 이름(화로/용광로), 2 석탄(`dropOnly` 채광 부산물, 저장 v26, 구리·철 주괴 연료 교체 — D037).
+- Verification: `npm test` 187/187, `npm run build` PASS. 브라우저(워크트리 전용 dev 서버 5231) — 석탄 획득·표시, 석탄 카드 비노출, 구리 주괴 새 재료로 제작 가능, 화로/용광로 표시.
+- Remaining: 3 낚시 꽝(저장 v27) → 4 조제 보조재(접착제·염료·보존제 + 소비처) → 5 재봉 자재(밧줄·천 + 소비처).
+- Open decision (사용자): 소 사료 적자, 패시브 경험치 재조정 — 이 브랜치 범위 밖.
+- Caution: 워크트리 QA는 `npm run dev -- --port 5231 --strictPort`로 직접 띄워 URL로 붙일 것. 셸 인라인 스크립트 대신 스크래치 파일로 편집할 것(백틱·CRLF 문제).
+- Exact next action: 항목 3(낚시 꽝) — 낚시터별 꽝 확률(레벨이 오를수록 감소), 꽝이어도 경험치는 지급, `Model.junkProgress`(정수 누적)와 저장 v27. v26 경계 테스트는 버전을 26으로 고정할 것.

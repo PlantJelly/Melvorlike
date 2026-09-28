@@ -46,7 +46,7 @@ console.log('## 자원 기본 효율');
 console.log('');
 console.log('| 스킬 | 자원 | 해금 | 1회 시간 | 시간당 생산 | 시간당 경험치 | 시간당 총 판매가 |');
 console.log('| --- | --- | ---: | ---: | ---: | ---: | ---: |');
-for (const resource of Object.values(ResourceDB)) {
+for (const resource of Object.values(ResourceDB).filter(r => !r.dropOnly)) {
   const rate = resourceRate(resource.id, progressionScenarios[0], resource.reqLevel);
   console.log(`| ${skillNames[resource.skill]} | ${resource.name} | Lv.${resource.reqLevel} | ${(rate.durationMs / 1000).toFixed(1)}초 | ${number(rate.unitsPerHour)} | ${number(rate.experiencePerHour)} | ${number(rate.grossGoldPerHour)} G |`);
 }
