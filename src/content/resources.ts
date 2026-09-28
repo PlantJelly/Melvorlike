@@ -16,6 +16,8 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('fish_soup', '민물 생선탕', 'cooking', 10, 7000, 75, 12, '🍲', {fish_carp: 2}),
     row('smoked_salmon', '훈제 연어', 'cooking', 30, 10000, 180, 35, '🍣', {fish_salmon: 2, wood: 1}),
     row('steamed_egg', '달걀찜', 'cooking', 10, 7000, 75, 1800, '🍮', {egg: 2}),
+    // 보존제로 오래 가게 만든 음식 — 버프를 자주 갈아끼우지 않아도 되게 60분 지속(판매가는 D033 요리 비율 Lv30 1.129배).
+    row('field_ration', '보존 식량', 'cooking', 30, 10000, 180, 1769, '🥫', {preservative: 1, potato: 2, egg: 1}),
     row('vegetable_porridge', '야채죽', 'cooking', 1, 5000, 35, 2638, '🥣', {potato: 2, carrot: 1}),
     row('lumberjack_lunchbox', '나무꾼 도시락', 'cooking', 15, 7000, 90, 2039, '🍱', {potato: 1, carrot: 1, grilled_fish: 1}),
     row('miners_stew', '광부의 스튜', 'cooking', 15, 7000, 90, 10829, '🍛', {milk: 1, carrot: 2}),
@@ -44,6 +46,11 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('wild_herb', '산약초', 'foraging', 30, 8000, 150, 12, '🌱'), row('rare_mushroom', '영지버섯', 'foraging', 50, 12000, 400, 50, '🌰'),
     row('plank', '나무 판자', 'woodworking', 1, 4000, 30, 6, '▬', {wood: 3}), row('oak_plank', '참나무 판자', 'woodworking', 10, 6500, 95, 18, '▬', {oak: 3, wood: 1}),
     row('hardwood_beam', '단단한 들보', 'woodworking', 30, 9500, 230, 48, '▬', {hardwood: 3, oak: 1}), row('magic_frame', '마법 골조', 'woodworking', 50, 13500, 500, 140, '▬', {magic_wood: 3, hardwood: 1}),
+    // 조제 보조재(game_design §2.11 "접착제·보존제·염료 + 제작 보조재"): 시설 조립·장신구 채색·보존 식량에 쓰인다.
+    // 시간·경험치는 같은 레벨의 기존 조제 레시피, 판매가는 D033의 레벨별 판매가/원가 비율(2.0/1.8/1.2308)을 따른다.
+    row('glue', '접착제', 'apothecary', 1, 4000, 30, 6, '🫙', {wild_berry: 2, wood: 1}),
+    row('dye', '염료', 'apothecary', 10, 6500, 95, 14, '🎨', {wild_mushroom: 2, wild_berry: 2}),
+    row('preservative', '보존제', 'apothecary', 30, 9500, 230, 37, '🧂', {wild_herb: 2, wild_mushroom: 2}),
     row('berry_tonic', '산딸기 물약', 'apothecary', 1, 4000, 30, 6, '🧪', {wild_berry: 3}), row('mushroom_balm', '들버섯 연고', 'apothecary', 10, 6500, 95, 18, '🧪', {wild_mushroom: 3, wild_berry: 1}),
     row('herb_elixir', '산약초 영약', 'apothecary', 30, 9500, 230, 48, '🧪', {wild_herb: 3, wild_mushroom: 1}), row('rare_remedy', '영지버섯 묘약', 'apothecary', 50, 13500, 500, 140, '🧪', {rare_mushroom: 3, wild_herb: 1}),
     row('wool_garment', '양털 옷', 'sewing', 1, 4000, 30, 16080, '🧵', {wool: 3}), row('trimmed_garment', '장식 의복', 'sewing', 10, 6500, 95, 19318, '🧵', {wool: 4, copper_ingot: 1}),

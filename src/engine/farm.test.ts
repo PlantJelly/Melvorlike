@@ -144,7 +144,7 @@ describe('농사: 밭 확장과 자동 파종/수확', () => {
     const s = initial(0);
     s.skills.farming.level = level;
     s.gold = 1_000_000;
-    s.inventory = {plank: 100, oak_plank: 100};
+    s.inventory = {plank: 100, oak_plank: 100, glue: 100};
     return s;
   };
 

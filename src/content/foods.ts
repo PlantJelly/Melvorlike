@@ -16,6 +16,7 @@ export const FoodDB: Record<string, FoodDef> = {
   fish_soup: {skills: ['logging', 'mining', 'fishing'], speedBonus: .05, durationMs: 900_000, description: '벌목·채광·낚시 속도 +5%'},
   smoked_salmon: {skills: ['blacksmithing'], speedBonus: .15, durationMs: 900_000, description: '대장작업 속도 +15%'},
   steamed_egg: {skills: [...playable], speedBonus: 0, expBonus: .1, durationMs: 600_000, description: '전 스킬 경험치 +10%'},
+  field_ration: {skills: [...playable], speedBonus: .05, durationMs: 3_600_000, description: '전 스킬 속도 +5%'},
   vegetable_porridge: {skills: [...playable], speedBonus: .05, durationMs: 900_000, description: '전 스킬 속도 +5%'},
   lumberjack_lunchbox: {skills: ['logging'], speedBonus: .15, durationMs: 900_000, description: '벌목 속도 +15%'},
   miners_stew: {skills: ['mining'], speedBonus: .15, durationMs: 900_000, description: '채광 속도 +15%'},

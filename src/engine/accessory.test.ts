@@ -35,6 +35,7 @@ describe('마법부여·장신구', () => {
     const rarityBefore = s.accessories.necklace!.rarity;
     s.gold = accessoryTiers[1].goldCost;
     s.inventory.copper_ingot = 5;
+    s.inventory.dye = 2;
     expect(upgradeAccessory(s, 'necklace')).toBe(false);
     s.skills.blacksmithing.level = 10;
     expect(upgradeAccessory(s, 'necklace')).toBe(true);

@@ -22,9 +22,10 @@ export const accessoryTiers: {
   maxRarity: number;
 }[] = [
   {name: '스톤', reqLevel: 1, goldCost: 500, cost: {brick: 5}, maxRarity: 1},
-  {name: '구리', reqLevel: 10, goldCost: 2000, cost: {copper_ingot: 5}, maxRarity: 2},
-  {name: '철', reqLevel: 30, goldCost: 8000, cost: {iron_ingot: 5}, maxRarity: 3},
-  {name: '금', reqLevel: 50, goldCost: 30000, cost: {gold_ingot: 5}, maxRarity: 4},
+  // 승급 시 조제 산출물인 염료로 새 재질을 채색한다.
+  {name: '구리', reqLevel: 10, goldCost: 2000, cost: {copper_ingot: 5, dye: 2}, maxRarity: 2},
+  {name: '철', reqLevel: 30, goldCost: 8000, cost: {iron_ingot: 5, dye: 5}, maxRarity: 3},
+  {name: '금', reqLevel: 50, goldCost: 30000, cost: {gold_ingot: 5, dye: 10}, maxRarity: 4},
 ];
 
 export const rarityNames = ['하급', '중급', '상급', '영웅', '전설'] as const;

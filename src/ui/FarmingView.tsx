@@ -78,7 +78,7 @@ export function FarmingView() {
     </div>
     <div class="cards">
       <Show when={nextPlotUpgrade(state())}>{upgrade =>
-        <UpgradeCard title={`밭 늘리기 (${plots().length + 1}칸)`} description="나무 판자로 울타리를 세워 밭을 한 칸 더 일굽니다." upgrade={upgrade()} onBuy={expandFarmAction}/>
+        <UpgradeCard title={`밭 늘리기 (${plots().length + 1}칸)`} description="목재와 접착제로 울타리를 세워 밭을 한 칸 더 일굽니다." upgrade={upgrade()} onBuy={expandFarmAction}/>
       }</Show>
       <Show when={!state().farmAuto}>
         <UpgradeCard title="자동 파종/수확" description="다 자란 작물을 자동으로 거두고, 같은 씨앗(묘목)이 있으면 곧바로 다시 심습니다." upgrade={farmAutomation} onBuy={automateFarmAction}/>
