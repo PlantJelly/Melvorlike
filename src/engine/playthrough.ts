@@ -9,13 +9,14 @@ import { CHANCE_SCALE } from '../content/chance';
 import { guildTiers, milestoneIds } from '../content/guild';
 import { accessorySlots, accessoryTiers, enchantmentStones, type AccessorySlotId } from '../content/accessories';
 import { farmAutomation, plotUpgrades } from '../content/farm';
+import { FACILITY_MAX_LEVEL, facilityIds } from '../content/facilities';
 import type { SkillId } from '../content/types';
 import { experienceToNextLevel, MAX_SKILL_LEVEL } from './formulas';
 import {
   advance, animalCount, automateFarm, begin, clearPlot, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
   deliverProjectMaterial, duration, expandBarn, expandFarm, farmRemainingMs, harvest, harvestOutput, initial, plant, ranchRemainingMs,
   ranchStarved, recipeFor, rerollAccessory, sell, skillUnlocked, startProjectWork, surveyProject, upgrade, upgradeAccessory,
-  upgradeGuild, type Model,
+  upgradeGuild, nextFacilityUpgrade, upgradeFacility, type Model,
 } from './model';
 
 const HOUR = 3_600_000;
@@ -57,6 +58,8 @@ export interface PlaythroughSample {
   goldEarned: number;
   levels: Record<SkillId, number>;
   restored: number;
+  // 왕국 시설 강화 단계 합계(최대 시설 수 × FACILITY_MAX_LEVEL).
+  facilityLevels: number;
 }
 
 export interface PlaythroughResult {
@@ -473,12 +476,30 @@ function guildGoal(tier: number): Goal {
   };
 }
 
-// 모든 스킬 Lv99: 가장 낮은 액티브 스킬부터 올린다(패시브는 밭·동물이 병행해서 올린다).
+// 레벨 조건을 만족한 왕국 시설 강화를 가장 싼 것부터 한다. 재료·골드가 모자라면 그 준비가 계획이 된다(D048).
+function facilityPlan(s: Model, ctx: Context): Plan | null {
+  const ready = facilityIds.map(id => ({id, next: nextFacilityUpgrade(s, id)}))
+    .filter(entry => entry.next && s.skills[entry.next.skill].level >= entry.next.reqLevel)
+    .sort((a, b) => a.next!.goldCost - b.next!.goldCost);
+  for (const {id, next} of ready) {
+    const plan = acquireAll(s, ctx, Object.entries(next!.cost));
+    if (plan?.kind === 'wait') continue;
+    if (plan) return plan;
+    const gold = ensureGold(s, ctx, next!.goldCost);
+    if (gold) return gold;
+    return upgradeFacility(s, id) ? PROGRESS : wait('시설 강화 실패');
+  }
+  return null;
+}
+
+// 모든 스킬 Lv99: 가능한 시설 강화를 먼저 하고, 가장 낮은 액티브 스킬부터 올린다(패시브는 밭·동물이 병행해서 올린다).
 function maxAllGoal(): Goal {
   return {
-    id: 'max', label: '전 스킬 Lv99', phase: '완주',
-    done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL),
+    id: 'max', label: '전 스킬 Lv99·시설 최대 강화', phase: '완주',
+    done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL) && facilityIds.every(id => s.facilities[id] === FACILITY_MAX_LEVEL),
     step: (s, ctx) => {
+      const facility = facilityPlan(s, ctx);
+      if (facility) return facility;
       const active = playable.filter(skill => !isPassive(skill) && s.skills[skill].level < MAX_SKILL_LEVEL)
         .sort((a, b) => s.skills[a].level - s.skills[b].level);
       // 가장 낮은 스킬의 계획을 고르되, 나머지 스킬도 계획해 밭 작물 수요(마법 약초 등)를 빠짐없이 남긴다.
@@ -585,6 +606,7 @@ function snapshot(s: Model, timeMs: number): PlaythroughSample {
     timeMs, gold: s.gold, goldEarned: s.goldEarned,
     levels: Object.fromEntries(playable.map(skill => [skill, s.skills[skill].level])) as Record<SkillId, number>,
     restored: projectIds.filter(id => s.projects[id].phase === 'complete').length,
+    facilityLevels: facilityIds.reduce((sum, id) => sum + (s.facilities[id] ?? 0), 0),
   };
 }
 

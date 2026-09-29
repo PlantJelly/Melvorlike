@@ -1,10 +1,11 @@
 import { For, Show } from 'solid-js';
 import { ProjectDB, projectIds, type FeatureId, type ProjectId, type ProjectPhase } from '../content/projects';
 import { ResourceDB, skillNames } from '../content/resources';
-import { kingdomRestoration } from '../engine/model';
-import { deliverProjectMaterialAction, startProjectWorkAction, surveyProjectAction } from '../engine/actions';
+import { afford, kingdomRestoration, nextFacilityUpgrade } from '../engine/model';
+import { deliverProjectMaterialAction, startProjectWorkAction, surveyProjectAction, upgradeFacilityAction } from '../engine/actions';
+import { FACILITY_MAX_LEVEL, FACILITY_SPEED_PER_LEVEL, FacilityDB } from '../content/facilities';
 import { state } from '../state/gameState';
-import { fmt } from './ProductionView';
+import { costText, fmt } from './ProductionView';
 
 const phaseLabel: Record<ProjectPhase, string> = {
   surveyable: '조사 가능',
@@ -91,8 +92,29 @@ function ProjectCard(props: {id: ProjectId}) {
 
     <Show when={progress().phase === 'complete'}>
       <div class="completion-mark"><span>✓</span><div><strong>{project().name} 복원 완료</strong><small>{unlockSummary(props.id)} 이용 가능</small></div></div>
+      <Show when={FacilityDB[props.id]}><FacilityPanel id={props.id}/></Show>
     </Show>
   </article>;
+}
+
+// 복원한 구역의 시설 강화(D048): 단계마다 그 구역 스킬의 작업 속도가 오른다.
+function FacilityPanel(props: {id: ProjectId}) {
+  const def = FacilityDB[props.id]!;
+  const level = () => state().facilities[props.id] ?? 0;
+  const next = () => nextFacilityUpgrade(state(), props.id);
+  const skills = def.skills.map(skill => skillNames[skill]).join('·');
+  return <div class="facility-panel">
+    <div class="project-step"><strong>시설 {level()} / {FACILITY_MAX_LEVEL}단계</strong><span>{skills} 속도 +{Math.round(level() * FACILITY_SPEED_PER_LEVEL * 100)}%</span></div>
+    <Show when={next()} fallback={<p class="project-hint">최대 단계까지 강화했습니다.</p>}>{upgrade => {
+      const locked = () => state().skills[upgrade().skill].level < upgrade().reqLevel;
+      return <>
+        <p class="recipe">{fmt(upgrade().goldCost)} G · {costText(upgrade().cost)}</p>
+        <button disabled={locked() || state().gold < upgrade().goldCost || !afford(state(), upgrade().cost)} onClick={() => upgradeFacilityAction(props.id)}>
+          {locked() ? `${skillNames[upgrade().skill]} Lv${upgrade().reqLevel}에 ${upgrade().level}단계 강화 가능` : `${upgrade().level}단계 강화 (속도 +${Math.round(FACILITY_SPEED_PER_LEVEL * 100)}%)`}
+        </button>
+      </>;
+    }}</Show>
+  </div>;
 }
 
 function ProjectLane(props: {title: string; description: string; phases: ProjectPhase[]}) {

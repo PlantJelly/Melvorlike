@@ -1,5 +1,6 @@
 import { playable, skillNames } from '../src/content/resources';
 import { projectIds } from '../src/content/projects';
+import { FACILITY_MAX_LEVEL, facilityIds } from '../src/content/facilities';
 import { decodeSave, encodeSave } from '../src/engine/save';
 import { LEVEL_MARKS, playthroughScenarios, simulatePlaythrough, type PlaythroughResult } from '../src/engine/playthrough';
 
@@ -49,7 +50,8 @@ const rows: [string, (r: PlaythroughResult) => string][] = [
   ['밭 3칸·축사 2단계', r => duration(lastOf(r, id => id === 'plot:3' || id === 'barn:2'))],
   ['동물 종별 3마리', r => duration(lastOf(r, id => id.startsWith('animal:') && id.endsWith(':3')))],
   ['장신구 금 재질 3개', r => duration(lastOf(r, id => id.startsWith('accessory:') && id.endsWith(':3')))],
-  ['전 스킬 Lv99', r => duration(lastOf(r, id => id === 'max'))],
+  ['왕국 시설 전부 최대 강화', r => duration(r.samples.find(sample => sample.facilityLevels === facilityIds.length * FACILITY_MAX_LEVEL)?.timeMs ?? null)],
+  ['전 스킬 Lv99·시설 최대', r => duration(lastOf(r, id => id === 'max'))],
   [`${horizonDays}일 뒤 Lv99 스킬 수`, r => `${maxed(r).length}/${playable.length}`],
   [`${horizonDays}일 뒤 가장 낮은 스킬`, r => { const low = [...playable].sort((a, b) => r.final.skills[a].level - r.final.skills[b].level)[0]; return `${skillNames[low]} Lv${r.final.skills[low].level}`; }],
   [`${horizonDays}일 뒤 누적 획득 골드`, r => `${number(r.final.goldEarned)} G`],
@@ -97,15 +99,15 @@ for (const r of results) {
 }
 
 console.log('');
-console.log('## 골드·복원 곡선');
+console.log('## 골드·복원·시설 곡선');
 console.log('');
 const days = [1, 3, 7, 14, 30, 60, 90, 180, 365].filter(day => day <= horizonDays);
-console.log(`| 일차 | ${results.map(r => `${r.scenario.name} 보유 | 누적 획득 | 복원`).join(' | ')} |`);
-console.log(`| ---: | ${results.map(() => '---: | ---: | ---:').join(' | ')} |`);
+console.log(`| 일차 | ${results.map(r => `${r.scenario.name} 보유 | 누적 획득 | 복원 | 시설 단계`).join(' | ')} |`);
+console.log(`| ---: | ${results.map(() => '---: | ---: | ---: | ---:').join(' | ')} |`);
 for (const day of days) {
   const cells = results.map(r => {
     const sample = r.samples.find(entry => entry.timeMs === day * DAY);
-    return sample ? `${number(sample.gold)} | ${number(sample.goldEarned)} | ${sample.restored}/${projectIds.length}` : '- | - | -';
+    return sample ? `${number(sample.gold)} | ${number(sample.goldEarned)} | ${sample.restored}/${projectIds.length} | ${sample.facilityLevels}/${facilityIds.length * FACILITY_MAX_LEVEL}` : '- | - | - | -';
   });
   console.log(`| ${day} | ${cells.join(' | ')} |`);
 }

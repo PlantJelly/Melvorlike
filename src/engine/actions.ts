@@ -1,5 +1,5 @@
 import { mutate, saveGame } from '../state/gameState';
-import { begin, queueAction, clearQueuedAction, upgrade, sell, eat, buyResource, plant, harvest, clearPlot, expandFarm, automateFarm, buyFertilizer, buyAnimal, expandBarn, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial } from './model';
+import { begin, queueAction, clearQueuedAction, upgrade, sell, eat, buyResource, plant, harvest, clearPlot, expandFarm, automateFarm, buyFertilizer, buyAnimal, expandBarn, exchangeResource, upgradeGuild, completeDailyQuest, claimMilestone, craftAccessory, upgradeAccessory, rerollAccessory, surveyProject, startProjectWork, deliverProjectMaterial, upgradeFacility } from './model';
 import type { SkillId } from '../content/types';
 import type { AccessorySlotId } from '../content/accessories';
 import type { MilestoneId } from '../content/guild';
@@ -112,5 +112,9 @@ export function automateFarmAction() {
 }
 export function buyFertilizerAction(id: FertilizerId, n: number) {
   mutate(s => { buyFertilizer(s, id, n); });
+  saveGame();
+}
+export function upgradeFacilityAction(id: ProjectId) {
+  mutate(s => { upgradeFacility(s, id); });
   saveGame();
 }

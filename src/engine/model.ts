@@ -36,7 +36,9 @@ import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/ferti
 
 import { ECONOMY_EXCHANGE_BONUS, GROWTH_SALE_BONUS, LEGENDARY_RARITY, economyThresholds, growthLevels } from '../content/achievements';
 
-export const SAVE_VERSION = 29;
+import { FACILITY_MAX_LEVEL, FACILITY_SPEED_PER_LEVEL, FacilityDB, facilityCost, facilityIds } from '../content/facilities';
+
+export const SAVE_VERSION = 30;
 
 export interface DailyQuest { resourceId: string; amount: number; done: boolean }
 
@@ -104,6 +106,8 @@ export interface Model {
   // 업적 판정용: 저장 이후 벌어들인 골드 누계(판매·퀘스트·마일스톤)와 첫 전설 리롤 여부.
   goldEarned: number;
   legendaryRolled: boolean;
+  // 왕국 시설 강화 단계(복원한 구역별, 0~FACILITY_MAX_LEVEL). 길드 회관처럼 강화 대상이 아닌 구역은 없다.
+  facilities: Partial<Record<ProjectId, number>>;
   lastSaveTime: number;
   notice: string;
 }
@@ -175,6 +179,7 @@ function createModel(time: number, unlockedSkills: SkillId[], unlockedFeatures: 
     accessories: emptyAccessories(), veinProgress: 0, saplingProgress: 0, coalProgress: 0, junkProgress: 0,
     fertilizers: Object.fromEntries(fertilizerIds.map(id => [id, 0])) as Model['fertilizers'], bumperProgress: 0, recoveryProgress: 0,
     goldEarned: 0, legendaryRolled: false,
+    facilities: Object.fromEntries(facilityIds.map(id => [id, 0])),
     lastSaveTime: time, notice: '',
   };
   s.dailyQuests.quests = generateDailyQuests(s, s.dailyQuests.day);
@@ -249,8 +254,32 @@ export function speedMultiplier(s: Model, skill: SkillId, extraBonus = 0) {
     toolTiers[s.tools[skill]].bonus,
     food?.skills.includes(skill) ? food.speedBonus : 0,
     accessoryBonus(s, 'speed'),
+    facilityBonus(s, skill),
     extraBonus,
   );
+}
+
+// ── 왕국 시설 강화(D048) ──
+export function facilityBonus(s: Model, skill: SkillId) {
+  return facilityIds.reduce((sum, id) => sum + (FacilityDB[id]!.skills.includes(skill) ? (s.facilities[id] ?? 0) * FACILITY_SPEED_PER_LEVEL : 0), 0);
+}
+
+// 복원한 구역의 다음 강화 단계와 비용. 최대 단계이거나 강화 대상이 아니면 null.
+export function nextFacilityUpgrade(s: Model, id: ProjectId) {
+  const def = Object.hasOwn(FacilityDB, id) ? FacilityDB[id] : undefined;
+  const level = s.facilities[id] ?? 0;
+  if (!def || s.projects[id]?.phase !== 'complete' || level >= FACILITY_MAX_LEVEL) return null;
+  return {...facilityCost(id, level), skill: def.skills[0]};
+}
+
+export function upgradeFacility(s: Model, id: ProjectId) {
+  const next = nextFacilityUpgrade(s, id);
+  if (!next || s.skills[next.skill].level < next.reqLevel || s.gold < next.goldCost || !afford(s, next.cost)) return false;
+  s.gold -= next.goldCost;
+  spend(s, next.cost);
+  s.facilities[id] = next.level;
+  s.notice = `${ProjectDB[id].name} 시설 ${next.level}단계 · ${FacilityDB[id]!.skills.map(skill => skillNames[skill]).join('·')} 속도 +${Math.round(next.level * FACILITY_SPEED_PER_LEVEL * 100)}%`;
+  return true;
 }
 
 // 칸마다 비료(속성비료)가 달라 성장 속도가 다를 수 있다.
