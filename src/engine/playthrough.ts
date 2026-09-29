@@ -636,7 +636,8 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
     tend(s, ctx);
     recordLevels();
     const effective = plan.kind === 'wait' ? fallback(s, ctx) : plan;
-    if (!apply(s, effective, ctx)) { stuck = `${records[gi].label}: 작업 시작 실패(${JSON.stringify(effective)})`; break; }
+    // 계획한 뒤 밭 관리가 재료(씨앗)를 심어 버려 시작하지 못할 수 있다 — 그러면 다른 일을 하고 다음 결정에서 다시 계획한다.
+    if (!apply(s, effective, ctx) && !apply(s, fallback(s, ctx), ctx)) { stuck = `${records[gi].label}: 작업 시작 실패(${JSON.stringify(effective)})`; break; }
 
     let dt = Math.min(actionRemainingMs(s) || Infinity, nextPassiveMs(s), HOUR);
     if (!Number.isFinite(dt)) dt = HOUR;
