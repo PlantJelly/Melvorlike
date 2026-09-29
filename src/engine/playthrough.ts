@@ -12,7 +12,7 @@ import { farmAutomation, plotUpgrades } from '../content/farm';
 import type { SkillId } from '../content/types';
 import { experienceToNextLevel, MAX_SKILL_LEVEL } from './formulas';
 import {
-  advance, animalCount, automateFarm, begin, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
+  advance, animalCount, automateFarm, begin, clearPlot, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
   deliverProjectMaterial, duration, expandBarn, expandFarm, farmRemainingMs, harvest, harvestOutput, initial, plant, ranchRemainingMs,
   ranchStarved, recipeFor, rerollAccessory, sell, skillUnlocked, startProjectWork, surveyProject, upgrade, upgradeAccessory,
   upgradeGuild, type Model,
@@ -314,6 +314,15 @@ function tend(s: Model, ctx: Context) {
     }
   }
   if (!s.farmAuto) harvest(s);
+  // 자동 파종 중에는 칸이 비지 않으므로, 목표·사료 작물이 어느 칸에도 없으면 필요 없는 작물 칸 하나를 비운다(D045).
+  if (s.farmAuto) {
+    for (const demand of [ctx.demand, feedDemand]) {
+      const wanted = chooseCrop(s, demand);
+      if (!wanted || growing(s, wanted)) continue;
+      const spare = s.farmPlots.findIndex(plot => !!plot && !(ctx.demand[plot.cropId] > 0) && !(feedDemand[plot.cropId] > 0));
+      if (spare >= 0) clearPlot(s, spare);
+    }
+  }
   for (let i = 0; i < s.farmPlots.length; i++) {
     if (s.farmPlots[i]) continue;
     const [crop, demand] = [ctx.demand, feedDemand, null].map(d => [chooseCrop(s, d), d] as const).find(([id]) => id) ?? [null, null];
@@ -481,9 +490,7 @@ function maxAllGoal(): Goal {
 }
 
 // 왕국 복원 이후의 성장 순서: 레벨 요구가 낮은 것부터 도구·시설·동물·장신구를 갖춘 뒤 전 스킬 만렙.
-// automateFarm: 자동 파종/수확은 설치하면 각 칸이 같은 작물을 영원히 다시 심어(수확물이 곧 씨앗) 작물을
-// 바꿀 방법이 없다. 이후 목표가 다른 작물(쑥·마법쑥 등)을 요구하면 진행이 멈추므로 기본값은 설치하지 않음.
-export function growthGoals({automateFarm: withAutomation = false} = {}): Goal[] {
+export function growthGoals(): Goal[] {
   const toolsAt = (tier: number) => playable.map(skill => toolGoal(skill, tier));
   const barn = (i: number) => purchaseGoal(`barn:${i + 1}`, `축사 강화 ${i + 1}단계`, '목장',
     {skill: 'ranching', level: barnUpgrades[i].reqLevel, goldCost: barnUpgrades[i].goldCost, cost: barnUpgrades[i].cost},
@@ -496,8 +503,8 @@ export function growthGoals({automateFarm: withAutomation = false} = {}): Goal[]
     ...accessoryGoals(0),
     ...toolsAt(2),
     plot(0), barn(0), animalGoal('chicken', 1), animalGoal('sheep', 1), guildGoal(1),
-    ...(withAutomation ? [purchaseGoal('farm:auto', '자동 파종/수확', '농사', {skill: 'farming', level: farmAutomation.reqLevel, goldCost: farmAutomation.goldCost, cost: farmAutomation.cost},
-      s => s.farmAuto, automateFarm)] : []),
+    purchaseGoal('farm:auto', '자동 파종/수확', '농사', {skill: 'farming', level: farmAutomation.reqLevel, goldCost: farmAutomation.goldCost, cost: farmAutomation.cost},
+      s => s.farmAuto, automateFarm),
     ...accessoryGoals(1),
     animalGoal('cow', 1), ...animalsTo(2),
     ...toolsAt(3),
@@ -509,8 +516,8 @@ export function growthGoals({automateFarm: withAutomation = false} = {}): Goal[]
   ];
 }
 
-export function buildGoals(options: {automateFarm?: boolean} = {}): Goal[] {
-  return [...kingdomGoals(), ...growthGoals(options)];
+export function buildGoals(): Goal[] {
+  return [...kingdomGoals(), ...growthGoals()];
 }
 
 // ── 실행 ──

@@ -59,9 +59,11 @@ describe('전체 진행 경로 시뮬레이션 — 왕국 이후 성장 구간',
     expect(result.goals.slice(doneIndex).map(goal => goal.id)).toEqual(['max']);
   });
 
-  it('자동 파종/수확은 기본 목표에 없고, 선택하면 목표에 들어간다', () => {
-    expect(buildGoals().some(goal => goal.id === 'farm:auto')).toBe(false);
-    expect(buildGoals({automateFarm: true}).some(goal => goal.id === 'farm:auto')).toBe(true);
+  it('자동 파종/수확을 설치하고도 칸 비우기로 다른 작물을 심어 진행한다', () => {
+    expect(buildGoals().some(goal => goal.id === 'farm:auto')).toBe(true);
+    expect(result.final.farmAuto).toBe(true);
+    // 설치 뒤에도 서로 다른 약초(쑥·마법쑥·신비 허브)가 필요한 장신구 리롤까지 끝났다.
+    expect(result.goals.find(goal => goal.id === 'reroll:ring:3')?.doneMs).not.toBeNull();
   });
 
   it('성장 구간의 최종 상태도 저장 검증을 통과한다', () => {
