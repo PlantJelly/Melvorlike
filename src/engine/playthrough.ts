@@ -3,16 +3,19 @@
 // 측정 도구이므로 게임 규칙을 우회하지 않는다 — 모든 상태 변화는 model.ts의 공개 함수를 거친다.
 import { ResourceDB, passiveSkills, playable, skillNames, toolNames, toolTiers } from '../content/resources';
 import { ProjectDB, projectIds, type ProjectId } from '../content/projects';
-import { AnimalDB } from '../content/animals';
+import { AnimalDB, barnUpgrades } from '../content/animals';
 import { COAL_CHANCE } from '../content/mining';
 import { CHANCE_SCALE } from '../content/chance';
-import { milestoneIds } from '../content/guild';
+import { guildTiers, milestoneIds } from '../content/guild';
+import { accessorySlots, accessoryTiers, enchantmentStones, type AccessorySlotId } from '../content/accessories';
+import { farmAutomation, plotUpgrades } from '../content/farm';
 import type { SkillId } from '../content/types';
 import { experienceToNextLevel, MAX_SKILL_LEVEL } from './formulas';
 import {
-  advance, animalCount, begin, buyAnimal, buyResource, claimMilestone, deliverProjectMaterial, duration,
-  farmRemainingMs, harvest, initial, plant, ranchRemainingMs, ranchStarved, recipeFor, sell, skillUnlocked,
-  startProjectWork, surveyProject, upgrade, type Model,
+  advance, animalCount, automateFarm, begin, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
+  deliverProjectMaterial, duration, expandBarn, expandFarm, farmRemainingMs, harvest, harvestOutput, initial, plant, ranchRemainingMs,
+  ranchStarved, recipeFor, rerollAccessory, sell, skillUnlocked, startProjectWork, surveyProject, upgrade, upgradeAccessory,
+  upgradeGuild, type Model,
 } from './model';
 
 const HOUR = 3_600_000;
@@ -266,12 +269,15 @@ function moneyResource(s: Model, ctx: Context) {
   return best;
 }
 
+// 그 사료를 먹는 모든 동물이 한 주기에 먹는 양.
+function feedPerCycle(s: Model, feedId: string) {
+  return Object.values(AnimalDB).filter(a => a.feedId === feedId).reduce((sum, a) => sum + a.feedAmount * animalCount(s, a.id), 0);
+}
+
 // 씨앗·사료로 남겨 둘 최소 수량.
 function keepAmount(s: Model, id: string) {
   const r = ResourceDB[id];
-  let keep = r.skill === 'farming' ? 5 : 0;
-  for (const a of Object.values(AnimalDB)) if (a.feedId === id) keep = Math.max(keep, a.feedAmount * animalCount(s, a.id) * 4);
-  return keep;
+  return Math.max(r.skill === 'farming' ? 5 : 0, feedPerCycle(s, id) * 4);
 }
 
 function sellSurplus(s: Model, ctx: Context) {
@@ -292,32 +298,42 @@ function ensureGold(s: Model, ctx: Context, amount: number): Plan | null {
   return produce(id, Math.min(Math.ceil((amount - s.gold) / perUnit), Math.max(1, Math.floor(HOUR / duration(s, id)))));
 }
 
-// ── 패시브 관리 ── 다 자란 밭을 거두고, 빈 칸에 필요한 작물(목표·사료) 또는 경험치가 가장 좋은 작물을 심는다.
+// ── 패시브 관리 ── 다 자란 밭을 거두고, 빈 칸에 목표에 필요한 작물 → 모자란 사료 → 경험치가 가장 좋은 작물
+// 순으로 심는다. 사료가 다음 한 주기분도 없으면 남는 보유품을 팔아 4주기분을 산다(밭은 목표 작물에 먼저 쓴다).
 function tend(s: Model, ctx: Context) {
   if (!skillUnlocked(s, 'farming')) return;
-  for (const a of Object.values(AnimalDB)) {
-    const heads = animalCount(s, a.id);
-    const stock = a.feedAmount * heads * 4;
-    if (heads && have(s, a.feedId) < stock) ctx.demand[a.feedId] = (ctx.demand[a.feedId] ?? 0) + stock - have(s, a.feedId);
+  const feedDemand: Record<string, number> = {};
+  for (const feedId of new Set(Object.values(AnimalDB).map(a => a.feedId))) {
+    const cycle = feedPerCycle(s, feedId);
+    if (!cycle || have(s, feedId) >= cycle * 4) continue;
+    feedDemand[feedId] = cycle * 4 - have(s, feedId);
+    if (have(s, feedId) < cycle) {
+      sellSurplus(s, ctx);
+      const count = cycle * 4 - have(s, feedId);
+      if (s.gold >= ResourceDB[feedId].buy * count) buyResource(s, feedId, count);
+    }
   }
   if (!s.farmAuto) harvest(s);
   for (let i = 0; i < s.farmPlots.length; i++) {
     if (s.farmPlots[i]) continue;
-    const crop = chooseCrop(s, ctx);
+    const [crop, demand] = [ctx.demand, feedDemand, null].map(d => [chooseCrop(s, d), d] as const).find(([id]) => id) ?? [null, null];
     if (!crop) return;
     if (have(s, crop) === 0 && !buyResource(s, crop, 1)) return;
     if (!plant(s, crop)) return;
+    // 같은 부족분에 칸을 몰아 심지 않도록 한 칸의 수확량만큼 수요를 줄인다.
+    if (demand) demand[crop] -= harvestOutput(crop).count;
   }
 }
 
-function chooseCrop(s: Model, ctx: Context): string | null {
+// demand가 있으면 부족분이 남은 작물 중에서, 없으면 전체에서 경험치 효율이 가장 좋은 작물. 씨앗이 없으면 살 수 있어야 한다.
+function chooseCrop(s: Model, demand: Record<string, number> | null): string | null {
   const level = s.skills.farming.level;
-  const crops = Object.values(ResourceDB).filter(r => r.skill === 'farming' && r.reqLevel <= level && !r.id.startsWith('sapling_'));
-  const demanded = crops.filter(r => (ctx.demand[r.id] ?? 0) > 0 && (have(s, r.id) > 0 || s.gold >= r.buy));
-  const pool = demanded.length ? demanded : crops.filter(r => have(s, r.id) > 0 || s.gold >= r.buy * 2);
   let best: string | null = null;
   let bestScore = -1;
-  for (const r of pool) {
+  for (const r of Object.values(ResourceDB)) {
+    if (r.skill !== 'farming' || r.reqLevel > level || r.id.startsWith('sapling_')) continue;
+    if (demand ? (demand[r.id] ?? 0) <= 0 : false) continue;
+    if (have(s, r.id) === 0 && s.gold < r.buy * (demand ? 1 : 2)) continue;
     const score = r.exp / r.baseDurationMs;
     if (score > bestScore) { bestScore = score; best = r.id; }
   }
@@ -325,11 +341,14 @@ function chooseCrop(s: Model, ctx: Context): string | null {
 }
 
 // 목표가 패시브를 기다리는 동안에는 가장 레벨이 낮은 채집 스킬을 올린다(재료를 소모하지 않는 일).
-function fallback(s: Model, ctx: Context): Plan {
-  const gathering = playable.filter(skill => !isPassive(skill) && skillUnlocked(s, skill) && s.skills[skill].level < MAX_SKILL_LEVEL
-    && Object.values(ResourceDB).some(r => r.skill === skill && !r.recipe && !r.dropOnly));
-  gathering.sort((a, b) => s.skills[a].level - s.skills[b].level);
-  for (const skill of gathering) {
+// 채집 스킬이 모두 만렙이면 패시브 재료가 필요 없는 제작 스킬을 올린다.
+function fallback(s: Model, ctx: Context, except: SkillId | null = null): Plan {
+  const open = playable.filter(skill => skill !== except && !isPassive(skill) && skillUnlocked(s, skill) && s.skills[skill].level < MAX_SKILL_LEVEL);
+  const gathers = (skill: SkillId) => Object.values(ResourceDB).some(r => r.skill === skill && !r.recipe && !r.dropOnly);
+  const gathering = open.filter(gathers);
+  const pool = gathering.length ? gathering : open.filter(skill => { const id = trainingResource(s, skill); return !!id && !needsPassive(s, id); });
+  pool.sort((a, b) => s.skills[a].level - s.skills[b].level);
+  for (const skill of pool) {
     const plan = train(s, ctx, skill, s.skills[skill].level + 1);
     if (plan.kind === 'produce') return plan;
   }
@@ -381,8 +400,117 @@ export function kingdomGoals(): Goal[] {
   return goals;
 }
 
-export function buildGoals(): Goal[] {
-  return kingdomGoals();
+// 골드·재료를 내고 즉시 적용되는 시설/구매형 목표의 공통 절차: 레벨 → 재료 → 골드 → 실행.
+function purchaseGoal(id: string, label: string, phase: string, req: {skill: SkillId; level: number; goldCost: number; cost: Record<string, number>},
+  done: (s: Model) => boolean, act: (s: Model) => boolean): Goal {
+  return {
+    id, label, phase, done,
+    step: (s, ctx) => {
+      if (!skillUnlocked(s, req.skill)) return wait(`${skillNames[req.skill]} 미해금`);
+      if (s.skills[req.skill].level < req.level) return train(s, ctx, req.skill, req.level);
+      const plan = acquireAll(s, ctx, Object.entries(req.cost));
+      if (plan) return plan;
+      const gold = ensureGold(s, ctx, req.goldCost);
+      if (gold) return gold;
+      return act(s) ? PROGRESS : wait(`${label} 실패`);
+    },
+  };
+}
+
+function animalGoal(animalId: string, count: number): Goal {
+  const a = AnimalDB[animalId];
+  return purchaseGoal(`animal:${animalId}:${count}`, `${a.icon} ${a.name} ${count}마리`, '목장',
+    {skill: 'ranching', level: ResourceDB[a.productId].reqLevel, goldCost: a.buyGold, cost: {}},
+    s => animalCount(s, animalId) >= count, s => buyAnimal(s, animalId));
+}
+
+const slotName = (slot: AccessorySlotId) => accessorySlots.find(entry => entry.id === slot)!.name;
+const REROLL_LIMIT = 10;
+
+function accessoryGoals(tier: number): Goal[] {
+  const def = accessoryTiers[tier];
+  const stone = enchantmentStones[tier].resourceId;
+  const goals: Goal[] = [];
+  for (const {id: slot} of accessorySlots) {
+    goals.push(purchaseGoal(`accessory:${slot}:${tier}`, `${slotName(slot)} ${def.name} 재질`, '장신구',
+      {skill: 'blacksmithing', level: def.reqLevel, goldCost: def.goldCost, cost: def.cost},
+      s => (s.accessories[slot]?.tier ?? -1) >= tier,
+      s => tier === 0 ? craftAccessory(s, slot) : upgradeAccessory(s, slot)));
+    // 그 재질의 최고 희귀도가 나올 때까지(최대 REROLL_LIMIT번) 같은 등급 부여석으로 리롤한다.
+    let attempts = 0;
+    goals.push({
+      id: `reroll:${slot}:${tier}`, label: `${slotName(slot)} ${def.name} 리롤`, phase: '장신구',
+      done: s => s.accessories[slot]?.rarity === def.maxRarity || attempts >= REROLL_LIMIT,
+      step: (s, ctx) => {
+        const plan = acquire(s, ctx, stone, 1);
+        if (plan) return plan;
+        if (!rerollAccessory(s, slot, stone, ctx.random)) return wait(`${slotName(slot)} 리롤 실패`);
+        attempts++;
+        return PROGRESS;
+      },
+    });
+  }
+  return goals;
+}
+
+function guildGoal(tier: number): Goal {
+  return {
+    id: `guild:${tier}`, label: guildTiers[tier].name, phase: '길드',
+    done: s => s.guild >= tier,
+    step: (s, ctx) => ensureGold(s, ctx, guildTiers[tier].goldCost) ?? (upgradeGuild(s) ? PROGRESS : wait('길드 승급 실패')),
+  };
+}
+
+// 모든 스킬 Lv99: 가장 낮은 액티브 스킬부터 올린다(패시브는 밭·동물이 병행해서 올린다).
+function maxAllGoal(): Goal {
+  return {
+    id: 'max', label: '전 스킬 Lv99', phase: '완주',
+    done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL),
+    step: (s, ctx) => {
+      const active = playable.filter(skill => !isPassive(skill) && s.skills[skill].level < MAX_SKILL_LEVEL)
+        .sort((a, b) => s.skills[a].level - s.skills[b].level);
+      let waiting: Plan | null = null;
+      for (const skill of active) {
+        const plan = train(s, ctx, skill, s.skills[skill].level + 1);
+        if (plan.kind !== 'wait') return plan;
+        waiting ??= plan;
+      }
+      return waiting ?? wait('패시브 스킬 만렙 대기');
+    },
+  };
+}
+
+// 왕국 복원 이후의 성장 순서: 레벨 요구가 낮은 것부터 도구·시설·동물·장신구를 갖춘 뒤 전 스킬 만렙.
+// automateFarm: 자동 파종/수확은 설치하면 각 칸이 같은 작물을 영원히 다시 심어(수확물이 곧 씨앗) 작물을
+// 바꿀 방법이 없다. 이후 목표가 다른 작물(쑥·마법쑥 등)을 요구하면 진행이 멈추므로 기본값은 설치하지 않음.
+export function growthGoals({automateFarm: withAutomation = false} = {}): Goal[] {
+  const toolsAt = (tier: number) => playable.map(skill => toolGoal(skill, tier));
+  const barn = (i: number) => purchaseGoal(`barn:${i + 1}`, `축사 강화 ${i + 1}단계`, '목장',
+    {skill: 'ranching', level: barnUpgrades[i].reqLevel, goldCost: barnUpgrades[i].goldCost, cost: barnUpgrades[i].cost},
+    s => s.barnLevel > i, expandBarn);
+  const plot = (i: number) => purchaseGoal(`plot:${i + 2}`, `밭 ${i + 2}칸`, '농사',
+    {skill: 'farming', level: plotUpgrades[i].reqLevel, goldCost: plotUpgrades[i].goldCost, cost: plotUpgrades[i].cost},
+    s => s.farmPlots.length >= i + 2, expandFarm);
+  const animalsTo = (count: number) => Object.keys(AnimalDB).map(id => animalGoal(id, count));
+  return [
+    ...accessoryGoals(0),
+    ...toolsAt(2),
+    plot(0), barn(0), animalGoal('chicken', 1), animalGoal('sheep', 1), guildGoal(1),
+    ...(withAutomation ? [purchaseGoal('farm:auto', '자동 파종/수확', '농사', {skill: 'farming', level: farmAutomation.reqLevel, goldCost: farmAutomation.goldCost, cost: farmAutomation.cost},
+      s => s.farmAuto, automateFarm)] : []),
+    ...accessoryGoals(1),
+    animalGoal('cow', 1), ...animalsTo(2),
+    ...toolsAt(3),
+    guildGoal(2),
+    ...accessoryGoals(2),
+    plot(1), barn(1), ...animalsTo(3),
+    ...accessoryGoals(3),
+    maxAllGoal(),
+  ];
+}
+
+export function buildGoals(options: {automateFarm?: boolean} = {}): Goal[] {
+  return [...kingdomGoals(), ...growthGoals(options)];
 }
 
 // ── 실행 ──
@@ -401,12 +529,28 @@ function actionRemainingMs(s: Model) {
 
 function nextPassiveMs(s: Model) {
   let next = Infinity;
-  for (let i = 0; i < s.farmPlots.length; i++) if (s.farmPlots[i]) next = Math.min(next, farmRemainingMs(s, i) || Infinity);
+  if (!s.farmAuto) for (let i = 0; i < s.farmPlots.length; i++) if (s.farmPlots[i]) next = Math.min(next, farmRemainingMs(s, i) || Infinity);
   for (const id of Object.keys(s.ranch)) if (!ranchStarved(s, id)) next = Math.min(next, ranchRemainingMs(s, id) || Infinity);
   return next;
 }
 
 function apply(s: Model, plan: Plan, ctx: Context): boolean {
+  clearQueuedAction(s);
+  if (!start(s, plan, ctx)) return false;
+  // 가끔 접속하는 플레이어는 지금 작업이 다음 접속 전에 끝나면 남는 시간을 채울 채집을 다음 작업으로 예약한다(D041).
+  const interval = ctx.scenario.checkIntervalMs;
+  const remaining = actionRemainingMs(s);
+  if (interval > 0 && s.currentAction && remaining < interval) {
+    const current = s.currentAction.kind === 'production' ? s.currentAction.resourceId : null;
+    const filler = fallback(s, ctx, current ? ResourceDB[current].skill : null);
+    if (filler.kind === 'produce' && filler.resourceId !== current) {
+      queueAction(s, filler.resourceId, Math.max(1, Math.ceil((interval - remaining) / duration(s, filler.resourceId))));
+    }
+  }
+  return true;
+}
+
+function start(s: Model, plan: Plan, ctx: Context): boolean {
   if (plan.kind === 'wait' || plan.kind === 'progress') { s.currentAction = null; return true; }
   if (plan.kind === 'project') {
     const action = s.currentAction;
@@ -468,30 +612,34 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
     finishGoals();
     if (gi >= goals.length) break;
     if (options.stopAfterGoal && records.find(r => r.id === options.stopAfterGoal)?.doneMs !== null) break;
-    if (plan.kind === 'wait' && plan.reason.endsWith('미해금')) { stuck = `${records[gi].label}: ${plan.reason}`; break; }
+    if (plan.kind === 'wait' && (plan.reason.endsWith('미해금') || plan.reason.endsWith('실패'))) { stuck = `${records[gi].label}: ${plan.reason}`; break; }
 
     tend(s, ctx);
     const effective = plan.kind === 'wait' ? fallback(s, ctx) : plan;
     if (!apply(s, effective, ctx)) { stuck = `${records[gi].label}: 작업 시작 실패(${JSON.stringify(effective)})`; break; }
 
-    const busy = actionRemainingMs(s);
-    let dt = Math.min(busy || Infinity, nextPassiveMs(s), HOUR);
+    let dt = Math.min(actionRemainingMs(s) || Infinity, nextPassiveMs(s), HOUR);
     if (!Number.isFinite(dt)) dt = HOUR;
-    let next = t + Math.max(1000, dt);
+    // 실제 게임 시계(Date.now)처럼 정수 ms로만 시간을 흘린다.
+    let next = t + Math.ceil(Math.max(1000, dt));
     if (scenario.checkIntervalMs > 0) next = Math.ceil(next / scenario.checkIntervalMs) * scenario.checkIntervalMs;
     next = Math.min(next, options.horizonMs);
     const step = next - t;
 
-    const action = s.currentAction;
-    const worked = Math.min(step, busy);
-    const key = !action ? null : action.kind === 'project' ? 'kingdom' : ResourceDB[action.resourceId].skill;
-    if (key) activeMs[key] = (activeMs[key] ?? 0) + worked;
-    idleMs += step - (key ? worked : 0);
     if (plan.kind === 'wait') records[gi].waitMs[plan.reason] = (records[gi].waitMs[plan.reason] ?? 0) + step;
 
+    // 작업이 끝나는 시점(예약 작업으로 넘어가는 시점)마다 나눠 정산해 활동 시간을 정확히 귀속한다.
+    // 정산을 나눠도 결과는 한 번에 정산한 것과 같다(D038).
     const before = playable.map(skill => s.skills[skill].level);
-    advance(s, next);
-    t = next;
+    for (let piece = 0; t < next; piece++) {
+      const action = s.currentAction;
+      if (!action) { idleMs += next - t; advance(s, next); t = next; break; }
+      const key = action.kind === 'project' ? 'kingdom' : ResourceDB[action.resourceId].skill;
+      const until = piece < 4 ? Math.min(next, t + Math.max(1, Math.ceil(actionRemainingMs(s)))) : next;
+      advance(s, until);
+      activeMs[key] = (activeMs[key] ?? 0) + until - t;
+      t = until;
+    }
     playable.forEach((skill, i) => {
       for (const mark of LEVEL_MARKS) if (before[i] < mark && s.skills[skill].level >= mark) levelMarks.push({skill, level: mark, timeMs: t});
     });
