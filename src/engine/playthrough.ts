@@ -588,6 +588,12 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   let decisions = 0;
   let stuck: string | null = null;
   let nextSample = DAY;
+  // 레벨은 시간 정산뿐 아니라 결정 중의 수동 수확으로도 오르므로, 마지막으로 본 레벨과 비교해 기록한다.
+  const seen = playable.map(skill => s.skills[skill].level);
+  const recordLevels = () => playable.forEach((skill, i) => {
+    for (const mark of LEVEL_MARKS) if (seen[i] < mark && s.skills[skill].level >= mark) levelMarks.push({skill, level: mark, timeMs: t});
+    seen[i] = s.skills[skill].level;
+  });
 
   const finishGoals = () => {
     while (gi < goals.length && goals[gi].done(s)) {
@@ -615,6 +621,7 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
     if (plan.kind === 'wait' && (plan.reason.endsWith('미해금') || plan.reason.endsWith('실패'))) { stuck = `${records[gi].label}: ${plan.reason}`; break; }
 
     tend(s, ctx);
+    recordLevels();
     const effective = plan.kind === 'wait' ? fallback(s, ctx) : plan;
     if (!apply(s, effective, ctx)) { stuck = `${records[gi].label}: 작업 시작 실패(${JSON.stringify(effective)})`; break; }
 
@@ -630,7 +637,6 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
 
     // 작업이 끝나는 시점(예약 작업으로 넘어가는 시점)마다 나눠 정산해 활동 시간을 정확히 귀속한다.
     // 정산을 나눠도 결과는 한 번에 정산한 것과 같다(D038).
-    const before = playable.map(skill => s.skills[skill].level);
     for (let piece = 0; t < next; piece++) {
       const action = s.currentAction;
       if (!action) { idleMs += next - t; advance(s, next); t = next; break; }
@@ -640,9 +646,7 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
       activeMs[key] = (activeMs[key] ?? 0) + until - t;
       t = until;
     }
-    playable.forEach((skill, i) => {
-      for (const mark of LEVEL_MARKS) if (before[i] < mark && s.skills[skill].level >= mark) levelMarks.push({skill, level: mark, timeMs: t});
-    });
+    recordLevels();
     while (t >= nextSample) { samples.push(snapshot(s, nextSample)); nextSample += DAY; }
   }
   finishGoals();

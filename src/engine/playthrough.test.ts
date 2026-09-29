@@ -76,5 +76,8 @@ describe('전체 진행 경로 시뮬레이션 — 왕국 이후 성장 구간',
       for (let i = 1; i < marks.length; i++) expect(marks[i].timeMs).toBeGreaterThanOrEqual(marks[i - 1].timeMs);
     }
     expect(result.samples.filter(sample => sample.timeMs % DAY === 0).length).toBeGreaterThanOrEqual(30);
+    // 수동 수확으로 오른 농사 레벨도 기록된다.
+    const farming = result.final.skills.farming.level;
+    expect(result.levelMarks.filter(mark => mark.skill === 'farming').map(mark => mark.level)).toEqual([10, 30, 50, 70, 99].filter(level => level <= farming));
   });
 });
