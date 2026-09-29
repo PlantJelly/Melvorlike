@@ -42,7 +42,9 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('enchant_stone_copper', '구리급 마법부여석', 'magic', 10, 14000, 120, 1685, '🔮', {mugwort: 2, mana_stone: 2, copper_ingot: 1}),
     row('enchant_stone_iron', '철급 마법부여석', 'magic', 30, 20000, 280, 3614, '🔮', {magic_mugwort: 2, mana_stone: 3, iron_ingot: 1}),
     row('enchant_stone_gold', '금급 마법부여석', 'magic', 50, 30000, 600, 7017, '🔮', {mystic_herb: 2, mana_stone: 5, gold_ingot: 1}),
-    row('wild_berry', '산딸기', 'foraging', 1, 3000, 25, 1, '🍓'), row('wild_mushroom', '들버섯', 'foraging', 10, 5000, 60, 3, '🍄'),
+    row('wild_berry', '산딸기', 'foraging', 1, 3000, 25, 1, '🍓'),
+    // 섬유(game_design §2.12 "재봉은 목장의 양털과 야외 채집의 섬유를 함께 소비") — 수치는 산딸기와 같다(D046).
+    row('fiber', '섬유', 'foraging', 1, 3000, 25, 1, '🎋'), row('wild_mushroom', '들버섯', 'foraging', 10, 5000, 60, 3, '🍄'),
     row('wild_herb', '산약초', 'foraging', 30, 8000, 150, 12, '🌱'), row('rare_mushroom', '영지버섯', 'foraging', 50, 12000, 400, 50, '🌰'),
     row('plank', '나무 판자', 'woodworking', 1, 4000, 30, 6, '▬', {wood: 3}), row('oak_plank', '참나무 판자', 'woodworking', 10, 6500, 95, 18, '▬', {oak: 3, wood: 1}),
     row('hardwood_beam', '단단한 들보', 'woodworking', 30, 9500, 230, 48, '▬', {hardwood: 3, oak: 1}), row('magic_frame', '마법 골조', 'woodworking', 50, 13500, 500, 140, '▬', {magic_wood: 3, hardwood: 1}),
@@ -54,11 +56,12 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('berry_tonic', '산딸기 물약', 'apothecary', 1, 4000, 30, 6, '🧪', {wild_berry: 3}), row('mushroom_balm', '들버섯 연고', 'apothecary', 10, 6500, 95, 18, '🧪', {wild_mushroom: 3, wild_berry: 1}),
     row('herb_elixir', '산약초 영약', 'apothecary', 30, 9500, 230, 48, '🧪', {wild_herb: 3, wild_mushroom: 1}), row('rare_remedy', '영지버섯 묘약', 'apothecary', 50, 13500, 500, 140, '🧪', {rare_mushroom: 3, wild_herb: 1}),
     // 재봉 자재(game_design §2.12 "밧줄·천 … 왕국 시설과 생산 보조품"): 축사·밭 시설에 쓰인다.
-    // 시간·경험치는 같은 레벨의 기존 재봉 레시피, 판매가는 D033 비율(2.0/1.8)을 따른다.
-    row('rope', '밧줄', 'sewing', 1, 4000, 30, 5360, '🪢', {wool: 1}),
-    row('cloth', '천', 'sewing', 10, 6500, 95, 9673, '🧣', {wool: 2, dye: 1}),
-    row('wool_garment', '양털 옷', 'sewing', 1, 4000, 30, 16080, '🧵', {wool: 3}), row('trimmed_garment', '장식 의복', 'sewing', 10, 6500, 95, 19318, '🧵', {wool: 4, copper_ingot: 1}),
-    row('reinforced_garment', '보강 의복', 'sewing', 30, 9500, 230, 16530, '🧵', {wool: 5, iron_ingot: 1}), row('enchanted_garment', '마법 의복', 'sewing', 50, 13500, 500, 13991, '🧵', {wool: 6, gold_ingot: 1})
+    // 재봉은 섬유가 주 재료이고 양털은 의복에만 1개씩 들어간다(D046) — 양털 공급만으로 재봉 레벨이 묶이지 않게.
+    // 시간·경험치는 같은 레벨의 기존 재봉 레시피, 판매가는 D033 비율(2.0/1.8/1.2308/0.8642)을 따른다.
+    row('rope', '밧줄', 'sewing', 1, 4000, 30, 6, '🪢', {fiber: 3}),
+    row('cloth', '천', 'sewing', 10, 6500, 95, 32, '🧣', {fiber: 4, dye: 1}),
+    row('wool_garment', '양털 옷', 'sewing', 1, 4000, 30, 5366, '🧵', {fiber: 3, wool: 1}), row('trimmed_garment', '장식 의복', 'sewing', 10, 6500, 95, 4853, '🧵', {fiber: 4, wool: 1, copper_ingot: 1}),
+    row('reinforced_garment', '보강 의복', 'sewing', 30, 9500, 230, 3342, '🧵', {fiber: 5, wool: 1, iron_ingot: 1}), row('enchanted_garment', '마법 의복', 'sewing', 50, 13500, 500, 2416, '🧵', {fiber: 6, wool: 1, gold_ingot: 1})
 ].map(r => [r.id, r]));
 // 수확 시 씨앗 1개를 심어 한 번에 돌려받는 개수. 재파종 분을 남기고 잉여를 판매/요리에 쓴다.
 export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3, golden_corn: 3, chamomile: 3, mugwort: 3, magic_mugwort: 3, mystic_herb: 3 };

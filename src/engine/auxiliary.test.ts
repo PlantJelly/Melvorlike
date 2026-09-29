@@ -73,17 +73,17 @@ describe('조제 보조재와 소비처', () => {
 });
 
 describe('재봉 자재와 소비처', () => {
-  it('밧줄은 양털로, 천은 양털과 염료로 재봉에서 만든다', () => {
+  it('밧줄은 섬유로, 천은 섬유와 염료로 재봉에서 만든다', () => {
     const s = initial(0);
     s.skills.sewing.level = 10;
-    s.inventory = {wool: 3, dye: 1};
+    s.inventory = {fiber: 7, dye: 1};
     begin(s, 'rope');
     advance(s, 4000);
     expect(s.inventory.rope).toBe(1);
     begin(s, 'cloth');
     advance(s, 4000 + 6500);
     expect(s.inventory.cloth).toBe(1);
-    expect(s.inventory.wool).toBe(0);
+    expect(s.inventory.fiber).toBe(0);
     expect(s.inventory.dye).toBe(0);
     for (const id of ['rope', 'cloth']) {
       const r = ResourceDB[id];
