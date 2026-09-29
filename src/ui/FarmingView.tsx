@@ -1,10 +1,10 @@
-import { For, Show, createSignal } from 'solid-js';
+import { For, Index, Show, createSignal } from 'solid-js';
 import { ResourceDB } from '../content/resources';
 import { farmAutomation, type FarmUpgrade } from '../content/farm';
 import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 import { state } from '../state/gameState';
 import { afford, duration, farmRemainingMs, harvestOutput, nextPlotUpgrade, plotReady } from '../engine/model';
-import { buySeed, plantCrop, harvestCrop, expandFarmAction, automateFarmAction, buyFertilizerAction } from '../engine/actions';
+import { buySeed, plantCrop, harvestCrop, clearPlotAction, expandFarmAction, automateFarmAction, buyFertilizerAction } from '../engine/actions';
 import { costText, fmt } from './ProductionView';
 
 function minutes(ms: number) {
@@ -50,13 +50,14 @@ export function FarmingView() {
     <section class="current">
       <div><span class="label">밭 {plots().length}칸{state().farmAuto ? ' · 자동 파종/수확 중' : ''}</span><h2>{planted() ? `${planted()}칸에서 자라는 중` : '심은 작물 없음'}</h2></div>
       <Show when={readyCount()}><button onClick={harvestCrop}>모두 수확하기</button></Show>
-      <For each={plots()}>{(plot, i) => <Show when={plot} fallback={<small>{i() + 1}번 밭 · 비어 있음</small>}>{p => {
+      <Index each={plots()}>{(plot, i) => <Show when={plot()} fallback={<small>{i + 1}번 밭 · 비어 있음</small>}>{p => {
         const crop = () => ResourceDB[p().cropId];
         return <>
-          <small>{i() + 1}번 밭 · {crop().icon} {crop().name}{p().fertilizer ? ` · ${FertilizerDB[p().fertilizer!].icon} ${FertilizerDB[p().fertilizer!].name}` : ''} · {plotReady(p()) ? '수확할 수 있습니다' : `${minutes(farmRemainingMs(state(), i()))}분 후 수확 가능`}</small>
-          <progress aria-label={`${i() + 1}번 밭 진행률`} max="100" value={p().progressMs / crop().baseDurationMs * 100}/>
+          <small>{i + 1}번 밭 · {crop().icon} {crop().name}{p().fertilizer ? ` · ${FertilizerDB[p().fertilizer!].icon} ${FertilizerDB[p().fertilizer!].name}` : ''} · {plotReady(p()) ? '수확할 수 있습니다' : `${minutes(farmRemainingMs(state(), i))}분 후 수확 가능`}</small>
+          <progress aria-label={`${i + 1}번 밭 진행률`} max="100" value={p().progressMs / crop().baseDurationMs * 100}/>
+          <button aria-label={`${i + 1}번 밭 비우기`} onClick={() => clearPlotAction(i)}>{plotReady(p()) ? '수확하고 비우기' : '비우기(자라는 작물은 사라짐)'}</button>
         </>;
-      }}</Show>}</For>
+      }}</Show>}</Index>
     </section>
     <h2>비료</h2>
     <p class="muted">파종할 때 한 칸에 하나를 쓰고, 그 칸의 작물을 거둘 때까지 효과가 이어집니다. 확률 효과는 확률만큼 쌓였다가 한 번씩 발동합니다.</p>

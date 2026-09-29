@@ -401,6 +401,8 @@ function advanceProjectAction(s: Model, action: Extract<CurrentAction, {kind: 'p
     state.clearingProgressMs = Math.min(project.clearingDurationMs, state.clearingProgressMs + elapsed);
     action.progressMs = state.clearingProgressMs;
     if (state.clearingProgressMs + 1e-7 < project.clearingDurationMs) return null;
+    // 오차 범위 안에서 완료로 본 진행량은 기간 값으로 맞춘다 — 저장 검증은 정확히 같아야 완료 단계로 인정한다.
+    state.clearingProgressMs = project.clearingDurationMs;
     state.phase = 'delivery';
     for (const [id, count] of Object.entries(project.salvage)) s.inventory[id] = (s.inventory[id] ?? 0) + count;
     s.currentAction = null;
@@ -412,6 +414,7 @@ function advanceProjectAction(s: Model, action: Extract<CurrentAction, {kind: 'p
   state.restorationProgressMs = Math.min(project.restorationDurationMs, state.restorationProgressMs + elapsed);
   action.progressMs = state.restorationProgressMs;
   if (state.restorationProgressMs + 1e-7 < project.restorationDurationMs) return null;
+  state.restorationProgressMs = project.restorationDurationMs;
   state.phase = 'complete';
   addUnique(s.unlockedSkills, project.unlockSkills);
   addUnique(s.unlockedFeatures, project.unlockFeatures);
@@ -817,6 +820,18 @@ function collectHarvest(s: Model, cropId: string, bonus: number, fertilizer?: Fe
   s.inventory[out.resourceId] = (s.inventory[out.resourceId] ?? 0) + out.count;
   addExperience(s, 'farming', ResourceDB[cropId].exp, bonus);
   return out;
+}
+
+// index 칸을 비운다. 다 자랐으면 먼저 거두고(손실 없음), 자라는 중이면 그 작물과 비료는 사라진다.
+// 자동 파종/수확은 수확물로 같은 작물을 계속 다시 심으므로, 작물을 바꾸려면 칸을 비워야 한다.
+export function clearPlot(s: Model, index: number) {
+  const plot = Number.isInteger(index) ? s.farmPlots[index] : undefined;
+  if (!skillUnlocked(s, 'farming') || !plot) return false;
+  const name = ResourceDB[plot.cropId].name;
+  if (plotReady(plot)) collectHarvest(s, plot.cropId, mealExpBonus(s, 'farming'), plot.fertilizer);
+  s.farmPlots[index] = null;
+  s.notice = `${index + 1}번 밭을 비웠습니다(${name}) · 새 작물을 심을 수 있습니다.`;
+  return true;
 }
 
 // 다 자란 칸을 모두 거둔다. 하나라도 거두면 true.
