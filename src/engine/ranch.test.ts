@@ -3,6 +3,7 @@ import { SAVE_VERSION } from './model';
 import { advance, begin, buyAnimal, unlockedGame as initial, ranchRemainingMs, ranchStarved } from './model';
 import { decodeSave } from './save';
 import { ResourceDB } from '../content/resources';
+import { AnimalDB } from '../content/animals';
 import { experienceToNextLevel } from './formulas';
 
 // 한 번의 산출로 얻는 경험치가 커서 레벨업을 여러 번 유발할 수 있으므로, 엔진의 레벨업
@@ -95,7 +96,7 @@ describe('목장: 동물 구매 → 사료 소비 → 산출', () => {
     expect(s.inventory.egg).toBe(2);
     expect(s.inventory.milk).toBe(1);
     expect(s.inventory.wheat).toBe(90);
-    expect(s.inventory.carrot).toBe(90);
+    expect(s.inventory.carrot).toBe(100 - AnimalDB.cow.feedAmount);
   });
 
   it('남은 시간은 목장 도구 속도를 반영한다', () => {
@@ -153,5 +154,24 @@ describe('목장: 동물 구매 → 사료 소비 → 산출', () => {
     }
     const currentAction = {resourceId: 'egg', progressMs: 0};
     expect(() => decodeSave(JSON.stringify({...s, currentAction}))).toThrow();
+  });
+});
+
+describe('목장 경제성', () => {
+  const profitPerHour = (id: string) => {
+    const a = AnimalDB[id];
+    const product = ResourceDB[a.productId];
+    return (product.sell - ResourceDB[a.feedId].sell * a.feedAmount) / (product.baseDurationMs / 3600000);
+  };
+
+  it('모든 동물은 산출물 판매가가 사료 원가보다 높다', () => {
+    for (const a of Object.values(AnimalDB)) {
+      expect(ResourceDB[a.productId].sell).toBeGreaterThan(ResourceDB[a.feedId].sell * a.feedAmount);
+    }
+  });
+
+  it('비싸고 늦게 열리는 동물일수록 시간당 순이익이 크다', () => {
+    const ids = Object.keys(AnimalDB).sort((a, b) => AnimalDB[a].buyGold - AnimalDB[b].buyGold);
+    for (let i = 1; i < ids.length; i++) expect(profitPerHour(ids[i])).toBeGreaterThan(profitPerHour(ids[i - 1]));
   });
 });
