@@ -239,8 +239,11 @@ function train(s: Model, ctx: Context, skill: SkillId, level: number, depth = 0)
     return acquire(s, ctx, lowest.id, have(s, lowest.id) + 1, depth) ?? wait(`${skillNames[skill]} 훈련 불가`);
   }
   const r = ResourceDB[id];
-  const time = Math.max(1, chainTime(s, id));
-  const count = Math.min(Math.ceil(expToLevel(s, skill, level) / r.exp), Math.max(1, Math.floor(HOUR / time)));
+  // 한 시간 분량을 목표로 한다. 재료가 이미 쌓여 있으면 제작 시간만, 아니면 재료 채집까지 포함한 시간으로 나눈다.
+  const hourOfCrafting = Math.max(1, Math.floor(HOUR / duration(s, id)));
+  const stocked = Object.entries(recipeFor(s, id)).every(([m, n]) => have(s, m) >= n * hourOfCrafting);
+  const perHour = stocked ? hourOfCrafting : Math.max(1, Math.floor(HOUR / Math.max(1, chainTime(s, id))));
+  const count = Math.min(Math.ceil(expToLevel(s, skill, level) / r.exp), perHour);
   return acquire(s, ctx, id, have(s, id) + Math.max(1, count), depth) ?? wait(`${skillNames[skill]} 훈련`);
 }
 
@@ -478,13 +481,16 @@ function maxAllGoal(): Goal {
     step: (s, ctx) => {
       const active = playable.filter(skill => !isPassive(skill) && s.skills[skill].level < MAX_SKILL_LEVEL)
         .sort((a, b) => s.skills[a].level - s.skills[b].level);
+      // 가장 낮은 스킬의 계획을 고르되, 나머지 스킬도 계획해 밭 작물 수요(마법 약초 등)를 빠짐없이 남긴다.
+      let chosen: Plan | null = null;
       let waiting: Plan | null = null;
       for (const skill of active) {
         const plan = train(s, ctx, skill, s.skills[skill].level + 1);
-        if (plan.kind !== 'wait') return plan;
-        waiting ??= plan;
+        if (plan.kind === 'progress') return plan;
+        if (plan.kind === 'wait') waiting ??= plan;
+        else chosen ??= plan;
       }
-      return waiting ?? wait('패시브 스킬 만렙 대기');
+      return chosen ?? waiting ?? wait('패시브 스킬 만렙 대기');
     },
   };
 }
