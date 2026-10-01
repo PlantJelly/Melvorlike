@@ -9,7 +9,7 @@ import { CHANCE_SCALE } from '../content/chance';
 import { guildTiers, milestoneIds } from '../content/guild';
 import { accessorySlots, accessoryTiers, enchantmentStones, type AccessorySlotId } from '../content/accessories';
 import { farmAutomation, plotUpgrades } from '../content/farm';
-import { FACILITY_MAX_LEVEL, facilityIds } from '../content/facilities';
+import { FACILITY_MAX_LEVEL, facilityIds, facilityRequirement } from '../content/facilities';
 import type { SkillId } from '../content/types';
 import { experienceToNextLevel, MAX_SKILL_LEVEL } from './formulas';
 import {
@@ -479,51 +479,84 @@ function guildGoal(tier: number): Goal {
   };
 }
 
-// 레벨이 된 다음 단계 도구를 만든다. 재료가 패시브 대기면 넘어간다(D049).
-function toolPlan(s: Model, ctx: Context): Plan | null {
-  for (const skill of playable) {
-    const tier = toolTiers[s.tools[skill] + 1];
-    if (!tier || !skillUnlocked(s, skill) || s.skills[skill].level < tier.level) continue;
-    const plan = acquireAll(s, ctx, Object.entries(tier.cost));
-    if (plan?.kind === 'wait') continue;
-    if (plan) return plan;
-    return upgrade(s, skill) ? PROGRESS : wait('도구 제작 실패');
-  }
-  return null;
+// 레벨이 된 다음 단계 도구를 만든다. 재료가 패시브 대기면 null(D049).
+function toolPlanFor(s: Model, ctx: Context, skill: SkillId): Plan | null {
+  const tier = toolTiers[s.tools[skill] + 1];
+  if (!tier || !skillUnlocked(s, skill) || s.skills[skill].level < tier.level) return null;
+  const plan = acquireAll(s, ctx, Object.entries(tier.cost));
+  if (plan?.kind === 'wait') return null;
+  if (plan) return plan;
+  return upgrade(s, skill) ? PROGRESS : wait('도구 제작 실패');
 }
 
-// 레벨 조건을 만족한 왕국 시설 강화를 가장 싼 것부터 한다. 재료·골드가 모자라면 그 준비가 계획이 된다(D048).
-function facilityPlan(s: Model, ctx: Context): Plan | null {
-  const ready = facilityIds.map(id => ({id, next: nextFacilityUpgrade(s, id)}))
-    .filter(entry => entry.next && s.skills[entry.next.skill].level >= entry.next.reqLevel)
-    .sort((a, b) => a.next!.goldCost - b.next!.goldCost);
-  for (const {id, next} of ready) {
-    const plan = acquireAll(s, ctx, Object.entries(next!.cost));
-    if (plan?.kind === 'wait') continue;
-    if (plan) return plan;
-    const gold = ensureGold(s, ctx, next!.goldCost);
+// 왕국 시설 한 곳을 강화한다. grind가 false면 골드를 벌러 가지 않고, 남는 보유품을 판 뒤에도 모자라면 null(D048).
+function facilityPlanFor(s: Model, ctx: Context, id: ProjectId, grind: boolean): Plan | null {
+  const next = nextFacilityUpgrade(s, id);
+  if (!next || s.skills[next.skill].level < next.reqLevel) return null;
+  const plan = acquireAll(s, ctx, Object.entries(next.cost));
+  if (plan?.kind === 'wait') return null;
+  if (plan) return grind ? plan : null;
+  if (!grind) {
+    sellSurplus(s, ctx);
+    if (s.gold < next.goldCost) return null;
+  } else {
+    const gold = ensureGold(s, ctx, next.goldCost);
     if (gold) return gold;
-    return upgradeFacility(s, id) ? PROGRESS : wait('시설 강화 실패');
+  }
+  return upgradeFacility(s, id) ? PROGRESS : wait('시설 강화 실패');
+}
+
+// 지금 골드로 바로 할 수 있는 시설 강화를 가장 싼 것부터 한다.
+function affordableFacilityPlan(s: Model, ctx: Context): Plan | null {
+  const ids = facilityIds.filter(id => nextFacilityUpgrade(s, id)).sort((a, b) => nextFacilityUpgrade(s, a)!.goldCost - nextFacilityUpgrade(s, b)!.goldCost);
+  for (const id of ids) {
+    const plan = facilityPlanFor(s, ctx, id, false);
+    if (plan) return plan;
   }
   return null;
 }
 
-// 모든 스킬 Lv99: 가능한 시설 강화를 먼저 하고, 가장 낮은 액티브 스킬부터 올린다(패시브는 밭·동물이 병행해서 올린다).
+// 이 스킬의 다음 재료·레시피를 여는 데 필요한 시설(D049 시설 조건).
+function gatingFacility(s: Model, skill: SkillId): ProjectId | null {
+  const blocked = Object.values(ResourceDB).filter(r => r.skill === skill && !r.dropOnly && r.reqLevel <= s.skills[skill].level && !facilityGateMet(s, r.id))
+    .sort((a, b) => a.reqLevel - b.reqLevel)[0];
+  return blocked ? facilityRequirement(skill, blocked.reqLevel)!.projectId : null;
+}
+
+// 모든 스킬 Lv99·시설 최대: 가장 낮은 액티브 스킬부터, 그 스킬의 도구와 막힌 시설을 먼저 챙기며 올린다.
+// 다른 시설은 골드가 있을 때만 올리고, 모든 스킬이 만렙이면 남은 시설을 골드를 벌어 마저 올린다.
+// 패시브(농사·목장) 도구는 재료를 모아서라도 올린다(밭·동물이 계속 일하므로).
 function maxAllGoal(): Goal {
   return {
     id: 'max', label: '전 스킬 Lv99·시설 최대 강화', phase: '완주',
     done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL) && facilityIds.every(id => s.facilities[id] === FACILITY_MAX_LEVEL),
     step: (s, ctx) => {
-      const tool = toolPlan(s, ctx);
-      if (tool) return tool;
-      const facility = facilityPlan(s, ctx);
-      if (facility) return facility;
+      for (const skill of passiveSkills) {
+        const tool = toolPlanFor(s, ctx, skill);
+        if (tool) return tool;
+      }
+      const affordable = affordableFacilityPlan(s, ctx);
+      if (affordable) return affordable;
       const active = playable.filter(skill => !isPassive(skill) && s.skills[skill].level < MAX_SKILL_LEVEL)
         .sort((a, b) => s.skills[a].level - s.skills[b].level);
+      if (!active.length) {
+        for (const id of facilityIds) {
+          const plan = facilityPlanFor(s, ctx, id, true);
+          if (plan) return plan;
+        }
+        return wait('패시브 스킬 만렙 대기');
+      }
       // 가장 낮은 스킬의 계획을 고르되, 나머지 스킬도 계획해 밭 작물 수요(마법 약초 등)를 빠짐없이 남긴다.
       let chosen: Plan | null = null;
       let waiting: Plan | null = null;
       for (const skill of active) {
+        if (!chosen) {
+          const tool = toolPlanFor(s, ctx, skill);
+          if (tool) return tool;
+          const gate = gatingFacility(s, skill);
+          const facility = gate ? facilityPlanFor(s, ctx, gate, true) : null;
+          if (facility) return facility;
+        }
         const plan = train(s, ctx, skill, s.skills[skill].level + 1);
         if (plan.kind === 'progress') return plan;
         if (plan.kind === 'wait') waiting ??= plan;
