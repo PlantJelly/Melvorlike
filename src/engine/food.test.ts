@@ -18,7 +18,7 @@ describe('낚시와 음식', () => {
     advance(s, 12000);
     expect(s.inventory.fish_small).toBe(0);
     expect(s.inventory.grilled_fish).toBe(1);
-    expect(s.skills.cooking.exp).toBe(35);
+    expect(s.skills.cooking.exp).toBe(ResourceDB.grilled_fish.exp);
     expect(s.currentAction).toBeNull();
     expect(eat(s, 'grilled_fish')).toBe(true);
     expect(s.inventory.grilled_fish).toBe(0);

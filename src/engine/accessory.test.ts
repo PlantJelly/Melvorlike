@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import { SAVE_VERSION } from './model';
 import {accessoryTiers, emptyAccessories} from '../content/accessories';
+import { ResourceDB } from '../content/resources';
 import {
   advance,
   begin,
@@ -107,7 +108,9 @@ describe('마법부여·장신구', () => {
     expect(s.inventory.chamomile).toBe(0);
     expect(s.inventory.mana_stone).toBe(0);
     expect(s.inventory.enchant_stone_stone).toBe(1);
-    expect(s.skills.magic.exp).toBe(50);
+    // 경험치는 제작 공식(D049) 값이다. Lv2 요구치(100)를 넘으면 한 번 레벨업한다.
+    const gained = ResourceDB.enchant_stone_stone.exp;
+    expect(s.skills.magic.level * 1000 + s.skills.magic.exp).toBe(gained >= 100 ? 2000 + gained - 100 : 1000 + gained);
   });
 
   it('v6 저장은 마법/장신구 기본값을 추가해 v7로 이전한다', () => {

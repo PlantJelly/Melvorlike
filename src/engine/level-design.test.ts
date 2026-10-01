@@ -65,4 +65,19 @@ describe('레벨 디자인 격자(D049)', () => {
     raw.facilities.ruined_sawmill = 3;
     expect(() => decodeSave(JSON.stringify(raw))).toThrow();
   });
+
+  it('제작 스킬도 같은 격자마다 새 레시피가 열리고, 상위 레시피는 해당 구역 시설이 필요하다', () => {
+    const crafting: SkillId[] = ['blacksmithing', 'woodworking', 'apothecary', 'sewing', 'cooking', 'magic'];
+    for (const skill of crafting) {
+      const levels = new Set(items(skill).map(r => r.reqLevel));
+      for (const level of GRID) expect(levels.has(level), `${skill} Lv${level}`).toBe(true);
+      for (const r of items(skill)) for (const id of Object.keys(r.recipe ?? {})) expect(ResourceDB[id], `${r.id} 재료 ${id}`).toBeDefined();
+    }
+    const s = unlockedGame(0);
+    s.skills.blacksmithing.level = 99;
+    s.inventory = {lapis: 3, coal: 3};
+    expect(begin(s, 'lapis_ingot')).toBe(false);
+    s.facilities.ruined_forge = 4;
+    expect(begin(s, 'lapis_ingot')).toBe(true);
+  });
 });
