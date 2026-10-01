@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { begin, buyResource, facilityGateMet, generateDailyQuests, unlockedGame } from './model';
+import { begin, buyResource, duration, eat, facilityGateMet, generateDailyQuests, unlockedGame } from './model';
+import { FoodDB } from '../content/foods';
 import { decodeSave, encodeSave } from './save';
 import { ResourceDB, toolTiers } from '../content/resources';
 import { facilityRequirement } from '../content/facilities';
@@ -64,6 +65,22 @@ describe('레벨 디자인 격자(D049)', () => {
     delete raw.checksum;
     raw.facilities.ruined_sawmill = 3;
     expect(() => decodeSave(JSON.stringify(raw))).toThrow();
+  });
+
+  it('새 생선 요리 6종은 음식 효과가 있고 먹으면 적용된다', () => {
+    const dishes = ['catfish_stew', 'grilled_trout', 'eel_rice', 'sturgeon_soup', 'tuna_steak', 'golden_carp_feast'];
+    for (const id of dishes) {
+      expect(FoodDB[id], id).toBeDefined();
+      const s = unlockedGame(0);
+      s.inventory[id] = 1;
+      expect(eat(s, id)).toBe(true);
+      expect(s.meal).toEqual({foodId: id, remainingMs: FoodDB[id].durationMs});
+    }
+    const s = unlockedGame(0);
+    s.inventory.tuna_steak = 1;
+    const before = duration(s, 'wood');
+    eat(s, 'tuna_steak');
+    expect(duration(s, 'wood')).toBeCloseTo(before * (1 + toolTiers[s.tools.logging].bonus) / (1 + toolTiers[s.tools.logging].bonus + FoodDB.tuna_steak.speedBonus));
   });
 
   it('도구 단계는 재료 해금 사이에 있고, 보너스는 계속 오르며, 기존 세 단계 보너스는 그대로다', () => {
