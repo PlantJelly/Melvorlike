@@ -1,7 +1,7 @@
 import { ResourceDB, toolTiers, playable, cropYield, passiveSkills, skillNames } from '../content/resources';
 import { AnimalDB, barnUpgrades } from '../content/animals';
 import { FoodDB } from '../content/foods';
-import { ExchangeDB, exchangeRate, guildTiers, milestoneById, type MilestoneId } from '../content/guild';
+import { EXCHANGE_VALUE_CAP, ExchangeDB, exchangeRate, guildTiers, milestoneById, type ExchangeDef, type MilestoneId } from '../content/guild';
 import {
   accessoryOptionIds,
   accessoryOptions,
@@ -112,6 +112,12 @@ export interface Model {
   notice: string;
 }
 
+// 일일 퀘스트(D051): 요구량 10~30개, 보상은 판매가의 3배(판매 보너스 적용). 옛 저장의 5~15개 퀘스트도 그날은 유효하다.
+export const QUEST_TIERS = 2;
+export const QUEST_MIN_AMOUNT = 10;
+export const QUEST_MAX_AMOUNT = 30;
+export const QUEST_REWARD_MULTIPLIER = 3;
+
 function dayId(time: number) {
   return Math.floor(time / 86400000);
 }
@@ -129,16 +135,19 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-// 이미 해금한 원재료 중에서만 골라 중복 없이 최대 3개 뽑는다(해금 재료가 3개 미만인
+// 이미 해금한 원재료 중 스킬마다 가장 높은 두 단계(D051 — 후반에 저단계 재료 퀘스트가 의미 없어지지 않게)에서만
+// 골라 중복 없이 최대 3개 뽑는다(해금 재료가 3개 미만인
 // 극단적인 경우에는 있는 만큼만 반환). decodeSave가 옛 저장을 이전할 때, 스킬을 복원한
 // 뒤 해금 상태를 다시 반영해 퀘스트를 새로 뽑기 위해 이 함수를 그대로 가져다 쓴다.
 export function generateDailyQuests(s: Model, day: number, random: () => number = seededRandom(day)): DailyQuest[] {
-  const pool = Object.values(ResourceDB).filter(r => !r.recipe && skillUnlocked(s, r.skill) && s.skills[r.skill].level >= r.reqLevel && facilityGateMet(s, r.id));
+  const open = Object.values(ResourceDB).filter(r => !r.recipe && skillUnlocked(s, r.skill) && s.skills[r.skill].level >= r.reqLevel && facilityGateMet(s, r.id));
+  const topTiers = (skill: SkillId) => [...new Set(open.filter(r => r.skill === skill).map(r => r.reqLevel))].sort((a, b) => b - a).slice(0, QUEST_TIERS);
+  const pool = open.filter(r => topTiers(r.skill).includes(r.reqLevel));
   const quests: DailyQuest[] = [];
   // 뽑힌 항목을 후보군에서 제거하면 난수 함수가 같은 값을 반복해도 루프가 반드시 끝난다.
   while (quests.length < 3 && pool.length) {
     const [r] = pool.splice(Math.floor(random() * pool.length), 1);
-    quests.push({ resourceId: r.id, amount: 5 + Math.floor(random() * 11), done: false });
+    quests.push({ resourceId: r.id, amount: QUEST_MIN_AMOUNT + Math.floor(random() * (QUEST_MAX_AMOUNT - QUEST_MIN_AMOUNT + 1)), done: false });
   }
   return quests;
 }
@@ -742,12 +751,18 @@ export function buyResource(s: Model, id: string, count: number) {
   return true;
 }
 
-// 상위 티어 원재료를 하위 티어로 환전한다. 하위 티어(targetId)는 그 자체로 환전 대상이 없어
-// 역방향 경로가 존재하지 않으므로, 환전을 반복해도 가치를 만들어내는 순환 거래가 될 수 없다.
-export function exchangeResource(s: Model, id: string, count: number) {
-  const ex = Object.hasOwn(ExchangeDB, id) ? ExchangeDB[id] : undefined;
+// 원재료 1개를 환전해 받는 하위 재료 수(소수). 배율^tierGap이 기본이고, 판매가 가치가 원재료의
+// EXCHANGE_VALUE_CAP을 넘지 않게 자른다(D051) — 업적 보너스로 배율이 올라도 되팔기 이득이 생기지 않는다.
+export function exchangeYield(s: Model, id: string, ex: ExchangeDef) {
+  return Math.min(Math.pow(exchangeRateFor(s), ex.tierGap), EXCHANGE_VALUE_CAP * ResourceDB[id].sell / ResourceDB[ex.targetId].sell);
+}
+
+// 상위 티어 원재료를 같은 스킬의 하위 티어로 환전한다. 하위 → 상위 경로가 없어 환전을 반복해도
+// 가치를 만들어내는 순환 거래가 될 수 없다.
+export function exchangeResource(s: Model, id: string, targetId: string, count: number) {
+  const ex = Object.hasOwn(ExchangeDB, id) ? ExchangeDB[id].find(e => e.targetId === targetId) : undefined;
   if (!featureUnlocked(s, 'guild') || !ex || !Number.isInteger(count) || count <= 0 || ex.tierGap > s.guild + 1 || (s.inventory[id] ?? 0) < count) return false;
-  const gained = Math.floor(count * Math.pow(exchangeRateFor(s), ex.tierGap));
+  const gained = Math.floor(count * exchangeYield(s, id, ex));
   if (gained <= 0) return false;
   s.inventory[id] -= count;
   s.inventory[ex.targetId] = (s.inventory[ex.targetId] ?? 0) + gained;
@@ -785,7 +800,7 @@ export function claimMilestone(s: Model, id: MilestoneId) {
 // 판매가의 2배(그냥 파는 것보다 낫게)에 판매가 장신구 보너스를 반영한다 — sell()과 같은 규칙.
 // 엔진과 화면(GuildView)이 항상 같은 값을 쓰도록 이 함수 하나로 계산한다.
 export function dailyQuestReward(s: Model, quest: DailyQuest) {
-  return Math.floor(quest.amount * ResourceDB[quest.resourceId].sell * 2 * (1 + saleBonus(s, quest.resourceId)));
+  return Math.floor(quest.amount * ResourceDB[quest.resourceId].sell * QUEST_REWARD_MULTIPLIER * (1 + saleBonus(s, quest.resourceId)));
 }
 
 // 요구량만큼 인벤토리에서 소모하고 골드로 보상한다. resourceId까지 함께 확인해, 클릭과 날짜

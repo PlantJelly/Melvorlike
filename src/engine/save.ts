@@ -1,4 +1,4 @@
-import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, producible, facilityGateMet, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
+import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, producible, facilityGateMet, QUEST_MAX_AMOUNT, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB, barnUpgrades } from '../content/animals';
 import { FoodDB } from '../content/foods';
@@ -277,7 +277,7 @@ export function decodeSave(text: string): Model {
     for (const q of dq.quests) {
       if (!object(q) || typeof q.resourceId !== 'string' || !Object.hasOwn(ResourceDB, q.resourceId)) throw Error('퀘스트 정보 오류');
       const resource = ResourceDB[q.resourceId];
-      if (resource.recipe || !skillUnlocked(s, resource.skill) || s.skills[resource.skill].level < resource.reqLevel || !finite(q.amount) || !Number.isInteger(q.amount) || q.amount < 5 || q.amount > 15 || typeof q.done !== 'boolean' || seen.has(q.resourceId)) throw Error('퀘스트 정보 오류');
+      if (resource.recipe || !skillUnlocked(s, resource.skill) || s.skills[resource.skill].level < resource.reqLevel || !finite(q.amount) || !Number.isInteger(q.amount) || q.amount < 5 || q.amount > QUEST_MAX_AMOUNT || typeof q.done !== 'boolean' || seen.has(q.resourceId)) throw Error('퀘스트 정보 오류');
       seen.add(q.resourceId);
       quests.push({resourceId: q.resourceId, amount: q.amount, done: q.done});
     }

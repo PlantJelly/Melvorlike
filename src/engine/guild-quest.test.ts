@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ResourceDB } from '../content/resources';
-import { advance, completeDailyQuest, dailyQuestReward, generateDailyQuests, unlockedGame as initial } from './model';
+import { advance, completeDailyQuest, dailyQuestReward, generateDailyQuests, QUEST_MAX_AMOUNT, QUEST_MIN_AMOUNT, unlockedGame as initial } from './model';
 import { decodeSave, encodeSave } from './save';
 
 const DAY = 86400000;
@@ -19,6 +19,25 @@ describe('길드: 일일 퀘스트', () => {
     const other = initial(0);
     expect(other.dailyQuests).toEqual(s.dailyQuests);
     expect(generateDailyQuests(s, 0, () => 0)).toHaveLength(3); // 같은 난수만 반복해도 종료되고 중복되지 않음
+  });
+
+  it('후반에는 스킬마다 가장 높은 두 단계 원재료만 뽑고, 요구량은 10~30개다(D051)', () => {
+    const s = initial(0);
+    for (const skill of ['logging', 'mining', 'fishing', 'foraging'] as const) s.skills[skill].level = 50;
+    for (let day = 0; day < 300; day++) {
+      for (const q of generateDailyQuests(s, day)) {
+        const r = ResourceDB[q.resourceId];
+        if (['logging', 'mining', 'fishing', 'foraging'].includes(r.skill)) expect(r.reqLevel, q.resourceId).toBeGreaterThanOrEqual(40);
+        expect(q.amount).toBeGreaterThanOrEqual(QUEST_MIN_AMOUNT);
+        expect(q.amount).toBeLessThanOrEqual(QUEST_MAX_AMOUNT);
+      }
+    }
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.dailyQuests.quests[0].amount = 5; // 옛 규칙(5~15개)의 퀘스트도 그날은 유효
+    expect(decodeSave(JSON.stringify(raw)).dailyQuests.quests[0].amount).toBe(5);
+    raw.dailyQuests.quests[0].amount = QUEST_MAX_AMOUNT + 1;
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow('퀘스트 정보 오류');
   });
 
   it('날짜가 바뀌면 완료 여부와 무관하게 새 퀘스트로 교체되고, 같은 날에는 그대로 유지된다', () => {
@@ -44,7 +63,7 @@ describe('길드: 일일 퀘스트', () => {
     const r = ResourceDB[quest.resourceId];
     s.inventory[quest.resourceId] = quest.amount;
     const goldBefore = s.gold;
-    const expectedReward = Math.floor(quest.amount * r.sell * 2 * 1.05);
+    const expectedReward = Math.floor(quest.amount * r.sell * 3 * 1.05);
     expect(dailyQuestReward(s, quest)).toBe(expectedReward);
     expect(completeDailyQuest(s, 0, quest.resourceId)).toBe(true);
     expect(s.inventory[quest.resourceId]).toBe(0);
@@ -89,12 +108,12 @@ describe('길드: 일일 퀘스트', () => {
 
     // 레벨 1에서는 나오지 않는 고레벨 채광 재료가 실제 생성 결과에 포함되도록 미리 레벨을 준 뒤 이전.
     const highLevel = initial(0);
-    highLevel.skills.mining.level = 50;
+    for (const skill of ['logging', 'mining', 'fishing', 'foraging'] as const) highLevel.skills[skill].level = 50;
     const {dailyQuests: _dq, ...withoutQuests} = JSON.parse(encodeSave(highLevel));
     const legacy = {...withoutQuests, version: 7};
     delete (legacy as Record<string, unknown>).checksum;
     const migrated = decodeSave(JSON.stringify(legacy));
-    expect(migrated.skills.mining.level).toBe(50);
+    expect(migrated.skills.mining.level).toBe(50); // 채집 스킬을 모두 올려 Lv1 재료가 후보에서 빠진다(D051)
     expect(migrated.dailyQuests.quests).toEqual(generateDailyQuests(highLevel, 0));
     // 스킬 복원 전 레벨 1 상태로 뽑았다면 나왔을 후보군(레벨을 올리기 전의 highLevel)과
     // 실제 결과가 달라야, 재굴림이 복원된 레벨을 실제로 사용했다는 것이 (구체적으로 어떤
@@ -134,7 +153,7 @@ describe('길드: 일일 퀘스트', () => {
     expect(() => decodeSave(JSON.stringify(raw4))).toThrow('퀘스트 정보 오류');
 
     const raw5 = JSON.parse(encodeSave(s));
-    raw5.dailyQuests.quests[0].amount = 16; // 생성 범위 밖 수량
+    raw5.dailyQuests.quests[0].amount = QUEST_MAX_AMOUNT + 1; // 생성 범위 밖 수량
     delete raw5.checksum;
     expect(() => decodeSave(JSON.stringify(raw5))).toThrow('퀘스트 정보 오류');
 

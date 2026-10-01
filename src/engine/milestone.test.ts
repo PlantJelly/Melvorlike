@@ -51,10 +51,10 @@ describe('길드: 마일스톤 퀘스트', () => {
   it('실패한 환전은 기록하지 않고 성공한 환전만 첫 환전 목표를 연다', () => {
     const s = initial(0);
     s.inventory.oak = 2;
-    expect(exchangeResource(s, 'oak', 3)).toBe(false);
+    expect(exchangeResource(s, 'oak', 'wood', 3)).toBe(false);
     expect(s.milestones.exchangeUsed).toBe(false);
     expect(milestoneReady(s, 'first_exchange')).toBe(false);
-    expect(exchangeResource(s, 'oak', 2)).toBe(true);
+    expect(exchangeResource(s, 'oak', 'wood', 2)).toBe(true);
     expect(s.milestones.exchangeUsed).toBe(true);
     expect(milestoneReady(s, 'first_exchange')).toBe(true);
   });

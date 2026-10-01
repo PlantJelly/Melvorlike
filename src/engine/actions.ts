@@ -74,8 +74,8 @@ export function buyResourceAction(id: string, n = 1) {
   mutate(s => { buyResource(s, id, n); });
   saveGame();
 }
-export function exchangeResourceAction(id: string, n: number) {
-  mutate(s => { exchangeResource(s, id, n); });
+export function exchangeResourceAction(id: string, targetId: string, n: number) {
+  mutate(s => { exchangeResource(s, id, targetId, n); });
   saveGame();
 }
 export function upgradeGuildAction() {

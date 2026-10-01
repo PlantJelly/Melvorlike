@@ -1,20 +1,32 @@
-// 상위 티어 원재료를 하위 티어로 환전한다. targetId는 항상 해당 스킬의 최하위(Lv1) 원재료이고,
-// tierGap은 그 스킬 안에서 몇 단계 위인지를 나타낸다(환전 비율·길드 등급별 허용 깊이의 기준).
+import { ResourceDB } from './resources';
+import type { SkillId } from './types';
+
+// 상위 티어 원재료를 같은 스킬의 더 낮은 티어로 환전한다(D051). 채집 스킬의 해금 레벨(Lv1·10·20·…·95)이 곧 티어이고,
+// 한 원재료는 1~3단계 아래 티어의 원재료 각각으로 바꿀 수 있다(tierGap). 길드 등급이 허용 깊이를 정한다.
+// 하위 → 상위 경로는 없으므로 환전을 반복해도 순환 거래가 생기지 않는다.
 export interface ExchangeDef { targetId: string; tierGap: number }
-export const ExchangeDB: Record<string, ExchangeDef> = {
-  oak: {targetId: 'wood', tierGap: 1},
-  hardwood: {targetId: 'wood', tierGap: 2},
-  magic_wood: {targetId: 'wood', tierGap: 3},
-  iron: {targetId: 'stone', tierGap: 1},
-  gold_ore: {targetId: 'stone', tierGap: 2},
-  fish_carp: {targetId: 'fish_small', tierGap: 1},
-  fish_salmon: {targetId: 'fish_small', tierGap: 2},
-  wild_mushroom: {targetId: 'wild_berry', tierGap: 1},
-  wild_herb: {targetId: 'wild_berry', tierGap: 2},
-  rare_mushroom: {targetId: 'wild_berry', tierGap: 3},
-};
-// 환전 시 1개당 받는 수량 = tierGap 단계마다 이 배율씩 복리 적용(내림).
+export const exchangeSkills: readonly SkillId[] = ['logging', 'mining', 'fishing', 'foraging'];
+export const MAX_EXCHANGE_GAP = 3;
+export const ExchangeDB: Record<string, ExchangeDef[]> = (() => {
+  const db: Record<string, ExchangeDef[]> = {};
+  for (const skill of exchangeSkills) {
+    const raws = Object.values(ResourceDB).filter(r => r.skill === skill && !r.recipe && !r.dropOnly);
+    const tiers = [...new Set(raws.map(r => r.reqLevel))].sort((a, b) => a - b);
+    for (const r of raws) {
+      const tier = tiers.indexOf(r.reqLevel);
+      const targets: ExchangeDef[] = [];
+      for (let gap = 1; gap <= Math.min(MAX_EXCHANGE_GAP, tier); gap++) {
+        for (const target of raws.filter(x => x.reqLevel === tiers[tier - gap])) targets.push({targetId: target.id, tierGap: gap});
+      }
+      if (targets.length) db[r.id] = targets;
+    }
+  }
+  return db;
+})();
+// 환전 시 1개당 받는 수량 = tierGap 단계마다 이 배율씩 복리 적용(내림). 단, 판매가 기준으로 원재료 가치의
+// EXCHANGE_VALUE_CAP을 넘지 않게 잘라 "환전 후 되팔기"가 어떤 티어 쌍에서도 손해가 되게 한다(D051).
 export const exchangeRate = 1.5;
+export const EXCHANGE_VALUE_CAP = 0.9;
 
 // 길드 등급이 오를수록 더 깊은 티어 차이까지 환전할 수 있다(등급 인덱스 + 1 = 허용 tierGap).
 export const guildTiers: {name: string; goldCost: number}[] = [

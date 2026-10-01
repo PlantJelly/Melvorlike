@@ -12,6 +12,8 @@
 .replace-meal p { margin-bottom:10px; }
 .inventory article { flex-wrap:wrap; }
 .inventory .food-controls { margin:0; }
+.inventory .exchange-targets { display:flex; flex-wrap:wrap; gap:6px; margin-right:0; }
+.exchange-targets button { font-size:13px; padding:6px 10px; }
 .section-title { margin:34px 0 4px; padding-top:18px; border-top:1px solid #304136; }
 .accessory-cards article { align-items:stretch; }
 .accessory-option { min-height:48px; color:#e6cb89; }

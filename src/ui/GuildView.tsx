@@ -3,7 +3,7 @@ import { ResourceDB, skillNames } from '../content/resources';
 import { ExchangeDB, guildTiers, milestones } from '../content/guild';
 import { state } from '../state/gameState';
 import { buyResourceAction, exchangeResourceAction, upgradeGuildAction, completeDailyQuestAction, claimMilestoneAction } from '../engine/actions';
-import { dailyQuestReward, exchangeRateFor, milestoneReady } from '../engine/model';
+import { dailyQuestReward, exchangeRateFor, exchangeYield, facilityGateMet, milestoneReady, skillUnlocked } from '../engine/model';
 import { fmt } from './ProductionView';
 
 export function GuildView() {
@@ -54,29 +54,35 @@ export function GuildView() {
     <p class="muted">스킬 레벨로 이미 해금한 원재료만 구매할 수 있습니다. 가공품은 대상이 아닙니다.</p>
     <div class="inventory">
       <For each={Object.values(ResourceDB).filter(r => !r.recipe)}>{r => {
-        const unlocked = () => state().skills[r.skill].level >= r.reqLevel;
+        const levelMet = () => skillUnlocked(state(), r.skill) && state().skills[r.skill].level >= r.reqLevel;
+        const unlocked = () => levelMet() && facilityGateMet(state(), r.id);
         return <article>
-          <div><h2>{r.icon} {r.name}</h2><small>{unlocked() ? `개당 ${fmt(r.buy)} G` : `${skillNames[r.skill]} Lv.${r.reqLevel}에 해금`}</small></div>
+          <div><h2>{r.icon} {r.name}</h2><small>{unlocked() ? `개당 ${fmt(r.buy)} G` : levelMet() ? '해당 구역 시설 강화 필요' : `${skillNames[r.skill]} Lv.${r.reqLevel}에 해금`}</small></div>
           <strong>보유 {fmt(state().inventory[r.id] ?? 0)}개</strong>
           <button disabled={!unlocked() || state().gold < r.buy} onClick={() => buyResourceAction(r.id, 1)}>1개 구매</button>
           <button disabled={!unlocked() || state().gold < r.buy * 10} onClick={() => buyResourceAction(r.id, 10)}>10개 구매</button>
+          <button disabled={!unlocked() || state().gold < r.buy * 100} onClick={() => buyResourceAction(r.id, 100)}>100개 구매</button>
         </article>;
       }}</For>
     </div>
 
     <h2 class="section-title">환전</h2>
-    <p class="muted">보유한 재료를 전부 하위 티어로 바꿉니다. 티어 차이가 클수록 받는 수량이 늘어납니다.</p>
+    <p class="muted">보유한 원재료를 같은 스킬의 1~3단계 아래 원재료로 전부 바꿉니다. 단계마다 ×{exchangeRateFor(state()).toFixed(2)}개씩 늘고(원재료 가치의 90%까지), 길드 등급이 오를수록 더 아래 단계까지 바꿀 수 있습니다.</p>
     <div class="inventory">
-      <For each={Object.entries(ExchangeDB)}>{([id, ex]) => {
+      <For each={Object.keys(ExchangeDB).filter(id => (state().inventory[id] ?? 0) > 0)} fallback={<p class="muted">환전할 수 있는 원재료가 없습니다.</p>}>{id => {
         const r = ResourceDB[id];
-        const target = ResourceDB[ex.targetId];
         const owned = () => state().inventory[id] ?? 0;
-        const allowed = () => ex.tierGap <= depth();
-        const rate = Math.pow(exchangeRateFor(state()), ex.tierGap);
         return <article>
-          <div><h2>{r.icon} {r.name} → {target.icon} {target.name}</h2><small>{allowed() ? `1개당 ${target.name} ${Math.floor(rate)}개` : `${guildTiers[ex.tierGap - 1]?.name ?? '더 높은 등급'} 필요`}</small></div>
-          <strong>보유 {fmt(owned())}개</strong>
-          <button disabled={!allowed() || owned() < 1} onClick={() => exchangeResourceAction(id, owned())}>전부 환전</button>
+          <div><h2>{r.icon} {r.name}</h2><small>보유 {fmt(owned())}개</small></div>
+          <div class="exchange-targets">
+            <For each={ExchangeDB[id]}>{ex => {
+              const target = ResourceDB[ex.targetId];
+              const allowed = () => ex.tierGap <= depth();
+              return <button disabled={!allowed()} title={allowed() ? '' : `${guildTiers[ex.tierGap - 1]?.name ?? '더 높은 등급'} 필요`} onClick={() => exchangeResourceAction(id, ex.targetId, owned())}>
+                → {target.icon} {target.name} {allowed() ? `×${exchangeYield(state(), id, ex).toFixed(2)}` : `(${guildTiers[ex.tierGap - 1]?.name ?? '더 높은 등급'})`}
+              </button>;
+            }}</For>
+          </div>
         </article>;
       }}</For>
     </div>

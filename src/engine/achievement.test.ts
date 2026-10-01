@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, begin, buyResource, claimMilestone, dailyQuestReward, economyAchievements, exchangeRateFor, exchangeResource, growthAchievements, recipeFor, rerollAccessory, SAVE_VERSION, sell, unlockedGame as initial } from './model';
+import { advance, begin, buyResource, claimMilestone, dailyQuestReward, economyAchievements, exchangeRateFor, exchangeResource, exchangeYield, growthAchievements, recipeFor, rerollAccessory, SAVE_VERSION, sell, unlockedGame as initial } from './model';
 import { decodeSave, encodeSave } from './save';
 import { ResourceDB } from '../content/resources';
 import { ExchangeDB, exchangeRate } from '../content/guild';
@@ -28,7 +28,7 @@ describe('업적', () => {
     const quest = {resourceId: 'wood', amount: 10, done: false};
     const base = dailyQuestReward(s, quest);
     s.skills.logging.level = 99;
-    expect(dailyQuestReward(s, quest)).toBe(Math.floor(10 * ResourceDB.wood.sell * 2 * (1 + growthLevels.length * GROWTH_SALE_BONUS)));
+    expect(dailyQuestReward(s, quest)).toBe(Math.floor(10 * ResourceDB.wood.sell * 3 * (1 + growthLevels.length * GROWTH_SALE_BONUS)));
     expect(dailyQuestReward(s, quest)).toBeGreaterThan(base);
   });
 
@@ -38,22 +38,24 @@ describe('업적', () => {
     s.skills.logging.level = 10;
     buyResource(s, 'wood', 10); // 지출은 누계에 영향 없음
     expect(s.goldEarned).toBe(0);
-    s.inventory.oak = 100_000;
-    sell(s, 'oak', 3334);
-    expect(s.goldEarned).toBe(Math.floor(3334 * ResourceDB.oak.sell * (1 + GROWTH_SALE_BONUS)));
+    s.inventory.oak = 400_000;
+    sell(s, 'oak', 333_334);
+    expect(s.goldEarned).toBe(Math.floor(333_334 * ResourceDB.oak.sell * (1 + GROWTH_SALE_BONUS)));
     expect(economyAchievements(s)).toBe(1);
     expect(exchangeRateFor(s)).toBeCloseTo(exchangeRate + ECONOMY_EXCHANGE_BONUS);
     const wood = s.inventory.wood ?? 0;
-    exchangeResource(s, 'oak', 100);
+    exchangeResource(s, 'oak', 'wood', 100);
     expect(s.inventory.wood).toBe(wood + Math.floor(100 * (exchangeRate + ECONOMY_EXCHANGE_BONUS)));
     claimMilestone(s, 'any_skill_10');
-    expect(s.goldEarned).toBeGreaterThan(10_000);
+    expect(s.goldEarned).toBeGreaterThan(1_000_000);
   });
 
   it('최대 환전 배율에서도 환전 후 되팔기가 직접 팔기보다 항상 손해다', () => {
-    const maxRate = exchangeRate + ECONOMY_EXCHANGE_BONUS * economyThresholds.length;
-    for (const [id, ex] of Object.entries(ExchangeDB)) {
-      expect(Math.pow(maxRate, ex.tierGap) * ResourceDB[ex.targetId].sell).toBeLessThan(ResourceDB[id].sell);
+    const s = initial(0);
+    s.goldEarned = economyThresholds[economyThresholds.length - 1];
+    expect(exchangeRateFor(s)).toBeCloseTo(exchangeRate + ECONOMY_EXCHANGE_BONUS * economyThresholds.length);
+    for (const [id, targets] of Object.entries(ExchangeDB)) {
+      for (const ex of targets) expect(exchangeYield(s, id, ex) * ResourceDB[ex.targetId].sell, `${id} → ${ex.targetId}`).toBeLessThan(ResourceDB[id].sell);
     }
   });
 

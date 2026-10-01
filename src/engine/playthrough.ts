@@ -40,6 +40,8 @@ export interface PlaythroughOptions {
   seed?: number;
   // 이 목표를 달성하면 멈춘다(테스트·부분 보고용).
   stopAfterGoal?: string;
+  // 남는 골드로 원재료를 길드에서 사 채집 시간을 줄인다(D051 — 기획서의 "골드 → 시간" 따라잡기). 기본 true.
+  catchUpBuying?: boolean;
 }
 
 export interface GoalRecord {
@@ -74,6 +76,8 @@ export interface PlaythroughResult {
   samples: PlaythroughSample[];
   decisions: number;
   stuck: string | null;
+  // 원재료 구매에 쓴 골드 합계(D051).
+  goldSpentBuying: number;
   final: Model;
 }
 
@@ -89,7 +93,12 @@ interface Context {
   reserve: Set<string>;
   random: () => number;
   scenario: PlaythroughScenario;
+  catchUpBuying: boolean;
+  spent: {buying: number};
 }
+
+// 원재료 구매는 이 골드를 남겨 둔 채로만 한다 — 가장 비싼 시설 강화(약 107만 G)를 막지 않게.
+const CATCH_UP_RESERVE = 2_000_000;
 
 export interface Goal {
   id: string;
@@ -158,6 +167,14 @@ function acquire(s: Model, ctx: Context, id: string, qty: number, depth = 0): Pl
   if (depth > 12) return wait('재료 경로 과다');
   const r = ResourceDB[id];
   if (!skillUnlocked(s, r.skill)) return wait(`${skillNames[r.skill]} 미해금`);
+  // 골드가 넉넉하면 원재료를 사서 채집 시간을 줄인다(판매가 ×5, D051).
+  if (ctx.catchUpBuying && !r.recipe && s.skills[r.skill].level >= r.reqLevel && facilityGateMet(s, id)) {
+    const count = Math.min(missing, Math.floor((s.gold - CATCH_UP_RESERVE) / r.buy));
+    if (count > 0 && buyResource(s, id, count)) {
+      ctx.spent.buying += count * r.buy;
+      return PROGRESS;
+    }
+  }
   if (r.dropOnly) return produce('stone', (missing * CHANCE_SCALE - s.coalProgress) / COAL_CHANCE);
   if (s.skills[r.skill].level < r.reqLevel) return train(s, ctx, r.skill, r.reqLevel, depth + 1);
   // 재료가 시설 단계에 막혀 있으면 그 시설을 (골드를 벌어서라도) 올린다. 스킬 레벨이 모자라 못 올리면 대기.
@@ -681,6 +698,7 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   let decisions = 0;
   let stuck: string | null = null;
   let nextSample = DAY;
+  const spent = {buying: 0};
   // 레벨은 시간 정산뿐 아니라 결정 중의 수동 수확으로도 오르므로, 마지막으로 본 레벨과 비교해 기록한다.
   const seen = playable.map(skill => s.skills[skill].level);
   const levelTimes = Object.fromEntries(playable.map(skill => [skill, [0, 0]])) as Record<SkillId, number[]>;
@@ -701,7 +719,7 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   while (t < options.horizonMs) {
     decisions++;
     if (skillUnlocked(s, 'cooking') || s.unlockedFeatures.includes('guild')) for (const id of milestoneIds) claimMilestone(s, id);
-    const ctx: Context = {demand: {}, reserve: new Set(), random, scenario};
+    const ctx: Context = {demand: {}, reserve: new Set(), random, scenario, catchUpBuying: options.catchUpBuying ?? true, spent};
     let plan: Plan = wait('목표 없음');
     for (let guard = 0; guard < 500; guard++) {
       finishGoals();
@@ -747,5 +765,5 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   }
   finishGoals();
   samples.push(snapshot(s, t));
-  return {scenario, goals: records, levelMarks, levelTimes, activeMs, idleMs, elapsedMs: t, samples, decisions, stuck, final: s};
+  return {scenario, goals: records, levelMarks, levelTimes, activeMs, idleMs, elapsedMs: t, samples, decisions, stuck, goldSpentBuying: spent.buying, final: s};
 }
