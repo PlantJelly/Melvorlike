@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { begin, buyResource, duration, eat, facilityGateMet, generateDailyQuests, unlockedGame } from './model';
+import { begin, buyResource, duration, eat, facilityGateMet, generateDailyQuests, harvestOutput, plant, unlockedGame } from './model';
+import { saplingOf } from '../content/saplings';
 import { FoodDB } from '../content/foods';
 import { decodeSave, encodeSave } from './save';
 import { ResourceDB, toolTiers } from '../content/resources';
@@ -65,6 +66,33 @@ describe('레벨 디자인 격자(D049)', () => {
     delete raw.checksum;
     raw.facilities.ruined_sawmill = 3;
     expect(() => decodeSave(JSON.stringify(raw))).toThrow();
+  });
+
+  it('농사 후반 작물·약초(Lv55·70·85)는 수확량이 3이고, Lv70·85는 밭 시설 4·6단계가 있어야 심는다', () => {
+    const s = unlockedGame(0);
+    s.skills.farming.level = 99;
+    s.inventory = {pumpkin: 1, golden_wheat: 1, royal_grape: 1};
+    s.farmPlots = [null, null, null];
+    expect(plant(s, 'pumpkin')).toBe(true);
+    expect(plant(s, 'golden_wheat')).toBe(false);
+    s.facilities.abandoned_field = 4;
+    expect(plant(s, 'golden_wheat')).toBe(true);
+    expect(plant(s, 'royal_grape')).toBe(false);
+    s.facilities.abandoned_field = 6;
+    expect(plant(s, 'royal_grape')).toBe(true);
+    for (const id of ['pumpkin', 'golden_wheat', 'royal_grape', 'moonpetal', 'flame_herb', 'world_leaf']) expect(harvestOutput(id)).toEqual({resourceId: id, count: 3});
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.facilities.abandoned_field = 3;
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow();
+  });
+
+  it('새 단계 나무도 묘목이 나오고, 묘목을 심으면 그 원목을 수확한다', () => {
+    for (const log of ['pine', 'birch', 'moon_wood', 'star_wood', 'world_branch']) {
+      const sapling = saplingOf[log];
+      expect(ResourceDB[sapling].skill).toBe('farming');
+      expect(harvestOutput(sapling).resourceId).toBe(log);
+    }
   });
 
   it('새 생선 요리 6종은 음식 효과가 있고 먹으면 적용된다', () => {

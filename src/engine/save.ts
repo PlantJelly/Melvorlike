@@ -213,7 +213,7 @@ export function decodeSave(text: string): Model {
     if (plot === null) return null;
     if (!object(plot) || typeof plot.cropId !== 'string' || !Object.hasOwn(ResourceDB, plot.cropId) || ResourceDB[plot.cropId].skill !== 'farming' || !finite(plot.progressMs)) throw Error('농사밭 정보 오류');
     const r = ResourceDB[plot.cropId];
-    if (!skillUnlocked(s, 'farming') || plot.progressMs > r.baseDurationMs || s.skills.farming.level < r.reqLevel) throw Error('농사밭 정보 오류');
+    if (!skillUnlocked(s, 'farming') || plot.progressMs > r.baseDurationMs || s.skills.farming.level < r.reqLevel || !facilityGateMet(s, r.id)) throw Error('농사밭 정보 오류');
     // 칸별 비료는 v24부터 저장된다.
     if (plot.fertilizer === undefined) return {cropId: r.id, progressMs: plot.progressMs};
     if (version < 24 || typeof plot.fertilizer !== 'string' || !fertilizerIds.includes(plot.fertilizer as FertilizerId)) throw Error('농사밭 정보 오류');

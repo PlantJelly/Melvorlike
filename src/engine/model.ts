@@ -829,7 +829,7 @@ function sow(s: Model, index: number, cropId: string, fertilizer: FertilizerId |
 export function plant(s: Model, id: string, fertilizer?: FertilizerId) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
   const index = s.farmPlots.indexOf(null);
-  if (!skillUnlocked(s, 'farming') || !r || r.skill !== 'farming' || index < 0 || s.skills.farming.level < r.reqLevel) return false;
+  if (!skillUnlocked(s, 'farming') || !r || r.skill !== 'farming' || index < 0 || s.skills.farming.level < r.reqLevel || !facilityGateMet(s, id)) return false;
   if (fertilizer !== undefined && !fertilizerIds.includes(fertilizer)) return false;
   if (!sow(s, index, id, fertilizer, false)) return false;
   s.notice = '';

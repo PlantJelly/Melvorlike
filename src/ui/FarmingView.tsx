@@ -3,7 +3,9 @@ import { ResourceDB } from '../content/resources';
 import { farmAutomation, type FarmUpgrade } from '../content/farm';
 import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/fertilizers';
 import { state } from '../state/gameState';
-import { afford, duration, farmRemainingMs, harvestOutput, nextPlotUpgrade, plotReady } from '../engine/model';
+import { afford, duration, facilityGateMet, farmRemainingMs, harvestOutput, nextPlotUpgrade, plotReady } from '../engine/model';
+import { ProjectDB } from '../content/projects';
+import { facilityRequirement } from '../content/facilities';
 import { buySeed, plantCrop, harvestCrop, clearPlotAction, expandFarmAction, automateFarmAction, buyFertilizerAction } from '../engine/actions';
 import { costText, fmt } from './ProductionView';
 
@@ -90,9 +92,15 @@ export function FarmingView() {
       <For each={fertilizerIds}>{id => <option value={id}>{FertilizerDB[id].name} (보유 {state().fertilizers[id]})</option>}</For>
     </select></label>
     <div class="cards">
-      <For each={Object.values(ResourceDB).filter(r => r.skill === 'farming')}>{r => {
+      <For each={Object.values(ResourceDB).filter(r => r.skill === 'farming').sort((a, b) => a.reqLevel - b.reqLevel)}>{r => {
         const out = harvestOutput(r.id);
         const sapling = out.resourceId !== r.id;
+        // Lv70·85 작물은 버려진 밭 시설 단계가 필요하다(D050).
+        const gated = () => !facilityGateMet(state(), r.id);
+        const gateText = () => {
+          const need = facilityRequirement('farming', r.reqLevel)!;
+          return `${ProjectDB[need.projectId].name} 시설 ${need.level}단계 필요`;
+        };
         return <article>
           <div class="item-icon">{r.icon}</div>
           <h2>{r.name}</h2>
@@ -100,9 +108,9 @@ export function FarmingView() {
           <p class="muted">성장 {minutes(duration(state(), r.id))}분 · 수확 {sapling ? `${ResourceDB[out.resourceId].name} ` : ''}{fmt(out.count)}개 · 경험치 +{r.exp}</p>
           <p class="recipe">{sapling ? '묘목' : '씨앗'} {fmt(r.buy)} G{sapling ? ' · 벌목 중에도 얻을 수 있습니다' : ''}</p>
           <div class="button-row">
-            <button disabled={skill().level < r.reqLevel || state().gold < r.buy} onClick={() => buySeed(r.id, 1)}>{sapling ? '묘목 구매' : '씨앗 구매'}</button>
-            <button disabled={skill().level < r.reqLevel || !hasEmpty() || (state().inventory[r.id] ?? 0) < 1 || !fertilizerReady()} onClick={() => plantCrop(r.id, fertilizer() || undefined)}>
-              {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : '심기'}
+            <button disabled={skill().level < r.reqLevel || gated() || state().gold < r.buy} onClick={() => buySeed(r.id, 1)}>{sapling ? '묘목 구매' : '씨앗 구매'}</button>
+            <button disabled={skill().level < r.reqLevel || gated() || !hasEmpty() || (state().inventory[r.id] ?? 0) < 1 || !fertilizerReady()} onClick={() => plantCrop(r.id, fertilizer() || undefined)}>
+              {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : gated() ? gateText() : '심기'}
             </button>
           </div>
         </article>;

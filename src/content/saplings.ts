@@ -9,6 +9,11 @@ export const saplingOf: Record<string, string> = {
   oak: 'sapling_oak',
   hardwood: 'sapling_hardwood',
   magic_wood: 'sapling_magic',
+  pine: 'sapling_pine',
+  birch: 'sapling_birch',
+  moon_wood: 'sapling_moon',
+  star_wood: 'sapling_star',
+  world_branch: 'sapling_world',
 };
 
 // 수확량은 같은 티어 약초씨 수확물(3개)의 판매가와 원목 총 판매가가 같아지도록 정했다.
@@ -17,4 +22,9 @@ export const saplingHarvest: Record<string, {resourceId: string; count: number}>
   sapling_oak: {resourceId: 'oak', count: 440},
   sapling_hardwood: {resourceId: 'hardwood', count: 355},
   sapling_magic: {resourceId: 'magic_wood', count: 237},
+  sapling_pine: {resourceId: 'pine', count: 71},
+  sapling_birch: {resourceId: 'birch', count: 47},
+  sapling_moon: {resourceId: 'moon_wood', count: 25},
+  sapling_star: {resourceId: 'star_wood', count: 26},
+  sapling_world: {resourceId: 'world_branch', count: 27},
 };

@@ -349,7 +349,7 @@ function chooseCrop(s: Model, demand: Record<string, number> | null): string | n
   let best: string | null = null;
   let bestScore = -1;
   for (const r of Object.values(ResourceDB)) {
-    if (r.skill !== 'farming' || r.reqLevel > level || r.id.startsWith('sapling_')) continue;
+    if (r.skill !== 'farming' || r.reqLevel > level || r.id.startsWith('sapling_') || !facilityGateMet(s, r.id)) continue;
     if (demand ? (demand[r.id] ?? 0) <= 0 : false) continue;
     if (have(s, r.id) === 0 && s.gold < r.buy * (demand ? 1 : 2)) continue;
     const score = r.exp / r.baseDurationMs;

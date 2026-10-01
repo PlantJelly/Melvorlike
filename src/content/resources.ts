@@ -53,6 +53,20 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('sapling_oak', '참나무 묘목', 'farming', 10, 540000, 606, 44, '🌱'),
     row('sapling_hardwood', '단단한 나무 묘목', 'farming', 25, 960000, 1590, 142, '🌱'),
     row('sapling_magic', '마법 나무 묘목', 'farming', 40, 1500000, 3640, 395, '🌱'),
+    // 농사 후반 단계(D050): 농사 자체의 15레벨 리듬(1·10·25·40)을 이어 Lv55·70·85에 작물·약초를 둔다. 초당 경험치·판매가는
+    // Lv40 값에서 15레벨마다 ×1.078·×1.346(채집 Lv50 이후와 같은 레벨당 ×1.005·×1.02). Lv70·85는 버려진 밭 시설 4·6단계 필요.
+    row('pumpkin', '호박', 'farming', 55, 1800000, 4698, 637, '🎃'),
+    row('golden_wheat', '황금 밀', 'farming', 70, 2160000, 6070, 1030, '🌾'),
+    row('royal_grape', '왕실 포도', 'farming', 85, 2520000, 7636, 1617, '🍇'),
+    row('moonpetal', '월광초', 'farming', 55, 1860000, 4866, 659, '💮'),
+    row('flame_herb', '불꽃풀', 'farming', 70, 2220000, 6262, 1059, '🌶️'),
+    row('world_leaf', '세계수 잎', 'farming', 85, 2580000, 7845, 1656, '🪴'),
+    // 새 단계 나무 묘목(D050): 같은 농사 단계 약초와 같은 시간·경험치·판매가. 수확량은 약초 3개 판매가 ÷ 원목 판매가.
+    row('sapling_pine', '소나무 묘목', 'farming', 25, 960000, 1590, 142, '🌱'),
+    row('sapling_birch', '자작나무 묘목', 'farming', 40, 1500000, 3640, 395, '🌱'),
+    row('sapling_moon', '달빛나무 묘목', 'farming', 55, 1860000, 4866, 659, '🌱'),
+    row('sapling_star', '별빛나무 묘목', 'farming', 70, 2220000, 6262, 1059, '🌱'),
+    row('sapling_world', '세계수 묘목', 'farming', 85, 2580000, 7845, 1656, '🌱'),
     row('egg', '달걀', 'ranching', 1, 1800000, 665, 75, '🥚'),
     row('wool', '양털', 'ranching', 15, 2700000, 1725, 268, '🧶'),
     row('milk', '우유', 'ranching', 30, 3600000, 3380, 650, '🥛'),
@@ -112,17 +126,17 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('catfish_stew', '메기 매운탕', 'cooking', 20, 8000, 84, 62, '🍲', {catfish: 2, potato: 1}),
     row('grilled_trout', '송어 구이', 'cooking', 40, 11000, 165, 54, '🍢', {trout: 2, wood: 1}),
     row('eel_rice', '장어 덮밥', 'cooking', 50, 12000, 307, 114, '🍱', {eel: 2, wheat: 2}),
-    row('sturgeon_soup', '철갑상어 수프', 'cooking', 65, 14000, 330, 280, '🥣', {sturgeon: 2, carrot: 1}),
-    row('tuna_steak', '참치 스테이크', 'cooking', 80, 16000, 403, 576, '🥩', {tuna: 2, golden_corn: 1}),
-    row('golden_carp_feast', '황금 잉어찜', 'cooking', 95, 18000, 484, 895, '🎏', {golden_carp: 2, milk: 1}),
+    row('sturgeon_soup', '철갑상어 수프', 'cooking', 65, 14000, 330, 787, '🥣', {sturgeon: 2, pumpkin: 1}),
+    row('tuna_steak', '참치 스테이크', 'cooking', 80, 16000, 403, 1195, '🥩', {tuna: 2, golden_wheat: 1}),
+    row('golden_carp_feast', '황금 잉어찜', 'cooking', 95, 18000, 484, 1763, '🎏', {golden_carp: 2, royal_grape: 1}),
     row('mana_crystal_low', '하급 마력 결정', 'magic', 20, 15000, 264, 141, '💠', {chamomile: 1, mana_stone: 2, silver_ingot: 1}),
     row('mana_crystal_mid', '중급 마력 결정', 'magic', 40, 22000, 600, 208, '💠', {mugwort: 1, mana_stone: 3, crystal_alloy: 1}),
-    row('mana_crystal_high', '상급 마력 결정', 'magic', 65, 32000, 1085, 365, '💠', {magic_mugwort: 1, mana_stone: 4, lapis_ingot: 1}),
-    row('mana_crystal_great', '최상급 마력 결정', 'magic', 80, 36000, 1332, 692, '💠', {mystic_herb: 1, mana_stone: 5, star_ingot: 1}),
-    row('mana_crystal_prime', '원초 마력 결정', 'magic', 95, 40000, 1852, 1272, '💠', {mystic_herb: 2, mana_stone: 6, sun_ingot: 1})
+    row('mana_crystal_high', '상급 마력 결정', 'magic', 65, 32000, 1085, 811, '💠', {moonpetal: 1, mana_stone: 4, lapis_ingot: 1}),
+    row('mana_crystal_great', '최상급 마력 결정', 'magic', 80, 36000, 1332, 1266, '💠', {flame_herb: 1, mana_stone: 5, star_ingot: 1}),
+    row('mana_crystal_prime', '원초 마력 결정', 'magic', 95, 40000, 1852, 3452, '💠', {world_leaf: 2, mana_stone: 6, sun_ingot: 1})
 ].map(r => [r.id, r]));
 // 수확 시 씨앗 1개를 심어 한 번에 돌려받는 개수. 재파종 분을 남기고 잉여를 판매/요리에 쓴다.
-export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3, golden_corn: 3, chamomile: 3, mugwort: 3, magic_mugwort: 3, mystic_herb: 3 };
+export const cropYield: Record<string, number> = { wheat: 3, potato: 3, carrot: 3, golden_corn: 3, chamomile: 3, mugwort: 3, magic_mugwort: 3, mystic_herb: 3, pumpkin: 3, golden_wheat: 3, royal_grape: 3, moonpetal: 3, flame_herb: 3, world_leaf: 3 };
 export const skillNames: Record<SkillId, string> = { logging: '벌목', mining: '채광', blacksmithing: '대장작업', fishing: '낚시', cooking: '요리', farming: '농사', ranching: '목장', magic: '마법', foraging: '채집', woodworking: '목공', apothecary: '조제', sewing: '재봉' };
 export const playable: SkillId[] = ['logging', 'mining', 'blacksmithing', 'fishing', 'cooking', 'farming', 'ranching', 'magic', 'foraging', 'woodworking', 'apothecary', 'sewing'];
 // 액티브 단일 작업 슬롯을 쓰지 않고 항상 배경에서 병행 진행되는 스킬. begin()/저장 검증/화면 라우팅이 함께 참조한다.
