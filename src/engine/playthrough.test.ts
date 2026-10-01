@@ -50,7 +50,7 @@ describe('전체 진행 경로 시뮬레이션 — 왕국 이후 성장 구간',
   it('도구 철 티어·밭 3칸·축사 2단계·동물 3마리·금 장신구까지 멈추지 않고 달성한다', () => {
     expect(result.stuck).toBeNull();
     const s = result.final;
-    expect(playable.every(skill => s.tools[skill] === 3)).toBe(true);
+    expect(playable.every(skill => s.tools[skill] >= 3)).toBe(true);
     expect(s.farmPlots).toHaveLength(3);
     expect(s.barnLevel).toBe(2);
     expect(Object.values(s.ranchCounts)).toEqual([3, 3, 3]);

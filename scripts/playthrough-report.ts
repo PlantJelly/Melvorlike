@@ -1,4 +1,4 @@
-import { playable, skillNames } from '../src/content/resources';
+import { ResourceDB, playable, skillNames, toolTiers } from '../src/content/resources';
 import { projectIds } from '../src/content/projects';
 import { FACILITY_MAX_LEVEL, facilityIds } from '../src/content/facilities';
 import { decodeSave, encodeSave } from '../src/engine/save';
@@ -96,6 +96,28 @@ for (const r of results) {
   }
   console.log(`| 왕국 공사 | | | | | | ${duration(r.activeMs.kingdom ?? 0)} |`);
   console.log(`| 유휴 | | | | | | ${duration(r.idleMs)} |`);
+}
+
+// 해금 간격(D049): 스킬별 해금 레벨(그 스킬 재료·레시피 + 도구 단계)에 처음 도달한 시각과, Lv50 이후 가장 긴 해금 사이 시간.
+for (const r of results) {
+  console.log('');
+  console.log(`## 해금 간격 (${r.scenario.name})`);
+  console.log('');
+  console.log('- 해금 레벨 = 그 스킬의 새 재료·레시피 레벨 + 도구 단계 레벨. 시각은 그 레벨에 처음 도달한 때입니다.');
+  console.log('');
+  console.log('| 스킬 | 해금 횟수 | Lv50 | Lv65 | Lv80 | Lv95 | Lv99 | Lv50 이후 최장 간격 |');
+  console.log('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
+  for (const skill of playable) {
+    const unlocks = [...new Set([...Object.values(ResourceDB).filter(x => x.skill === skill && !x.dropOnly).map(x => x.reqLevel), ...toolTiers.slice(1).map(x => x.level)])].sort((a, b) => a - b);
+    const at = (level: number) => r.levelTimes[skill][level] ?? null;
+    const late = [...unlocks.filter(level => level >= 50), 99];
+    let gap = 0;
+    for (let i = 1; i < late.length; i++) {
+      const a = at(late[i - 1]), b = at(late[i]) ?? (a === null ? null : r.elapsedMs);
+      if (a !== null && b !== null) gap = Math.max(gap, b - a);
+    }
+    console.log(`| ${skillNames[skill]} | ${unlocks.length} | ${[50, 65, 80, 95, 99].map(level => duration(at(level))).join(' | ')} | ${gap ? duration(gap) : '-'} |`);
+  }
 }
 
 console.log('');

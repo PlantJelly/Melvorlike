@@ -66,6 +66,8 @@ export interface PlaythroughResult {
   scenario: PlaythroughScenario;
   goals: GoalRecord[];
   levelMarks: {skill: SkillId; level: number; timeMs: number}[];
+  // 스킬별로 각 레벨에 처음 도달한 시각(인덱스 = 레벨). 해금 간격 분석에 쓴다.
+  levelTimes: Record<SkillId, number[]>;
   activeMs: Record<string, number>;
   idleMs: number;
   elapsedMs: number;
@@ -158,6 +160,7 @@ function acquire(s: Model, ctx: Context, id: string, qty: number, depth = 0): Pl
   if (!skillUnlocked(s, r.skill)) return wait(`${skillNames[r.skill]} 미해금`);
   if (r.dropOnly) return produce('stone', (missing * CHANCE_SCALE - s.coalProgress) / COAL_CHANCE);
   if (s.skills[r.skill].level < r.reqLevel) return train(s, ctx, r.skill, r.reqLevel, depth + 1);
+  if (!facilityGateMet(s, id)) return wait(`${skillNames[r.skill]} 시설 단계`);
   if (r.skill === 'farming') return needCrop(s, ctx, id, missing);
   if (r.skill === 'ranching') return needAnimalProduct(s, ctx, id, missing);
   if (!r.recipe) return produce(id, missing);
@@ -476,6 +479,19 @@ function guildGoal(tier: number): Goal {
   };
 }
 
+// 레벨이 된 다음 단계 도구를 만든다. 재료가 패시브 대기면 넘어간다(D049).
+function toolPlan(s: Model, ctx: Context): Plan | null {
+  for (const skill of playable) {
+    const tier = toolTiers[s.tools[skill] + 1];
+    if (!tier || !skillUnlocked(s, skill) || s.skills[skill].level < tier.level) continue;
+    const plan = acquireAll(s, ctx, Object.entries(tier.cost));
+    if (plan?.kind === 'wait') continue;
+    if (plan) return plan;
+    return upgrade(s, skill) ? PROGRESS : wait('도구 제작 실패');
+  }
+  return null;
+}
+
 // 레벨 조건을 만족한 왕국 시설 강화를 가장 싼 것부터 한다. 재료·골드가 모자라면 그 준비가 계획이 된다(D048).
 function facilityPlan(s: Model, ctx: Context): Plan | null {
   const ready = facilityIds.map(id => ({id, next: nextFacilityUpgrade(s, id)}))
@@ -498,6 +514,8 @@ function maxAllGoal(): Goal {
     id: 'max', label: '전 스킬 Lv99·시설 최대 강화', phase: '완주',
     done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL) && facilityIds.every(id => s.facilities[id] === FACILITY_MAX_LEVEL),
     step: (s, ctx) => {
+      const tool = toolPlan(s, ctx);
+      if (tool) return tool;
       const facility = facilityPlan(s, ctx);
       if (facility) return facility;
       const active = playable.filter(skill => !isPassive(skill) && s.skills[skill].level < MAX_SKILL_LEVEL)
@@ -625,8 +643,10 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   let nextSample = DAY;
   // 레벨은 시간 정산뿐 아니라 결정 중의 수동 수확으로도 오르므로, 마지막으로 본 레벨과 비교해 기록한다.
   const seen = playable.map(skill => s.skills[skill].level);
+  const levelTimes = Object.fromEntries(playable.map(skill => [skill, [0, 0]])) as Record<SkillId, number[]>;
   const recordLevels = () => playable.forEach((skill, i) => {
     for (const mark of LEVEL_MARKS) if (seen[i] < mark && s.skills[skill].level >= mark) levelMarks.push({skill, level: mark, timeMs: t});
+    for (let level = seen[i] + 1; level <= s.skills[skill].level; level++) levelTimes[skill][level] = t;
     seen[i] = s.skills[skill].level;
   });
 
@@ -687,5 +707,5 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   }
   finishGoals();
   samples.push(snapshot(s, t));
-  return {scenario, goals: records, levelMarks, activeMs, idleMs, elapsedMs: t, samples, decisions, stuck, final: s};
+  return {scenario, goals: records, levelMarks, levelTimes, activeMs, idleMs, elapsedMs: t, samples, decisions, stuck, final: s};
 }
