@@ -3,8 +3,17 @@ const row = (id: string, name: string, skill: SkillId, reqLevel: number, baseDur
 export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('wood', '나무', 'logging', 1, 3000, 25, 1, '🪵'), row('oak', '참나무', 'logging', 10, 5000, 60, 3, '🌳'),
     row('hardwood', '단단한 나무', 'logging', 30, 8000, 150, 12, '🌲'), row('magic_wood', '마법 나무', 'logging', 50, 12000, 400, 50, '✨'),
-    row('stone', '돌', 'mining', 1, 4000, 25, 1, '🪨'), row('copper', '구리 광석', 'mining', 1, 5000, 35, 3, '⛏️'), row('iron', '철 광석', 'mining', 10, 7000, 70, 8, '⛏️'),
-    row('gold_ore', '금 광석', 'mining', 50, 11000, 300, 35, '🟡'), row('mana_stone', '마나석', 'mining', 30, 9000, 180, 22, '🔷'),
+    // 채집 단계 격자(D049): Lv1·10·20·30·40·50·65·80·95. 새 단계의 경험치·판매가는 벌목 Lv1·10·30·50의 초당 값을
+    // 기하 보간(50 이후는 30→50 기울기로 외삽)한 값 × 작업 시간. Lv65·80·95는 해당 구역 시설 4·6·8단계가 필요하다.
+    row('pine', '소나무', 'logging', 20, 6500, 98, 6, '🌲'), row('birch', '자작나무', 'logging', 40, 10000, 250, 25, '🪵'),
+    row('moon_wood', '달빛나무', 'logging', 65, 14000, 718, 126, '🌙'), row('star_wood', '별빛나무', 'logging', 80, 16000, 1264, 309, '⭐'),
+    row('world_branch', '세계수 가지', 'logging', 95, 18000, 2190, 747, '🌳'),
+    // 채광 경험치는 벌목과 같은 초당 경험치로 맞췄다(D049).
+    row('stone', '돌', 'mining', 1, 4000, 33, 1, '🪨'), row('copper', '구리 광석', 'mining', 1, 5000, 42, 3, '⛏️'), row('iron', '철 광석', 'mining', 10, 7000, 84, 8, '⛏️'),
+    row('gold_ore', '금 광석', 'mining', 50, 11000, 367, 35, '🟡'), row('mana_stone', '마나석', 'mining', 30, 9000, 169, 22, '🔷'),
+    row('silver_ore', '은 광석', 'mining', 20, 8000, 120, 8, '⚪'), row('crystal', '수정 원석', 'mining', 40, 10000, 250, 25, '💎'),
+    row('lapis', '청금석', 'mining', 65, 13000, 667, 117, '🔵'), row('star_ore', '별철 광석', 'mining', 80, 15000, 1185, 289, '🌠'),
+    row('sunstone', '태양석', 'mining', 95, 17000, 2068, 706, '☀️'),
     row('brick', '돌 벽돌', 'blacksmithing', 1, 4000, 30, 5, '🧱', { stone: 2 }), row('copper_ingot', '구리 주괴', 'blacksmithing', 1, 6000, 40, 12, '▰', { copper: 3, coal: 1 }), row('iron_ingot', '철 주괴', 'blacksmithing', 10, 8000, 90, 30, '▰', { iron: 3, coal: 2 }),
     // 석탄은 모든 채광의 부산물(game_design §2.2 "전 광산 공통 드랍, 별도 탄광 없음"). 판매가는 나무 연료와 같게 둬 주괴 원가가 바뀌지 않게 했다.
     {...row('coal', '석탄', 'mining', 1, 4000, 0, 1, '⚫'), dropOnly: true},
@@ -12,6 +21,12 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     {...row('fish_small', '피라미', 'fishing', 1, 3500, 25, 2, '🐟'), area: '마을 개울'},
     {...row('fish_carp', '붕어', 'fishing', 10, 5500, 60, 5, '🐠'), area: '갈대 호수'},
     {...row('fish_salmon', '연어', 'fishing', 30, 8500, 150, 15, '🐟'), area: '상류 여울'},
+    {...row('catfish', '메기', 'fishing', 20, 7000, 105, 7, '🐡'), area: '늪지 웅덩이'},
+    {...row('trout', '송어', 'fishing', 40, 9500, 238, 24, '🐟'), area: '산속 계곡'},
+    {...row('eel', '장어', 'fishing', 50, 11000, 367, 46, '🐍'), area: '강 하구'},
+    {...row('sturgeon', '철갑상어', 'fishing', 65, 13000, 667, 117, '🐋'), area: '큰 호수'},
+    {...row('tuna', '참치', 'fishing', 80, 15000, 1185, 289, '🐟'), area: '바다 절벽'},
+    {...row('golden_carp', '황금 잉어', 'fishing', 95, 17000, 2068, 706, '🎏'), area: '신성한 연못'},
     row('grilled_fish', '구운 생선', 'cooking', 1, 5000, 35, 5, '🍢', {fish_small: 2}),
     row('fish_soup', '민물 생선탕', 'cooking', 10, 7000, 75, 12, '🍲', {fish_carp: 2}),
     row('smoked_salmon', '훈제 연어', 'cooking', 30, 10000, 180, 35, '🍣', {fish_salmon: 2, wood: 1}),
@@ -48,6 +63,10 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     // 섬유(game_design §2.12 "재봉은 목장의 양털과 야외 채집의 섬유를 함께 소비") — 수치는 산딸기와 같다(D046).
     row('fiber', '섬유', 'foraging', 1, 3000, 25, 1, '🎋'), row('wild_mushroom', '들버섯', 'foraging', 10, 5000, 60, 3, '🍄'),
     row('wild_herb', '산약초', 'foraging', 30, 8000, 150, 12, '🌱'), row('rare_mushroom', '영지버섯', 'foraging', 50, 12000, 400, 50, '🌰'),
+    // 채집 새 단계는 약재이자 섬유가 되는 식물이라 조제와 재봉이 함께 쓴다(수치는 벌목과 같음, D049).
+    row('nettle', '쐐기풀', 'foraging', 20, 6500, 98, 6, '🌿'), row('flax', '아마', 'foraging', 40, 10000, 250, 25, '🌾'),
+    row('silver_moss', '은빛 이끼', 'foraging', 65, 14000, 718, 126, '🍀'), row('silk_vine', '비단 덩굴', 'foraging', 80, 16000, 1264, 309, '🕸️'),
+    row('fairy_flower', '요정 꽃', 'foraging', 95, 18000, 2190, 747, '🌸'),
     row('plank', '나무 판자', 'woodworking', 1, 4000, 30, 6, '▬', {wood: 3}), row('oak_plank', '참나무 판자', 'woodworking', 10, 6500, 95, 18, '▬', {oak: 3, wood: 1}),
     row('hardwood_beam', '단단한 들보', 'woodworking', 30, 9500, 230, 48, '▬', {hardwood: 3, oak: 1}), row('magic_frame', '마법 골조', 'woodworking', 50, 13500, 500, 140, '▬', {magic_wood: 3, hardwood: 1}),
     // 조제 보조재(game_design §2.11 "접착제·보존제·염료 + 제작 보조재"): 시설 조립·장신구 채색·보존 식량에 쓰인다.

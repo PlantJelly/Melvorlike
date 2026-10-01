@@ -7,9 +7,14 @@ export { CHANCE_SCALE } from './chance';
 export const veinBonusOre: Record<string, string> = {
   stone: 'copper',
   copper: 'iron',
-  iron: 'gold_ore',
-  mana_stone: 'gold_ore',
-  gold_ore: 'gold_ore',
+  iron: 'silver_ore',
+  silver_ore: 'crystal',
+  mana_stone: 'crystal',
+  crystal: 'gold_ore',
+  gold_ore: 'lapis',
+  lapis: 'star_ore',
+  star_ore: 'sunstone',
+  sunstone: 'sunstone',
 };
 
 // 석탄: 모든 채광 산출 1회당 50%(만분율) — 대장작업 주괴의 연료로 항상 흘러나오게 한다.

@@ -47,3 +47,24 @@ export function facilityCost(id: ProjectId, level: number) {
     cost: {[item]: Math.floor(FACILITY_BASE_AMOUNT * Math.pow(1.5, level % 3))},
   };
 }
+
+// 스킬별로 단계 조건을 거는 구역(D049). 시작 스킬인 벌목·채광은 그 산출물을 가공하는 구역을 따른다.
+export const facilityForSkill: Record<SkillId, ProjectId> = {
+  logging: 'ruined_sawmill', woodworking: 'ruined_sawmill',
+  mining: 'ruined_forge', blacksmithing: 'ruined_forge',
+  fishing: 'broken_bridge', cooking: 'ruined_restaurant',
+  foraging: 'overgrown_trail', apothecary: 'ruined_apothecary', sewing: 'ruined_tailor',
+  magic: 'fallen_tower', farming: 'abandoned_field', ranching: 'worn_out_barn',
+};
+
+// 상위 단계 재료·레시피의 시설 조건: Lv65 → 4단계, Lv80 → 6단계, Lv95 → 8단계.
+export const facilityGates: readonly {reqLevel: number; facilityLevel: number}[] = [
+  {reqLevel: 95, facilityLevel: 8},
+  {reqLevel: 80, facilityLevel: 6},
+  {reqLevel: 65, facilityLevel: 4},
+];
+
+export function facilityRequirement(skill: SkillId, reqLevel: number) {
+  const gate = facilityGates.find(entry => reqLevel >= entry.reqLevel);
+  return gate ? {projectId: facilityForSkill[skill], level: gate.facilityLevel} : null;
+}

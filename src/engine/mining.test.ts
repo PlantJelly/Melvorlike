@@ -52,7 +52,8 @@ describe('채광: 광맥 발견', () => {
     advance(b, 7000 * 400);
     expect(b.inventory).toEqual(a.inventory);
     expect(b.veinProgress).toBe(a.veinProgress);
-    expect(a.inventory.gold_ore).toBe(Math.floor(400 * veinChance(99) / CHANCE_SCALE));
+    // 철 광맥은 한 단계 위인 은 광석을 준다(D049).
+    expect(a.inventory.silver_ore).toBe(Math.floor(400 * veinChance(99) / CHANCE_SCALE));
   });
 
   it('광맥 누적량은 저장·복원되고, 범위를 벗어난 값은 거부한다', () => {

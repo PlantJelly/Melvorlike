@@ -4,6 +4,12 @@ export const junkBase: Record<string, number> = {
   fish_small: 2000,
   fish_carp: 2500,
   fish_salmon: 3000,
+  catfish: 2250,
+  trout: 2750,
+  eel: 3000,
+  sturgeon: 3000,
+  tuna: 3000,
+  golden_carp: 3000,
 };
 
 // 낚시터 해금 레벨보다 1레벨 높을 때마다 0.5%p씩 줄어 0이 된다(개울 Lv41, 호수 Lv60, 여울 Lv90).

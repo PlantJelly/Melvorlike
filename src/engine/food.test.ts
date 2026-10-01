@@ -163,7 +163,8 @@ describe('저장 이전과 콘텐츠 참조', () => {
         expect(!!sapling !== !!cropYield[r.id]).toBe(true);
         if (sapling) expect(ResourceDB[sapling.resourceId].skill).toBe('logging');
       }
-      if (r.skill === 'logging') expect(ResourceDB[saplingOf[r.id]].skill).toBe('farming');
+      // 묘목은 Lv1·10·30·50 나무에만 있다(새 단계 나무는 묘목 없음, D049).
+      if (r.skill === 'logging' && r.reqLevel <= 50 && r.reqLevel !== 20 && r.reqLevel !== 40) expect(ResourceDB[saplingOf[r.id]].skill).toBe('farming');
       for (const [id, n] of Object.entries(r.recipe ?? {})) {
         expect(ResourceDB[id]).toBeDefined();
         expect(n).toBeGreaterThan(0);

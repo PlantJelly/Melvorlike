@@ -2,7 +2,9 @@ import { For, Show, createSignal } from 'solid-js';
 import type { SkillId } from '../content/types';
 import { ResourceDB, skillNames } from '../content/resources';
 import { state } from '../state/gameState';
-import { afford, duration, recipeFor } from '../engine/model';
+import { afford, duration, facilityGateMet, recipeFor } from '../engine/model';
+import { ProjectDB } from '../content/projects';
+import { facilityRequirement } from '../content/facilities';
 import { queueActionAction, startAction } from '../engine/actions';
 import { FoodButtons } from './Food';
 import { CHANCE_SCALE } from '../content/chance';
@@ -26,6 +28,12 @@ const target = () => {
   return targetText().trim() !== '' && Number.isSafeInteger(n) && n >= 1 ? n : undefined;
 };
 
+// 상위 단계(Lv65·80·95)는 구역 시설 단계가 필요하다(D049).
+function gateText(skill: SkillId, reqLevel: number) {
+  const need = facilityRequirement(skill, reqLevel)!;
+  return `${ProjectDB[need.projectId].name} 시설 ${need.level}단계 필요`;
+}
+
 export function ProductionView(props: {skill: SkillId}) {
   const skill = () => state().skills[props.skill];
   const busy = () => !!state().currentAction;
@@ -43,7 +51,7 @@ export function ProductionView(props: {skill: SkillId}) {
     <Show when={props.skill === 'cooking'}><p class="intro-note">음식 효과는 한 종류만 적용됩니다. 같은 음식은 지속시간이 늘어나며, 접속을 종료해도 시간이 흐릅니다.</p></Show>
     <label class="muted target-input">목표 수량 <input aria-label="목표 수량" type="number" min="1" step="1" placeholder="제한 없음" value={targetText()} onInput={e => setTargetText(e.currentTarget.value)}/> 개 — 채우면 멈추고, 예약한 다음 작업이 있으면 이어서 시작합니다.</label>
     <div class="cards">
-      <For each={Object.values(ResourceDB).filter(r => r.skill === props.skill && !r.dropOnly)}>{r =>
+      <For each={Object.values(ResourceDB).filter(r => r.skill === props.skill && !r.dropOnly).sort((a, b) => a.reqLevel - b.reqLevel)}>{r =>
         <article>
           <Show when={r.area}><span class="area-label">{r.area}</span></Show>
           <div class="item-icon">{r.icon}</div>
@@ -52,11 +60,11 @@ export function ProductionView(props: {skill: SkillId}) {
           <p class="muted">{(duration(state(), r.id) / 1000).toFixed(1)}초 · 경험치 +{r.exp}{r.skill === 'fishing' && skill().level >= r.reqLevel ? ` · 꽝 ${(junkChance(r.id, r.reqLevel, skill().level) / 100).toFixed(1)}%` : ''}</p>
           <Show when={r.recipe}><p class="recipe">{costText(recipeFor(state(), r.id))}</p></Show>
           <button class="production-button"
-            disabled={skill().level < r.reqLevel || !afford(state(), recipeFor(state(), r.id)) || running(r.id)}
+            disabled={skill().level < r.reqLevel || !facilityGateMet(state(), r.id) || !afford(state(), recipeFor(state(), r.id)) || running(r.id)}
             onClick={() => startAction(r.skill, r.id, target())}>
-            {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : running(r.id) ? '진행 중' : r.recipe ? '제작 시작' : '채집 시작'}
+            {skill().level < r.reqLevel ? `레벨 ${r.reqLevel}에 해금` : !facilityGateMet(state(), r.id) ? gateText(r.skill, r.reqLevel) : running(r.id) ? '진행 중' : r.recipe ? '제작 시작' : '채집 시작'}
           </button>
-          <Show when={busy() && !running(r.id) && skill().level >= r.reqLevel}>
+          <Show when={busy() && !running(r.id) && skill().level >= r.reqLevel && facilityGateMet(state(), r.id)}>
             <button onClick={() => queueActionAction(r.id, target())}>다음 작업으로 예약</button>
           </Show>
           <FoodButtons id={r.id}/>

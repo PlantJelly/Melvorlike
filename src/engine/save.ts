@@ -1,4 +1,4 @@
-import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, producible, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
+import { initial, unlockedGame, generateDailyQuests, milestoneReady, skillUnlocked, producible, facilityGateMet, SAVE_VERSION, type Model, type DailyQuest, type ProjectState, type FarmPlot } from './model';
 import { ResourceDB, toolTiers, playable, passiveSkills } from '../content/resources';
 import { AnimalDB, barnUpgrades } from '../content/animals';
 import { FoodDB } from '../content/foods';
@@ -154,6 +154,18 @@ export function decodeSave(text: string): Model {
       if (!finite(n) || !Number.isInteger(n) || n >= toolTiers.length) throw Error('도구 정보 오류');
       s.tools[id] = n;
     }
+    // 시설 단계는 작업·예약 검증(D049 시설 조건)보다 먼저 읽는다.
+    // v30 이전 저장은 왕국 시설 강화가 없어 모든 시설이 0단계다. 강화된 시설은 복원이 끝났고 그 단계의 스킬 레벨 조건을 만족해야 한다.
+    if (version >= 30) {
+      const facilities = raw.facilities;
+      if (!object(facilities) || Object.keys(facilities).length !== facilityIds.length || Object.keys(facilities).some(id => !facilityIds.includes(id as ProjectId))) throw Error('시설 정보 오류');
+      for (const id of facilityIds) {
+        const level = facilities[id];
+        if (!finite(level) || !Number.isInteger(level) || level > FACILITY_MAX_LEVEL) throw Error('시설 정보 오류');
+        if (level > 0 && (s.projects[id].phase !== 'complete' || s.skills[FacilityDB[id]!.skills[0]].level < facilityCost(id, level - 1).reqLevel)) throw Error('시설 정보 오류');
+        s.facilities[id] = level;
+      }
+    }
     if (raw.currentAction !== null) {
       const a = raw.currentAction;
       if (!object(a) || !finite(a.progressMs)) throw Error('작업 정보 오류');
@@ -169,6 +181,7 @@ export function decodeSave(text: string): Model {
         if (typeof a.resourceId !== 'string' || !Object.hasOwn(ResourceDB, a.resourceId)) throw Error('작업 정보 오류');
         const r = ResourceDB[a.resourceId];
         if (r.dropOnly || !skillUnlocked(s, r.skill) || passiveSkills.includes(r.skill) || a.progressMs > r.baseDurationMs || s.skills[r.skill].level < r.reqLevel) throw Error('작업 정보 오류');
+        if (!facilityGateMet(s, r.id)) throw Error('작업 정보 오류');
         // 목표 수량은 v28부터 저장된다.
         if (a.target === undefined) s.currentAction = {kind: 'production', resourceId: r.id, progressMs: a.progressMs};
         else if (version >= 28 && validCount(a.target)) s.currentAction = {kind: 'production', resourceId: r.id, progressMs: a.progressMs, target: a.target};
@@ -328,17 +341,6 @@ export function decodeSave(text: string): Model {
     s.legendaryRolled = raw.legendaryRolled;
   } else {
     s.legendaryRolled = hasLegendary;
-  }
-  // v30 이전 저장은 왕국 시설 강화가 없어 모든 시설이 0단계다. 강화된 시설은 복원이 끝났고 그 단계의 스킬 레벨 조건을 만족해야 한다.
-  if (version >= 30) {
-    const facilities = raw.facilities;
-    if (!object(facilities) || Object.keys(facilities).length !== facilityIds.length || Object.keys(facilities).some(id => !facilityIds.includes(id as ProjectId))) throw Error('시설 정보 오류');
-    for (const id of facilityIds) {
-      const level = facilities[id];
-      if (!finite(level) || !Number.isInteger(level) || level > FACILITY_MAX_LEVEL) throw Error('시설 정보 오류');
-      if (level > 0 && (s.projects[id].phase !== 'complete' || s.skills[FacilityDB[id]!.skills[0]].level < facilityCost(id, level - 1).reqLevel)) throw Error('시설 정보 오류');
-      s.facilities[id] = level;
-    }
   }
   // v25 이전 저장은 축사 강화 없이 동물종당 1마리다.
   if (version >= 25) {

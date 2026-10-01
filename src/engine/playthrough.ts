@@ -16,7 +16,7 @@ import {
   advance, animalCount, automateFarm, begin, clearPlot, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
   deliverProjectMaterial, duration, expandBarn, expandFarm, farmRemainingMs, harvest, harvestOutput, initial, plant, ranchRemainingMs,
   ranchStarved, recipeFor, rerollAccessory, sell, skillUnlocked, startProjectWork, surveyProject, upgrade, upgradeAccessory,
-  upgradeGuild, nextFacilityUpgrade, upgradeFacility, type Model,
+  upgradeGuild, nextFacilityUpgrade, upgradeFacility, facilityGateMet, type Model,
 } from './model';
 
 const HOUR = 3_600_000;
@@ -144,7 +144,7 @@ function needsPassive(s: Model, id: string): boolean {
 
 function reachable(s: Model, id: string): boolean {
   const r = ResourceDB[id];
-  if (!skillUnlocked(s, r.skill) || s.skills[r.skill].level < r.reqLevel) return false;
+  if (!skillUnlocked(s, r.skill) || s.skills[r.skill].level < r.reqLevel || !facilityGateMet(s, id)) return false;
   return Object.keys(recipeFor(s, id)).every(m => reachable(s, m));
 }
 

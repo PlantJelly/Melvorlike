@@ -36,7 +36,7 @@ import { FertilizerDB, fertilizerIds, type FertilizerId } from '../content/ferti
 
 import { ECONOMY_EXCHANGE_BONUS, GROWTH_SALE_BONUS, LEGENDARY_RARITY, economyThresholds, growthLevels } from '../content/achievements';
 
-import { FACILITY_MAX_LEVEL, FACILITY_SPEED_PER_LEVEL, FacilityDB, facilityCost, facilityIds } from '../content/facilities';
+import { FACILITY_MAX_LEVEL, FACILITY_SPEED_PER_LEVEL, FacilityDB, facilityCost, facilityIds, facilityRequirement } from '../content/facilities';
 
 export const SAVE_VERSION = 30;
 
@@ -133,7 +133,7 @@ function seededRandom(seed: number): () => number {
 // 극단적인 경우에는 있는 만큼만 반환). decodeSave가 옛 저장을 이전할 때, 스킬을 복원한
 // 뒤 해금 상태를 다시 반영해 퀘스트를 새로 뽑기 위해 이 함수를 그대로 가져다 쓴다.
 export function generateDailyQuests(s: Model, day: number, random: () => number = seededRandom(day)): DailyQuest[] {
-  const pool = Object.values(ResourceDB).filter(r => !r.recipe && skillUnlocked(s, r.skill) && s.skills[r.skill].level >= r.reqLevel);
+  const pool = Object.values(ResourceDB).filter(r => !r.recipe && skillUnlocked(s, r.skill) && s.skills[r.skill].level >= r.reqLevel && facilityGateMet(s, r.id));
   const quests: DailyQuest[] = [];
   // 뽑힌 항목을 후보군에서 제거하면 난수 함수가 같은 값을 반복해도 루프가 반드시 끝난다.
   while (quests.length < 3 && pool.length) {
@@ -257,6 +257,13 @@ export function speedMultiplier(s: Model, skill: SkillId, extraBonus = 0) {
     facilityBonus(s, skill),
     extraBonus,
   );
+}
+
+// Lv65·80·95 재료·레시피는 해당 구역 시설 단계가 필요하다(D049).
+export function facilityGateMet(s: Model, id: string) {
+  const r = ResourceDB[id];
+  const need = facilityRequirement(r.skill, r.reqLevel);
+  return !need || (s.facilities[need.projectId] ?? 0) >= need.level;
 }
 
 // ── 왕국 시설 강화(D048) ──
@@ -588,7 +595,7 @@ export function advance(s: Model, time: number) {
 export function producible(s: Model, id: string) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
   // 패시브 스킬(농사/목장) 산출물은 밭/축사에서만 나온다. 액티브 슬롯으로도 생산되면 이중 생산이 된다.
-  return !!r && !r.dropOnly && skillUnlocked(s, r.skill) && !passiveSkills.includes(r.skill) && s.skills[r.skill].level >= r.reqLevel;
+  return !!r && !r.dropOnly && skillUnlocked(s, r.skill) && !passiveSkills.includes(r.skill) && s.skills[r.skill].level >= r.reqLevel && facilityGateMet(s, id);
 }
 
 const validTarget = (target: number | undefined) => target === undefined || (Number.isSafeInteger(target) && target >= 1);
@@ -726,7 +733,7 @@ export function rerollAccessory(s: Model, slotId: AccessorySlotId, stoneId: stri
 // (game_design.md의 "이미 해금한 하위 티어 기본 재료는 골드로 즉시 구매 가능" 캐치업 규칙).
 export function buyResource(s: Model, id: string, count: number) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  if (!r || !skillUnlocked(s, r.skill) || r.recipe || !Number.isInteger(count) || count <= 0 || s.skills[r.skill].level < r.reqLevel) return false;
+  if (!r || !skillUnlocked(s, r.skill) || r.recipe || !Number.isInteger(count) || count <= 0 || s.skills[r.skill].level < r.reqLevel || !facilityGateMet(s, id)) return false;
   const cost = r.buy * count;
   if (s.gold < cost) return false;
   s.gold -= cost;
