@@ -131,4 +131,18 @@ export const toolTiers: {
     level: number;
     bonus: number;
     cost: Record<string, number>;
-}[] = [{ name: '맨손', level: 1, bonus: 0, cost: {} }, { name: '돌', level: 1, bonus: .15, cost: { wood: 5, brick: 3 } }, { name: '구리', level: 10, bonus: .35, cost: { wood: 10, copper_ingot: 5 } }, { name: '철', level: 30, bonus: .65, cost: { oak: 10, iron_ingot: 8 } }];
+}[] = [
+    // 도구 단계(D049): 재료 해금(Lv1·10·20·30·40·50·65·80·95) 사이에 놓아 5~15레벨마다 무언가 열리게 한다.
+    // 기존 저장의 도구 보너스가 줄지 않도록 돌·구리·철의 보너스는 그대로 두고 해금 레벨만 앞당겼다(구리 10→5, 철 30→15).
+    // 재료는 그 단계에 이미 만들 수 있는 대장작업 주괴·목공 자재·마법 결정이다.
+    { name: '맨손', level: 1, bonus: 0, cost: {} },
+    { name: '돌', level: 1, bonus: .15, cost: { wood: 5, brick: 3 } },
+    { name: '구리', level: 5, bonus: .35, cost: { wood: 10, copper_ingot: 5 } },
+    { name: '철', level: 15, bonus: .65, cost: { oak: 10, iron_ingot: 8 } },
+    { name: '은', level: 25, bonus: .75, cost: { silver_ingot: 8, pine_plank: 10 } },
+    { name: '마나강철', level: 35, bonus: .85, cost: { manasteel_ingot: 8, pine_plank: 15 } },
+    { name: '수정', level: 45, bonus: .95, cost: { crystal_alloy: 8, birch_plank: 10, mana_crystal_low: 2 } },
+    { name: '금', level: 58, bonus: 1.05, cost: { gold_ingot: 10, magic_frame: 5, mana_crystal_mid: 2 } },
+    { name: '청금', level: 72, bonus: 1.15, cost: { lapis_ingot: 10, moon_timber: 10, mana_crystal_high: 2 } },
+    { name: '별철', level: 88, bonus: 1.25, cost: { star_ingot: 12, star_timber: 10, mana_crystal_great: 2 } },
+];

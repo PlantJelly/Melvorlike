@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { begin, buyResource, facilityGateMet, generateDailyQuests, unlockedGame } from './model';
 import { decodeSave, encodeSave } from './save';
-import { ResourceDB } from '../content/resources';
+import { ResourceDB, toolTiers } from '../content/resources';
 import { facilityRequirement } from '../content/facilities';
 import type { SkillId } from '../content/types';
 
@@ -64,6 +64,16 @@ describe('레벨 디자인 격자(D049)', () => {
     delete raw.checksum;
     raw.facilities.ruined_sawmill = 3;
     expect(() => decodeSave(JSON.stringify(raw))).toThrow();
+  });
+
+  it('도구 단계는 재료 해금 사이에 있고, 보너스는 계속 오르며, 기존 세 단계 보너스는 그대로다', () => {
+    expect(toolTiers.map(tier => tier.bonus).slice(0, 4)).toEqual([0, .15, .35, .65]);
+    for (let i = 1; i < toolTiers.length; i++) {
+      expect(toolTiers[i].level).toBeGreaterThanOrEqual(toolTiers[i - 1].level);
+      expect(toolTiers[i].bonus).toBeGreaterThan(toolTiers[i - 1].bonus);
+      if (toolTiers[i].level > 1) expect(GRID).not.toContain(toolTiers[i].level);
+      for (const id of Object.keys(toolTiers[i].cost)) expect(ResourceDB[id], `${toolTiers[i].name} 재료 ${id}`).toBeDefined();
+    }
   });
 
   it('제작 스킬도 같은 격자마다 새 레시피가 열리고, 상위 레시피는 해당 구역 시설이 필요하다', () => {
