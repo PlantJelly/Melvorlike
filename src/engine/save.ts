@@ -234,7 +234,9 @@ export function decodeSave(text: string): Model {
   }
   if (version >= 5) {
     if (!object(raw.ranch)) throw Error('목장 정보 오류');
-    for (const [id, progressMs] of Object.entries(raw.ranch)) {
+    for (const [id, rawProgress] of Object.entries(raw.ranch)) {
+      // 이전 버전의 정산 오차로 아주 작은 음수(-1e-6 이내)가 저장된 경우는 0으로 복구한다(D050).
+      const progressMs = typeof rawProgress === 'number' && rawProgress < 0 && rawProgress > -1e-6 ? 0 : rawProgress;
       if (!Object.hasOwn(AnimalDB, id) || !finite(progressMs)) throw Error('목장 정보 오류');
       const a = AnimalDB[id];
       const p = ResourceDB[a.productId];

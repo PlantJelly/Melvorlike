@@ -189,4 +189,16 @@ describe('목장 진행량 오차', () => {
     expect(s.ranch.chicken).toBeGreaterThanOrEqual(0);
     expect(() => decodeSave(encodeSave(s))).not.toThrow();
   });
+
+  it('이전 버전이 저장한 아주 작은 음수 진행량은 0으로 복구하고, 그보다 큰 음수는 거부한다', () => {
+    const s = initial(0);
+    s.gold = 10000;
+    buyAnimal(s, 'chicken');
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.ranch.chicken = -9.3e-9;
+    expect(decodeSave(JSON.stringify(raw)).ranch.chicken).toBe(0);
+    raw.ranch.chicken = -1;
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow();
+  });
 });
