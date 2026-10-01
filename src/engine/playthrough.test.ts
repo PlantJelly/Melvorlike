@@ -53,7 +53,7 @@ describe('전체 진행 경로 시뮬레이션 — 왕국 이후 성장 구간',
     expect(playable.every(skill => s.tools[skill] >= 3)).toBe(true);
     expect(s.farmPlots).toHaveLength(3);
     expect(s.barnLevel).toBe(2);
-    expect(Object.values(s.ranchCounts)).toEqual([3, 3, 3]);
+    expect([s.ranchCounts.chicken, s.ranchCounts.sheep, s.ranchCounts.cow]).toEqual([3, 3, 3]);
     expect(accessorySlots.every(slot => s.accessories[slot.id]?.tier === 3)).toBe(true);
     // 남은 목표는 마지막(전 스킬 Lv99)뿐이다.
     expect(result.goals.slice(doneIndex).map(goal => goal.id)).toEqual(['max']);

@@ -537,6 +537,12 @@ function maxAllGoal(): Goal {
       }
       const affordable = affordableFacilityPlan(s, ctx);
       if (affordable) return affordable;
+      // 후반 동물(D050)은 레벨·시설 조건이 되고 골드가 이미 있으면 축사 수용량까지 들인다.
+      for (const a of Object.values(AnimalDB)) {
+        if (animalCount(s, a.id) >= Math.max(1, s.barnLevel + 1) || s.skills.ranching.level < ResourceDB[a.productId].reqLevel || !facilityGateMet(s, a.productId)) continue;
+        sellSurplus(s, ctx);
+        if (s.gold >= a.buyGold && buyAnimal(s, a.id)) return PROGRESS;
+      }
       const active = playable.filter(skill => !isPassive(skill) && s.skills[skill].level < MAX_SKILL_LEVEL)
         .sort((a, b) => s.skills[a].level - s.skills[b].level);
       if (!active.length) {
@@ -576,7 +582,7 @@ export function growthGoals(): Goal[] {
   const plot = (i: number) => purchaseGoal(`plot:${i + 2}`, `밭 ${i + 2}칸`, '농사',
     {skill: 'farming', level: plotUpgrades[i].reqLevel, goldCost: plotUpgrades[i].goldCost, cost: plotUpgrades[i].cost},
     s => s.farmPlots.length >= i + 2, expandFarm);
-  const animalsTo = (count: number) => Object.keys(AnimalDB).map(id => animalGoal(id, count));
+  const animalsTo = (count: number) => ['chicken', 'sheep', 'cow'].map(id => animalGoal(id, count));
   return [
     ...accessoryGoals(0),
     ...toolsAt(2),

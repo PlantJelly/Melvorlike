@@ -921,7 +921,7 @@ export function buyAnimal(s: Model, id: string) {
   const a = Object.hasOwn(AnimalDB, id) ? AnimalDB[id] : undefined;
   if (!skillUnlocked(s, 'ranching') || !a || animalCount(s, id) >= barnCapacity(s)) return false;
   const p = ResourceDB[a.productId];
-  if (s.skills.ranching.level < p.reqLevel || s.gold < a.buyGold) return false;
+  if (s.skills.ranching.level < p.reqLevel || !facilityGateMet(s, p.id) || s.gold < a.buyGold) return false;
   s.gold -= a.buyGold;
   if (Object.hasOwn(s.ranch, id)) {
     s.ranchCounts[id] = animalCount(s, id) + 1;

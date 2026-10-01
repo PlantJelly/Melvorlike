@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { begin, buyResource, duration, eat, facilityGateMet, generateDailyQuests, harvestOutput, plant, unlockedGame } from './model';
+import { begin, buyAnimal, buyResource, duration, eat, facilityGateMet, generateDailyQuests, harvestOutput, plant, unlockedGame } from './model';
 import { saplingOf } from '../content/saplings';
 import { FoodDB } from '../content/foods';
 import { decodeSave, encodeSave } from './save';
@@ -84,6 +84,24 @@ describe('레벨 디자인 격자(D049)', () => {
     const raw = JSON.parse(encodeSave(s));
     delete raw.checksum;
     raw.facilities.abandoned_field = 3;
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow();
+  });
+
+  it('목장 후반 동물(Lv45·60·75·90)은 레벨과 축사 시설 4·6단계(Lv75·90)가 있어야 들인다', () => {
+    const s = unlockedGame(0);
+    s.gold = 1e9;
+    s.skills.ranching.level = 99;
+    expect(buyAnimal(s, 'goat')).toBe(true);
+    expect(buyAnimal(s, 'alpaca')).toBe(true);
+    expect(buyAnimal(s, 'bee')).toBe(false);
+    s.facilities.worn_out_barn = 4;
+    expect(buyAnimal(s, 'bee')).toBe(true);
+    expect(buyAnimal(s, 'golden_goose')).toBe(false);
+    s.facilities.worn_out_barn = 6;
+    expect(buyAnimal(s, 'golden_goose')).toBe(true);
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.facilities.worn_out_barn = 5;
     expect(() => decodeSave(JSON.stringify(raw))).toThrow();
   });
 

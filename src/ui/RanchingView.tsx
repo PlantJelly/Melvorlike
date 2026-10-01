@@ -2,7 +2,9 @@ import { For, Show } from 'solid-js';
 import { AnimalDB } from '../content/animals';
 import { ResourceDB } from '../content/resources';
 import { state } from '../state/gameState';
-import { afford, animalCount, barnCapacity, nextBarnUpgrade, ranchRemainingMs, ranchStarved } from '../engine/model';
+import { afford, animalCount, barnCapacity, facilityGateMet, nextBarnUpgrade, ranchRemainingMs, ranchStarved } from '../engine/model';
+import { ProjectDB } from '../content/projects';
+import { facilityRequirement } from '../content/facilities';
 import { buyAnimalAction, expandBarnAction } from '../engine/actions';
 import { costText, fmt } from './ProductionView';
 
@@ -49,6 +51,12 @@ export function RanchingView() {
       <For each={Object.values(AnimalDB)}>{a => {
         const p = () => ResourceDB[a.productId];
         const locked = () => skill().level < p().reqLevel;
+        // Lv75·90 동물은 낡은 축사 시설 단계가 필요하다(D050).
+        const gated = () => !facilityGateMet(state(), p().id);
+        const gateText = () => {
+          const need = facilityRequirement('ranching', p().reqLevel)!;
+          return `${ProjectDB[need.projectId].name} 시설 ${need.level}단계 필요`;
+        };
         const heads = () => animalCount(state(), a.id);
         const feedStock = () => state().inventory[a.feedId] ?? 0;
         const starved = () => ranchStarved(state(), a.id);
@@ -68,8 +76,8 @@ export function RanchingView() {
           </Show>
           <Show when={!owned(a.id) || canBuyMore()}>
             <p class="recipe">구매 {fmt(a.buyGold)} G</p>
-            <button disabled={locked() || state().gold < a.buyGold} onClick={() => buyAnimalAction(a.id)}>
-              {locked() ? `레벨 ${p().reqLevel}에 해금` : owned(a.id) ? '한 마리 더 구매' : '구매하기'}
+            <button disabled={locked() || gated() || state().gold < a.buyGold} onClick={() => buyAnimalAction(a.id)}>
+              {locked() ? `레벨 ${p().reqLevel}에 해금` : gated() ? gateText() : owned(a.id) ? '한 마리 더 구매' : '구매하기'}
             </button>
           </Show>
         </article>;

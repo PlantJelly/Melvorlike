@@ -238,7 +238,7 @@ export function decodeSave(text: string): Model {
       if (!Object.hasOwn(AnimalDB, id) || !finite(progressMs)) throw Error('목장 정보 오류');
       const a = AnimalDB[id];
       const p = ResourceDB[a.productId];
-      if (!skillUnlocked(s, 'ranching') || progressMs > p.baseDurationMs || s.skills.ranching.level < p.reqLevel) throw Error('목장 정보 오류');
+      if (!skillUnlocked(s, 'ranching') || progressMs > p.baseDurationMs || s.skills.ranching.level < p.reqLevel || !facilityGateMet(s, p.id)) throw Error('목장 정보 오류');
       s.ranch[id] = progressMs;
     }
   }
