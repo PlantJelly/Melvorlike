@@ -17,9 +17,9 @@ export const AnimalDB: Record<string, AnimalDef> = {
   cow: {id: 'cow', name: '소', buyGold: 5000, feedId: 'carrot', feedAmount: 2, productId: 'milk', icon: '🐄'},
   // 후반 동물(D050): 시간당 순이익이 구매가 순으로 커지도록 사료를 정했다(D043 조건 유지).
   goat: {id: 'goat', name: '염소', buyGold: 10000, feedId: 'potato', feedAmount: 4, productId: 'goat_milk', icon: '🐐'},
-  alpaca: {id: 'alpaca', name: '알파카', buyGold: 20000, feedId: 'golden_corn', feedAmount: 1, productId: 'alpaca_wool', icon: '🦙'},
-  bee: {id: 'bee', name: '꿀벌', buyGold: 40000, feedId: 'pumpkin', feedAmount: 1, productId: 'honey', icon: '🐝'},
-  golden_goose: {id: 'golden_goose', name: '황금 거위', buyGold: 80000, feedId: 'golden_wheat', feedAmount: 1, productId: 'golden_egg', icon: '🪿'},
+  alpaca: {id: 'alpaca', name: '알파카', buyGold: 20000, feedId: 'potato', feedAmount: 4, productId: 'alpaca_wool', icon: '🦙'},
+  bee: {id: 'bee', name: '꿀벌', buyGold: 40000, feedId: 'carrot', feedAmount: 2, productId: 'honey', icon: '🐝'},
+  golden_goose: {id: 'golden_goose', name: '황금 거위', buyGold: 80000, feedId: 'carrot', feedAmount: 2, productId: 'golden_egg', icon: '🪿'},
 };
 
 // 축사 강화(content_spec §3 "목장 레벨업 시 최대 사육 마릿수 증가, 건물처럼 골드+재료 강화").

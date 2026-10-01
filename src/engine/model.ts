@@ -521,7 +521,8 @@ function advanceRanch(s: Model, elapsed: number) {
         s.inventory[p.id] = (s.inventory[p.id] ?? 0) + heads * count;
         addExperience(s, p.skill, p.exp * heads * count);
       }
-      progressMs = count < timeCount ? p.baseDurationMs : progressMs - count * p.baseDurationMs;
+      // 오차 범위 안에서 주기를 채운 것으로 본 경우 남은 진행량이 아주 작은 음수가 될 수 있어 0으로 맞춘다(저장 검증은 음수를 거부).
+      progressMs = count < timeCount ? p.baseDurationMs : Math.max(0, progressMs - count * p.baseDurationMs);
     }
     s.ranch[id] = progressMs;
   }

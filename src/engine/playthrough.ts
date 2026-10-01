@@ -160,7 +160,8 @@ function acquire(s: Model, ctx: Context, id: string, qty: number, depth = 0): Pl
   if (!skillUnlocked(s, r.skill)) return wait(`${skillNames[r.skill]} 미해금`);
   if (r.dropOnly) return produce('stone', (missing * CHANCE_SCALE - s.coalProgress) / COAL_CHANCE);
   if (s.skills[r.skill].level < r.reqLevel) return train(s, ctx, r.skill, r.reqLevel, depth + 1);
-  if (!facilityGateMet(s, id)) return wait(`${skillNames[r.skill]} 시설 단계`);
+  // 재료가 시설 단계에 막혀 있으면 그 시설을 (골드를 벌어서라도) 올린다. 스킬 레벨이 모자라 못 올리면 대기.
+  if (!facilityGateMet(s, id)) return facilityPlanFor(s, ctx, facilityRequirement(r.skill, r.reqLevel)!.projectId, true) ?? wait(`${skillNames[r.skill]} 시설 단계`);
   if (r.skill === 'farming') return needCrop(s, ctx, id, missing);
   if (r.skill === 'ranching') return needAnimalProduct(s, ctx, id, missing);
   if (!r.recipe) return produce(id, missing);
@@ -480,12 +481,12 @@ function guildGoal(tier: number): Goal {
 }
 
 // 레벨이 된 다음 단계 도구를 만든다. 재료가 패시브 대기면 null(D049).
-function toolPlanFor(s: Model, ctx: Context, skill: SkillId): Plan | null {
+function toolPlanFor(s: Model, ctx: Context, skill: SkillId, grind = true): Plan | null {
   const tier = toolTiers[s.tools[skill] + 1];
   if (!tier || !skillUnlocked(s, skill) || s.skills[skill].level < tier.level) return null;
   const plan = acquireAll(s, ctx, Object.entries(tier.cost));
   if (plan?.kind === 'wait') return null;
-  if (plan) return plan;
+  if (plan) return grind ? plan : null;
   return upgrade(s, skill) ? PROGRESS : wait('도구 제작 실패');
 }
 
@@ -525,14 +526,14 @@ function gatingFacility(s: Model, skill: SkillId): ProjectId | null {
 
 // 모든 스킬 Lv99·시설 최대: 가장 낮은 액티브 스킬부터, 그 스킬의 도구와 막힌 시설을 먼저 챙기며 올린다.
 // 다른 시설은 골드가 있을 때만 올리고, 모든 스킬이 만렙이면 남은 시설을 골드를 벌어 마저 올린다.
-// 패시브(농사·목장) 도구는 재료를 모아서라도 올린다(밭·동물이 계속 일하므로).
+// 패시브(농사·목장) 도구는 재료가 이미 있을 때 올린다(재료를 모으러 가지 않는다).
 function maxAllGoal(): Goal {
   return {
     id: 'max', label: '전 스킬 Lv99·시설 최대 강화', phase: '완주',
     done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL) && facilityIds.every(id => s.facilities[id] === FACILITY_MAX_LEVEL),
     step: (s, ctx) => {
       for (const skill of passiveSkills) {
-        const tool = toolPlanFor(s, ctx, skill);
+        const tool = toolPlanFor(s, ctx, skill, false);
         if (tool) return tool;
       }
       const affordable = affordableFacilityPlan(s, ctx);

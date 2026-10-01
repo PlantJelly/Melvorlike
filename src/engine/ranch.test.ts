@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAVE_VERSION } from './model';
 import { advance, begin, buyAnimal, unlockedGame as initial, ranchRemainingMs, ranchStarved } from './model';
-import { decodeSave } from './save';
+import { decodeSave, encodeSave } from './save';
 import { ResourceDB } from '../content/resources';
 import { AnimalDB } from '../content/animals';
 import { experienceToNextLevel } from './formulas';
@@ -173,5 +173,20 @@ describe('목장 경제성', () => {
   it('비싸고 늦게 열리는 동물일수록 시간당 순이익이 크다', () => {
     const ids = Object.keys(AnimalDB).sort((a, b) => AnimalDB[a].buyGold - AnimalDB[b].buyGold);
     for (let i = 1; i < ids.length; i++) expect(profitPerHour(ids[i])).toBeGreaterThan(profitPerHour(ids[i - 1]));
+  });
+});
+
+describe('목장 진행량 오차', () => {
+  it('오차 범위 안에서 주기를 채워도 남은 진행량이 음수가 되지 않고 저장 검증을 통과한다', () => {
+    const s = initial(0);
+    s.gold = 10000;
+    buyAnimal(s, 'chicken');
+    s.inventory.wheat = 100;
+    // 소수 속도로 정산하다 주기 끝에서 1e-8만큼 모자란 상태
+    s.ranch.chicken = ResourceDB.egg.baseDurationMs - 1e-8;
+    advance(s, s.lastSaveTime);
+    expect(s.inventory.egg).toBe(1);
+    expect(s.ranch.chicken).toBeGreaterThanOrEqual(0);
+    expect(() => decodeSave(encodeSave(s))).not.toThrow();
   });
 });
