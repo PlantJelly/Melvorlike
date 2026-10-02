@@ -1,10 +1,11 @@
 # Current handoff
 
-- Current goal: 사용자 요청 "같이 진행해줘"(2026-10-02) — 경제 조정 리뷰·병합(완료, main `e13720e`) 후 후반 해금 보강(Lv98 포함) 구현과 전체 밸런스 재검토. 구현·검토 완료, 리뷰·병합은 사용자 지시 대기.
-- Branch: `feature/late-unlocks`(워크트리 `.worktrees/late-unlocks`), main `e13720e`에서 분기. Known pre-checkpoint parent: `e13720e`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
-- Checkpoint type: Stable.
-- Implemented (D052): Lv87 재료 단계(오로라나무·미스릴 광석·청새치·이슬꽃 / 오로라 목재·미스릴 주괴·이슬꽃 탕약·이슬 비단·청새치 구이·찬란한 마력 결정 / 오로라나무 묘목, 시설 6단계 조건), 도구 별철 88 → 84, 미스릴 92·태양 97 추가, 시설 강화 9~12단계 요구 레벨 76·90·94·98(기존 강화분은 이전 규칙으로 검증해 유지), 보고서 해금 정의에 시설 단계 포함, 봇이 다음 도구 재료를 판매에서 제외.
-- Verification: `npm test` 262/262, `npm run build` PASS, `npm run playthrough -- 365` 멈춤 없음·저장 검증 통과(docs/playthrough_report.md). 브라우저(포트 5292 수동 dev 서버): 벌목 오로라나무 Lv87 표시, 목공 오로라 목재, 도구 화면 다음 단계 미스릴 대패(Lv92), 콘솔 오류 없음.
-- Result: 제작 6종 Lv50 이후 최장 해금 간격 상시 41~47 → 15~16일, 1시간 확인 66~74 → 24~27일. 전 스킬 Lv99 상시 132.6일, 1시간 확인 219.8일.
-- Open (제안만): 일일 퀘스트·환전 체감, 1시간 확인 플레이 체감은 플레이테스트 필요. 봇 한계(낚시 Lv95 이후, 채집 도구 미강화)는 게임 수치 문제 아님.
-- Exact next action: 사용자 지시 대기(리뷰·병합 요청 시 `feature/late-unlocks` 리뷰).
+- Current goal: 사용자 지시 대기. 직전 요청 "리뷰하고 문제없으면 머지해줘"(2026-10-02) — 후반 해금 보강(D052)을 리뷰 PASS 후 main에 병합했다.
+- Branch: `main` @ `5109c9f`(fast-forward, 대상 `e13720e`에서). 원격 main 일치 확인.
+- Checkpoint type: Stable. Known pre-checkpoint parent: `5109c9f`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
+- Review: PASS at `5109c9f`(보고서는 late-unlocks 워크트리 git-path `development-workflow-review.md`). CI NOT CONFIGURED.
+- Verification: `npm test` 262/262, `npm run build` PASS at `5109c9f`. `npm run playthrough -- 365` 멈춤 없음·저장 검증 통과.
+- Merged: 경제 조정(D051, `e13720e`) — 제작품 판매가 하한, 경제 업적 기준, 일일 퀘스트, 환전 구조, 하위 단계 원재료 구매. 후반 해금 보강(D052, `5109c9f`) — Lv87 재료 단계, 도구 별철 84·미스릴 92·태양 97, 시설 9~12단계 Lv76·90·94·98.
+- Result: 전 스킬 Lv99 상시 132.6일·1시간 확인 219.8일, 제작 Lv50 이후 최장 해금 간격 15~16일·24~27일.
+- Open (제안만, docs/playthrough_report.md): 일일 퀘스트·환전 체감과 1시간 확인 플레이 체감은 플레이테스트 필요.
+- Exact next action: 사용자 지시 대기. 새 작업은 main에서 새 브랜치·워크트리로 진행.
