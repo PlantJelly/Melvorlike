@@ -13,7 +13,7 @@ import { FACILITY_MAX_LEVEL, facilityIds, facilityRequirement } from '../content
 import type { SkillId } from '../content/types';
 import { experienceToNextLevel, MAX_SKILL_LEVEL } from './formulas';
 import {
-  advance, animalCount, automateFarm, begin, clearPlot, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
+  advance, animalCount, purchasable, automateFarm, begin, clearPlot, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
   deliverProjectMaterial, duration, expandBarn, expandFarm, farmRemainingMs, harvest, harvestOutput, initial, plant, ranchRemainingMs,
   ranchStarved, recipeFor, rerollAccessory, sell, skillUnlocked, startProjectWork, surveyProject, upgrade, upgradeAccessory,
   upgradeGuild, nextFacilityUpgrade, upgradeFacility, facilityGateMet, type Model,
@@ -95,6 +95,8 @@ interface Context {
   scenario: PlaythroughScenario;
   catchUpBuying: boolean;
   spent: {buying: number};
+  // 따라잡기로 산 원재료 수량. 다음 결정에서 다른 목표가 남는 보유품을 팔 때 산 재료까지 헐값에 되팔지 않게 한다.
+  bought: Record<string, number>;
 }
 
 // 원재료 구매는 이 골드를 남겨 둔 채로만 한다 — 가장 비싼 시설 강화(약 107만 G)를 막지 않게.
@@ -167,11 +169,14 @@ function acquire(s: Model, ctx: Context, id: string, qty: number, depth = 0): Pl
   if (depth > 12) return wait('재료 경로 과다');
   const r = ResourceDB[id];
   if (!skillUnlocked(s, r.skill)) return wait(`${skillNames[r.skill]} 미해금`);
-  // 골드가 넉넉하면 원재료를 사서 채집 시간을 줄인다(판매가 ×5, D051).
-  if (ctx.catchUpBuying && !r.recipe && s.skills[r.skill].level >= r.reqLevel && facilityGateMet(s, id)) {
+  // 골드가 넉넉하면 하위 단계 원재료를 사서 레벨에 비해 손해인 채집을 건너뛴다(판매가 ×5, D051).
+  // 최고 단계 채집 재료는 게임 규칙상 살 수 없다(purchasable). 농사·목장 산출물은 사지 않는다 — 산 작물은
+  // 밭 관리가 씨앗으로 심어 버려 제작이 시작되지 못한다(첫 씨앗·사료 구매는 needCrop·needAnimalProduct가 따로 한다).
+  if (ctx.catchUpBuying && !r.recipe && !isPassive(r.skill) && purchasable(s, id)) {
     const count = Math.min(missing, Math.floor((s.gold - CATCH_UP_RESERVE) / r.buy));
     if (count > 0 && buyResource(s, id, count)) {
       ctx.spent.buying += count * r.buy;
+      ctx.bought[id] = (ctx.bought[id] ?? 0) + count;
       return PROGRESS;
     }
   }
@@ -310,7 +315,9 @@ function keepAmount(s: Model, id: string) {
 function sellSurplus(s: Model, ctx: Context) {
   for (const [id, count] of Object.entries(s.inventory)) {
     if (ctx.reserve.has(id)) continue;
-    const extra = count - keepAmount(s, id);
+    // 산 재료는 이미 쓴 만큼만 기억에서 지운다(보유량이 산 양보다 적으면 나머지는 소비된 것).
+    if (ctx.bought[id]) ctx.bought[id] = Math.min(ctx.bought[id], count);
+    const extra = count - keepAmount(s, id) - (ctx.bought[id] ?? 0);
     if (extra > 0) sell(s, id, extra);
   }
 }
@@ -699,6 +706,7 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   let stuck: string | null = null;
   let nextSample = DAY;
   const spent = {buying: 0};
+  const bought: Record<string, number> = {};
   // 레벨은 시간 정산뿐 아니라 결정 중의 수동 수확으로도 오르므로, 마지막으로 본 레벨과 비교해 기록한다.
   const seen = playable.map(skill => s.skills[skill].level);
   const levelTimes = Object.fromEntries(playable.map(skill => [skill, [0, 0]])) as Record<SkillId, number[]>;
@@ -719,7 +727,7 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   while (t < options.horizonMs) {
     decisions++;
     if (skillUnlocked(s, 'cooking') || s.unlockedFeatures.includes('guild')) for (const id of milestoneIds) claimMilestone(s, id);
-    const ctx: Context = {demand: {}, reserve: new Set(), random, scenario, catchUpBuying: options.catchUpBuying ?? true, spent};
+    const ctx: Context = {demand: {}, reserve: new Set(), random, scenario, catchUpBuying: options.catchUpBuying ?? true, spent, bought};
     let plan: Plan = wait('목표 없음');
     for (let guard = 0; guard < 500; guard++) {
       finishGoals();

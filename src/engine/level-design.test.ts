@@ -44,6 +44,8 @@ describe('레벨 디자인 격자(D049)', () => {
     s.facilities.ruined_sawmill = 4;
     expect(begin(s, 'moon_wood')).toBe(true);
     expect(begin(s, 'star_wood')).toBe(false);
+    expect(buyResource(s, 'moon_wood', 1)).toBe(false); // 지금 최고 단계는 직접 채집(D051)
+    s.facilities.ruined_sawmill = 6;
     expect(buyResource(s, 'moon_wood', 1)).toBe(true);
   });
 

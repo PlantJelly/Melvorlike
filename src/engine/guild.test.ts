@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SAVE_VERSION } from './model';
 import { EXCHANGE_VALUE_CAP, ExchangeDB, exchangeRate, exchangeSkills, guildTiers, MAX_EXCHANGE_GAP } from '../content/guild';
 import { ResourceDB } from '../content/resources';
-import { buyResource, exchangeResource, exchangeYield, unlockedGame as initial, upgradeGuild } from './model';
+import { buyResource, exchangeResource, exchangeYield, purchasable, topGatheringTier, unlockedGame as initial, upgradeGuild } from './model';
 import { decodeSave } from './save';
 
 describe('길드: 원재료 구매', () => {
@@ -12,8 +12,11 @@ describe('길드: 원재료 구매', () => {
     expect(buyResource(s, 'wheat', 3)).toBe(true);
     expect(s.gold).toBe(10000 - ResourceDB.wheat.buy * 3);
     expect(s.inventory.wheat).toBe(3);
-    expect(buyResource(s, 'wood', 1)).toBe(true); // 농사가 아닌 벌목 재료도 구매 가능
+    expect(buyResource(s, 'wood', 1)).toBe(false); // 벌목 Lv1에서는 나무가 최고 단계라 직접 채집
+    s.skills.logging.level = 10;
+    expect(buyResource(s, 'wood', 1)).toBe(true); // 참나무가 열리면 나무는 하위 단계라 구매 가능
     expect(s.inventory.wood).toBe(1);
+    expect(buyResource(s, 'oak', 1)).toBe(false);
   });
 
   it('잘못된 수량, 존재하지 않는 아이템, 가공품, 미해금 재료, 골드 부족은 막는다', () => {
@@ -33,6 +36,33 @@ describe('길드: 원재료 구매', () => {
     s.gold = ResourceDB.wheat.buy; // 부족하지도 넉넉하지도 않은 정확한 경계
     expect(buyResource(s, 'wheat', 1)).toBe(true);
     expect(s.gold).toBe(0);
+  });
+});
+
+describe('길드: 원재료 구매 단계 제한(D051)', () => {
+  it('채집 스킬은 현재 최고 단계보다 낮은 원재료만 살 수 있고, 시설에 막힌 단계는 최고 단계로 치지 않는다', () => {
+    const s = initial(0);
+    s.gold = 1e9;
+    s.skills.logging.level = 99;
+    expect(topGatheringTier(s, 'logging')).toBe(50); // 달빛나무 이상은 제재소 시설 단계 필요
+    expect(buyResource(s, 'magic_wood', 1)).toBe(false);
+    expect(buyResource(s, 'birch', 1)).toBe(true);
+    s.facilities.ruined_sawmill = 8;
+    expect(topGatheringTier(s, 'logging')).toBe(95);
+    expect(buyResource(s, 'magic_wood', 1)).toBe(true);
+    expect(buyResource(s, 'star_wood', 1)).toBe(true);
+    expect(buyResource(s, 'world_branch', 1)).toBe(false);
+    s.skills.mining.level = 10;
+    expect(buyResource(s, 'coal', 1)).toBe(true); // 부산물인 석탄은 Lv1 단계로 취급
+    expect(buyResource(s, 'iron', 1)).toBe(false);
+  });
+
+  it('농사·목장 산출물은 해금된 것이면 최고 단계도 살 수 있다(첫 씨앗·사료)', () => {
+    const s = initial(0);
+    s.gold = 1e9;
+    s.skills.farming.level = 10;
+    expect(buyResource(s, 'potato', 1)).toBe(true);
+    expect(purchasable(s, 'egg')).toBe(true);
   });
 });
 

@@ -36,7 +36,7 @@ describe('업적', () => {
     const s = initial(0);
     s.gold = 1_000_000;
     s.skills.logging.level = 10;
-    buyResource(s, 'wood', 10); // 지출은 누계에 영향 없음
+    expect(buyResource(s, 'wood', 10)).toBe(true); // 지출은 누계에 영향 없음
     expect(s.goldEarned).toBe(0);
     s.inventory.oak = 400_000;
     sell(s, 'oak', 333_334);

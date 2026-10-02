@@ -3,7 +3,7 @@ import { ResourceDB, skillNames } from '../content/resources';
 import { ExchangeDB, guildTiers, milestones } from '../content/guild';
 import { state } from '../state/gameState';
 import { buyResourceAction, exchangeResourceAction, upgradeGuildAction, completeDailyQuestAction, claimMilestoneAction } from '../engine/actions';
-import { dailyQuestReward, exchangeRateFor, exchangeYield, facilityGateMet, milestoneReady, skillUnlocked } from '../engine/model';
+import { dailyQuestReward, exchangeRateFor, exchangeYield, facilityGateMet, milestoneReady, purchasable, skillUnlocked } from '../engine/model';
 import { fmt } from './ProductionView';
 
 export function GuildView() {
@@ -51,13 +51,14 @@ export function GuildView() {
     </div>
 
     <h2 class="section-title">재료 구매</h2>
-    <p class="muted">스킬 레벨로 이미 해금한 원재료만 구매할 수 있습니다. 가공품은 대상이 아닙니다.</p>
+    <p class="muted">스킬 레벨로 이미 해금한 원재료를 살 수 있습니다. 벌목·채광·낚시·채집 재료는 그 스킬의 현재 최고 단계보다 낮은 것만 살 수 있고, 가공품은 대상이 아닙니다.</p>
     <div class="inventory">
       <For each={Object.values(ResourceDB).filter(r => !r.recipe)}>{r => {
         const levelMet = () => skillUnlocked(state(), r.skill) && state().skills[r.skill].level >= r.reqLevel;
-        const unlocked = () => levelMet() && facilityGateMet(state(), r.id);
+        const gateMet = () => levelMet() && facilityGateMet(state(), r.id);
+        const unlocked = () => purchasable(state(), r.id);
         return <article>
-          <div><h2>{r.icon} {r.name}</h2><small>{unlocked() ? `개당 ${fmt(r.buy)} G` : levelMet() ? '해당 구역 시설 강화 필요' : `${skillNames[r.skill]} Lv.${r.reqLevel}에 해금`}</small></div>
+          <div><h2>{r.icon} {r.name}</h2><small>{unlocked() ? `개당 ${fmt(r.buy)} G` : gateMet() ? '현재 최고 단계 — 직접 채집하세요' : levelMet() ? '해당 구역 시설 강화 필요' : `${skillNames[r.skill]} Lv.${r.reqLevel}에 해금`}</small></div>
           <strong>보유 {fmt(state().inventory[r.id] ?? 0)}개</strong>
           <button disabled={!unlocked() || state().gold < r.buy} onClick={() => buyResourceAction(r.id, 1)}>1개 구매</button>
           <button disabled={!unlocked() || state().gold < r.buy * 10} onClick={() => buyResourceAction(r.id, 10)}>10개 구매</button>

@@ -739,11 +739,29 @@ export function rerollAccessory(s: Model, slotId: AccessorySlotId, stoneId: stri
   return true;
 }
 
-// 가공품(recipe가 있는 아이템)은 제작으로만 얻을 수 있다. 원재료만 해금된 스킬 레벨 이상이면 즉시 구매 가능
-// (game_design.md의 "이미 해금한 하위 티어 기본 재료는 골드로 즉시 구매 가능" 캐치업 규칙).
+// 채집 스킬에서 지금 채집할 수 있는 가장 높은 단계(해금 레벨).
+const catchUpSkills: readonly SkillId[] = ['logging', 'mining', 'fishing', 'foraging'];
+export function topGatheringTier(s: Model, skill: SkillId) {
+  let top = 0;
+  for (const r of Object.values(ResourceDB)) {
+    if (r.skill === skill && !r.recipe && !r.dropOnly && s.skills[skill].level >= r.reqLevel && facilityGateMet(s, r.id)) top = Math.max(top, r.reqLevel);
+  }
+  return top;
+}
+
+// 원재료 구매는 레벨 격차의 손해를 덜어 주는 캐치업이다(game_design.md "이미 해금한 하위 티어 기본 재료는 골드로
+// 즉시 구매 가능"). 채집 스킬 원재료는 그 스킬의 현재 최고 단계보다 낮은 것만 살 수 있다 — 최고 단계는 직접
+// 채집해야 한다(D051). 농사·목장은 새 작물의 첫 씨앗·사료를 사야 하므로 해금된 것은 모두 살 수 있다.
+export function purchasable(s: Model, id: string) {
+  const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
+  if (!r || r.recipe || !skillUnlocked(s, r.skill) || s.skills[r.skill].level < r.reqLevel || !facilityGateMet(s, id)) return false;
+  return !catchUpSkills.includes(r.skill) || r.reqLevel < topGatheringTier(s, r.skill);
+}
+
+// 가공품(recipe가 있는 아이템)은 제작으로만 얻을 수 있다.
 export function buyResource(s: Model, id: string, count: number) {
   const r = Object.hasOwn(ResourceDB, id) ? ResourceDB[id] : undefined;
-  if (!r || !skillUnlocked(s, r.skill) || r.recipe || !Number.isInteger(count) || count <= 0 || s.skills[r.skill].level < r.reqLevel || !facilityGateMet(s, id)) return false;
+  if (!r || !purchasable(s, id) || !Number.isInteger(count) || count <= 0) return false;
   const cost = r.buy * count;
   if (s.gold < cost) return false;
   s.gold -= cost;
