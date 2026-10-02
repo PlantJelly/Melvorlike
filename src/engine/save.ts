@@ -8,7 +8,7 @@ import {ProjectDB, featureIds, projectIds, starterSkills, starterFeatures, type 
 import {CHANCE_SCALE} from '../content/chance';
 import {LEGENDARY_RARITY} from '../content/achievements';
 import {MAX_FARM_PLOTS, farmAutomation, plotUpgrades} from '../content/farm';
-import {FACILITY_MAX_LEVEL, FacilityDB, facilityCost, facilityIds} from '../content/facilities';
+import {FACILITY_LEVEL_STEP, FACILITY_MAX_LEVEL, FacilityDB, facilityCost, facilityIds} from '../content/facilities';
 import {fertilizerIds, type FertilizerId} from '../content/fertilizers';
 export const SAVE_KEY = 'melvorlike_save';
 
@@ -162,7 +162,7 @@ export function decodeSave(text: string): Model {
       for (const id of facilityIds) {
         const level = facilities[id];
         if (!finite(level) || !Number.isInteger(level) || level > FACILITY_MAX_LEVEL) throw Error('시설 정보 오류');
-        if (level > 0 && (s.projects[id].phase !== 'complete' || s.skills[FacilityDB[id]!.skills[0]].level < facilityCost(id, level - 1).reqLevel)) throw Error('시설 정보 오류');
+        if (level > 0 && (s.projects[id].phase !== 'complete' || s.skills[FacilityDB[id]!.skills[0]].level < Math.min(facilityCost(id, level - 1).reqLevel, FACILITY_LEVEL_STEP * level))) throw Error('시설 정보 오류');
         s.facilities[id] = level;
       }
     }

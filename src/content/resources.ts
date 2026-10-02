@@ -8,12 +8,15 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     // (도구 단계와 합쳐 혼자 올릴 때 Lv99까지 약 210시간 — D049). Lv65·80·95는 해당 구역 시설 4·6·8단계가 필요하다.
     row('pine', '소나무', 'logging', 20, 6500, 98, 6, '🌲'), row('birch', '자작나무', 'logging', 40, 10000, 250, 25, '🪵'),
     row('moon_wood', '달빛나무', 'logging', 65, 14000, 503, 79, '🌙'), row('star_wood', '별빛나무', 'logging', 80, 16000, 619, 121, '⭐'),
+    // 후반 해금 보강(D052): Lv80과 95 사이 Lv87 단계. 같은 공식(초당 경험치 ×1.005/레벨, 판매가 ×1.02/레벨)이며 Lv80처럼 시설 6단계 필요.
+    row('aurora_wood', '오로라나무', 'logging', 87, 17000, 682, 147, '🌌'),
     row('world_branch', '세계수 가지', 'logging', 95, 18000, 751, 183, '🌳'),
     // 채광 경험치는 벌목과 같은 초당 경험치로 맞췄다(D049).
     row('stone', '돌', 'mining', 1, 4000, 33, 1, '🪨'), row('copper', '구리 광석', 'mining', 1, 5000, 42, 3, '⛏️'), row('iron', '철 광석', 'mining', 10, 7000, 84, 8, '⛏️'),
     row('gold_ore', '금 광석', 'mining', 50, 11000, 367, 35, '🟡'), row('mana_stone', '마나석', 'mining', 30, 9000, 169, 22, '🔷'),
     row('silver_ore', '은 광석', 'mining', 20, 8000, 120, 8, '⚪'), row('crystal', '수정 원석', 'mining', 40, 10000, 250, 25, '💎'),
     row('lapis', '청금석', 'mining', 65, 13000, 467, 73, '🔵'), row('star_ore', '별철 광석', 'mining', 80, 15000, 581, 113, '🌠'),
+    row('mithril_ore', '미스릴 광석', 'mining', 87, 16000, 641, 139, '🔘'),
     row('sunstone', '태양석', 'mining', 95, 17000, 709, 173, '☀️'),
     row('brick', '돌 벽돌', 'blacksmithing', 1, 4000, 20, 5, '🧱', { stone: 2 }), row('copper_ingot', '구리 주괴', 'blacksmithing', 1, 6000, 48, 12, '▰', { copper: 3, coal: 1 }), row('iron_ingot', '철 주괴', 'blacksmithing', 10, 8000, 108, 30, '▰', { iron: 3, coal: 2 }),
     // 석탄은 모든 채광의 부산물(game_design §2.2 "전 광산 공통 드랍, 별도 탄광 없음"). 판매가는 나무 연료와 같게 둬 주괴 원가가 바뀌지 않게 했다.
@@ -27,6 +30,7 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     {...row('eel', '장어', 'fishing', 50, 11000, 367, 46, '🐍'), area: '강 하구'},
     {...row('sturgeon', '철갑상어', 'fishing', 65, 13000, 467, 73, '🐋'), area: '큰 호수'},
     {...row('tuna', '참치', 'fishing', 80, 15000, 581, 113, '🐟'), area: '바다 절벽'},
+    {...row('marlin', '청새치', 'fishing', 87, 16000, 641, 139, '🦈'), area: '폭풍 해역'},
     {...row('golden_carp', '황금 잉어', 'fishing', 95, 17000, 709, 173, '🎏'), area: '신성한 연못'},
     row('grilled_fish', '구운 생선', 'cooking', 1, 5000, 20, 5, '🍢', {fish_small: 2}),
     row('fish_soup', '민물 생선탕', 'cooking', 10, 7000, 43, 12, '🍲', {fish_carp: 2}),
@@ -67,6 +71,7 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('sapling_moon', '달빛나무 묘목', 'farming', 55, 1860000, 4866, 539, '🌱'),
     row('sapling_star', '별빛나무 묘목', 'farming', 70, 2220000, 6262, 707, '🌱'),
     row('sapling_world', '세계수 묘목', 'farming', 85, 2580000, 7845, 904, '🌱'),
+    row('sapling_aurora', '오로라나무 묘목', 'farming', 85, 2580000, 7845, 904, '🌱'),
     row('egg', '달걀', 'ranching', 1, 1800000, 333, 75, '🥚'),
     row('wool', '양털', 'ranching', 15, 2700000, 863, 268, '🧶'),
     row('milk', '우유', 'ranching', 30, 3600000, 1690, 650, '🥛'),
@@ -87,6 +92,7 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     // 채집 새 단계는 약재이자 섬유가 되는 식물이라 조제와 재봉이 함께 쓴다(수치는 벌목과 같음, D049).
     row('nettle', '쐐기풀', 'foraging', 20, 6500, 98, 6, '🌿'), row('flax', '아마', 'foraging', 40, 10000, 250, 25, '🌾'),
     row('silver_moss', '은빛 이끼', 'foraging', 65, 14000, 503, 79, '🍀'), row('silk_vine', '비단 덩굴', 'foraging', 80, 16000, 619, 121, '🕸️'),
+    row('dewflower', '이슬꽃', 'foraging', 87, 17000, 682, 147, '💧'),
     row('fairy_flower', '요정 꽃', 'foraging', 95, 18000, 751, 183, '🌸'),
     row('plank', '나무 판자', 'woodworking', 1, 4000, 22, 6, '▬', {wood: 3}), row('oak_plank', '참나무 판자', 'woodworking', 10, 6500, 59, 18, '▬', {oak: 3, wood: 1}),
     row('hardwood_beam', '단단한 들보', 'woodworking', 30, 9500, 144, 48, '▬', {hardwood: 3, oak: 1}), row('magic_frame', '마법 골조', 'woodworking', 50, 13500, 383, 179, '▬', {magic_wood: 3, hardwood: 1}),
@@ -112,33 +118,39 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('birch_plank', '자작나무 판자', 'woodworking', 40, 11500, 248, 96, '▬', {birch: 3, hardwood: 1}),
     row('moon_timber', '달빛 목재', 'woodworking', 65, 15500, 499, 316, '▬', {moon_wood: 3, magic_wood: 1}),
     row('star_timber', '별빛 목재', 'woodworking', 80, 17500, 616, 487, '▬', {star_wood: 3, moon_wood: 1}),
+    row('aurora_timber', '오로라 목재', 'woodworking', 87, 18500, 686, 619, '▬', {aurora_wood: 3, star_wood: 1}),
     row('world_timber', '세계수 목재', 'woodworking', 95, 19500, 747, 738, '▬', {world_branch: 3, star_wood: 1}),
     row('nettle_tonic', '쐐기풀 탕약', 'apothecary', 20, 8000, 98, 32, '🧪', {nettle: 3, wild_mushroom: 1}),
     row('flax_oil', '아마씨 기름', 'apothecary', 40, 11500, 248, 96, '🧪', {flax: 3, wild_herb: 1}),
     row('moss_essence', '은빛 이끼 정수', 'apothecary', 65, 15500, 499, 316, '🧪', {silver_moss: 3, rare_mushroom: 1}),
     row('silk_balm', '비단 향유', 'apothecary', 80, 17500, 554, 2066, '🧪', {silk_vine: 3, honey: 1}),
+    row('dew_tonic', '이슬꽃 탕약', 'apothecary', 87, 18500, 686, 619, '🧪', {dewflower: 3, silk_vine: 1}),
     row('fairy_elixir', '요정 영약', 'apothecary', 95, 19500, 747, 738, '🧪', {fairy_flower: 3, silk_vine: 1}),
     row('nettle_cloth', '쐐기풀 직물', 'sewing', 20, 8000, 101, 30, '🧶', {nettle: 3, fiber: 2}),
     row('linen', '아마포', 'sewing', 40, 11500, 240, 90, '🧻', {flax: 3, nettle: 1}),
     row('bedding', '침구', 'sewing', 65, 15500, 1045, 1670, '🛏️', {silver_moss: 2, linen: 2, alpaca_wool: 1}),
     row('silk_cloth', '비단', 'sewing', 80, 17500, 585, 427, '🎀', {silk_vine: 3, flax: 1}),
+    row('dew_silk', '이슬 비단', 'sewing', 87, 18500, 1027, 794, '🎐', {dewflower: 2, silk_cloth: 1}),
     row('royal_banner', '왕국 깃발', 'sewing', 95, 19500, 2099, 1373, '🚩', {silk_cloth: 2, fairy_flower: 2, dye: 2}),
     row('silver_ingot', '은 주괴', 'blacksmithing', 20, 9000, 147, 39, '▰', {silver_ore: 3, coal: 2}),
     row('manasteel_ingot', '마나강철 주괴', 'blacksmithing', 30, 10000, 210, 59, '▰', {iron: 3, mana_stone: 1, coal: 2}),
     row('crystal_alloy', '수정 합금', 'blacksmithing', 40, 11000, 325, 94, '▰', {crystal: 3, silver_ore: 1, coal: 2}),
     row('lapis_ingot', '청금 주괴', 'blacksmithing', 65, 14000, 553, 245, '▰', {lapis: 3, coal: 3}),
     row('star_ingot', '별철 주괴', 'blacksmithing', 80, 16000, 658, 377, '▰', {star_ore: 3, coal: 3}),
+    row('mithril_ingot', '미스릴 주괴', 'blacksmithing', 87, 17000, 714, 462, '▰', {mithril_ore: 3, coal: 3}),
     row('sun_ingot', '태양 주괴', 'blacksmithing', 95, 18000, 968, 700, '▰', {sunstone: 3, star_ore: 1, coal: 4}),
     row('catfish_stew', '메기 매운탕', 'cooking', 20, 8000, 84, 62, '🍲', {catfish: 2, potato: 1}),
     row('grilled_trout', '송어 구이', 'cooking', 40, 11000, 165, 54, '🍢', {trout: 2, wood: 1}),
     row('eel_rice', '장어 덮밥', 'cooking', 50, 12000, 267, 1085, '🍱', {eel: 2, goat_milk: 1}),
     row('sturgeon_soup', '철갑상어 수프', 'cooking', 65, 14000, 330, 734, '🥣', {sturgeon: 2, pumpkin: 1}),
     row('tuna_steak', '참치 스테이크', 'cooking', 80, 16000, 403, 1006, '🥩', {tuna: 2, golden_wheat: 1}),
+    row('marlin_grill', '청새치 구이', 'cooking', 87, 17000, 441, 1276, '🍢', {marlin: 2, royal_grape: 1}),
     row('golden_carp_feast', '황금 잉어찜', 'cooking', 95, 18000, 534, 3446, '🎏', {golden_carp: 2, royal_grape: 1, golden_egg: 1}),
     row('mana_crystal_low', '하급 마력 결정', 'magic', 20, 15000, 264, 141, '💠', {chamomile: 1, mana_stone: 2, silver_ingot: 1}),
     row('mana_crystal_mid', '중급 마력 결정', 'magic', 40, 22000, 600, 225, '💠', {mugwort: 1, mana_stone: 3, crystal_alloy: 1}),
     row('mana_crystal_high', '상급 마력 결정', 'magic', 65, 32000, 1085, 960, '💠', {moonpetal: 1, mana_stone: 4, lapis_ingot: 1}),
     row('mana_crystal_great', '최상급 마력 결정', 'magic', 80, 36000, 1332, 1314, '💠', {flame_herb: 1, mana_stone: 5, star_ingot: 1}),
+    row('mana_crystal_radiant', '찬란한 마력 결정', 'magic', 87, 38000, 1428, 1624, '💠', {world_leaf: 1, mana_stone: 5, mithril_ingot: 1}),
     row('mana_crystal_prime', '원초 마력 결정', 'magic', 95, 40000, 1852, 2905, '💠', {world_leaf: 2, mana_stone: 6, sun_ingot: 1})
 ].map(r => [r.id, r]));
 // 수확 시 씨앗 1개를 심어 한 번에 돌려받는 개수. 재파종 분을 남기고 잉여를 판매/요리에 쓴다.
@@ -154,7 +166,8 @@ export const toolTiers: {
     bonus: number;
     cost: Record<string, number>;
 }[] = [
-    // 도구 단계(D049): 재료 해금(Lv1·10·20·30·40·50·65·80·95) 사이에 놓아 5~15레벨마다 무언가 열리게 한다.
+    // 도구 단계(D049): 재료 해금(Lv1·10·20·30·40·50·65·80·87·95) 사이에 놓아 5~15레벨마다 무언가 열리게 한다.
+    // Lv80 이후는 레벨당 시간이 길어 해금을 시간 간격 기준으로 촘촘하게 둔다(D052): 별철 88 → 84, 미스릴 92·태양 97 추가.
     // 철 이후는 단계마다 +4%씩(최대 +89%). 기존 저장의 도구 보너스가 줄지 않도록 돌·구리·철의 보너스는 그대로 두고 해금 레벨만 앞당겼다(구리 10→5, 철 30→15).
     // 재료는 그 단계에 이미 만들 수 있는 대장작업 주괴·목공 자재·마법 결정이다.
     { name: '맨손', level: 1, bonus: 0, cost: {} },
@@ -166,5 +179,7 @@ export const toolTiers: {
     { name: '수정', level: 45, bonus: .77, cost: { crystal_alloy: 8, birch_plank: 10, mana_crystal_low: 2 } },
     { name: '금', level: 58, bonus: .81, cost: { gold_ingot: 10, magic_frame: 5, mana_crystal_mid: 2 } },
     { name: '청금', level: 72, bonus: .85, cost: { lapis_ingot: 10, moon_timber: 10, mana_crystal_high: 2 } },
-    { name: '별철', level: 88, bonus: .89, cost: { star_ingot: 12, star_timber: 10, mana_crystal_great: 2 } },
+    { name: '별철', level: 84, bonus: .89, cost: { star_ingot: 12, star_timber: 10, mana_crystal_great: 2 } },
+    { name: '미스릴', level: 92, bonus: .93, cost: { mithril_ingot: 12, aurora_timber: 10, mana_crystal_radiant: 2 } },
+    { name: '태양', level: 97, bonus: .97, cost: { sun_ingot: 12, world_timber: 10, mana_crystal_prime: 2 } },
 ];

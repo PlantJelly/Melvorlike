@@ -4,15 +4,15 @@ import { saplingOf } from '../content/saplings';
 import { FoodDB } from '../content/foods';
 import { decodeSave, encodeSave } from './save';
 import { ResourceDB, toolTiers } from '../content/resources';
-import { facilityRequirement } from '../content/facilities';
+import { FACILITY_REQ_LEVELS, facilityCost, facilityRequirement } from '../content/facilities';
 import type { SkillId } from '../content/types';
 
-const GRID = [1, 10, 20, 30, 40, 50, 65, 80, 95];
+const GRID = [1, 10, 20, 30, 40, 50, 65, 80, 87, 95];
 const gathering: SkillId[] = ['logging', 'mining', 'fishing', 'foraging'];
 const items = (skill: SkillId) => Object.values(ResourceDB).filter(r => r.skill === skill && !r.dropOnly);
 
 describe('레벨 디자인 격자(D049)', () => {
-  it('채집 스킬은 Lv1·10·20·30·40·50·65·80·95마다 새 재료가 열린다(낚시는 Lv50 포함)', () => {
+  it('채집 스킬은 Lv1·10·20·30·40·50·65·80·87·95마다 새 재료가 열린다(낚시는 Lv50 포함)', () => {
     for (const skill of gathering) {
       const levels = new Set(items(skill).map(r => r.reqLevel));
       for (const level of GRID) expect(levels.has(level), `${skill} Lv${level}`).toBe(true);
@@ -154,5 +154,39 @@ describe('레벨 디자인 격자(D049)', () => {
     expect(begin(s, 'lapis_ingot')).toBe(false);
     s.facilities.ruined_forge = 4;
     expect(begin(s, 'lapis_ingot')).toBe(true);
+  });
+
+  it('Lv72 이후 해금은 72·76·80·84·87·90·92·94·95·97·98에 하나씩 있다(D052)', () => {
+    const late = new Set<number>();
+    for (const r of Object.values(ResourceDB)) if (!r.dropOnly && ['logging', 'woodworking'].includes(r.skill) && r.reqLevel >= 72) late.add(r.reqLevel);
+    for (const tier of toolTiers) if (tier.level >= 72) late.add(tier.level);
+    for (const level of FACILITY_REQ_LEVELS) if (level >= 72) late.add(level);
+    expect([...late].sort((a, b) => a - b)).toEqual([72, 76, 80, 84, 87, 90, 92, 94, 95, 97, 98]);
+    expect(facilityCost('ruined_sawmill', 8).reqLevel).toBe(76);
+    expect(facilityCost('ruined_sawmill', 11).reqLevel).toBe(98);
+    expect(toolTiers.find(tier => tier.name === '별철')!.level).toBe(84);
+  });
+
+  it('Lv87 단계 재료·레시피는 Lv80과 같은 시설 6단계가 필요하다', () => {
+    expect(facilityRequirement('logging', 87)).toEqual({projectId: 'ruined_sawmill', level: 6});
+    const s = unlockedGame(0);
+    s.skills.logging.level = 87;
+    s.facilities.ruined_sawmill = 5;
+    expect(begin(s, 'aurora_wood')).toBe(false);
+    s.facilities.ruined_sawmill = 6;
+    expect(begin(s, 'aurora_wood')).toBe(true);
+    expect(FoodDB.marlin_grill).toBeDefined();
+    expect(harvestOutput(saplingOf.aurora_wood).resourceId).toBe('aurora_wood');
+  });
+
+  it('요구 레벨이 늦춰진 시설 단계(9~12)를 이미 강화한 기존 저장은 그대로 불러온다(D052)', () => {
+    const s = unlockedGame(0);
+    s.skills.woodworking.level = 72;
+    s.facilities.ruined_sawmill = 9; // 이전 규칙 Lv72, 새 규칙 Lv76
+    expect(decodeSave(encodeSave(s)).facilities.ruined_sawmill).toBe(9);
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.facilities.ruined_sawmill = 10; // 이전 규칙으로도 Lv80 필요
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow();
   });
 });

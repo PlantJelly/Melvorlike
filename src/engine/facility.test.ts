@@ -17,7 +17,7 @@ describe('왕국 시설 강화', () => {
     expect(facilityCost('ruined_forge', 0)).toEqual({level: 1, reqLevel: 8, goldCost: FACILITY_BASE_GOLD, cost: {brick: FACILITY_BASE_AMOUNT}});
     expect(facilityCost('ruined_forge', 2).cost).toEqual({brick: 45});
     expect(facilityCost('ruined_forge', 3).cost).toEqual({copper_ingot: 20});
-    expect(facilityCost('ruined_forge', 11)).toMatchObject({level: 12, reqLevel: 96, goldCost: Math.floor(FACILITY_BASE_GOLD * 1.3 ** 11), cost: {gold_ingot: 45}});
+    expect(facilityCost('ruined_forge', 11)).toMatchObject({level: 12, reqLevel: 98, goldCost: Math.floor(FACILITY_BASE_GOLD * 1.3 ** 11), cost: {gold_ingot: 45}});
   });
 
   it('강화하면 골드·재료를 쓰고 그 시설의 모든 스킬 속도가 오른다', () => {

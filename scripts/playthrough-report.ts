@@ -1,6 +1,6 @@
 import { ResourceDB, playable, skillNames, toolTiers } from '../src/content/resources';
 import { projectIds } from '../src/content/projects';
-import { FACILITY_MAX_LEVEL, facilityIds } from '../src/content/facilities';
+import { FACILITY_MAX_LEVEL, FACILITY_REQ_LEVELS, FacilityDB, facilityIds } from '../src/content/facilities';
 import { decodeSave, encodeSave } from '../src/engine/save';
 import { LEVEL_MARKS, playthroughScenarios, simulatePlaythrough, type PlaythroughResult } from '../src/engine/playthrough';
 
@@ -100,17 +100,17 @@ for (const r of results) {
   console.log(`| 유휴 | | | | | | ${duration(r.idleMs)} |`);
 }
 
-// 해금 간격(D049): 스킬별 해금 레벨(그 스킬 재료·레시피 + 도구 단계)에 처음 도달한 시각과, Lv50 이후 가장 긴 해금 사이 시간.
+// 해금 간격(D049·D052): 스킬별 해금 레벨(그 스킬 재료·레시피 + 도구 단계 + 그 스킬이 강화 조건인 시설 단계)에 처음 도달한 시각과, Lv50 이후 가장 긴 해금 사이 시간.
 for (const r of results) {
   console.log('');
   console.log(`## 해금 간격 (${r.scenario.name})`);
   console.log('');
-  console.log('- 해금 레벨 = 그 스킬의 새 재료·레시피 레벨 + 도구 단계 레벨. 시각은 그 레벨에 처음 도달한 때입니다.');
+  console.log('- 해금 레벨 = 그 스킬의 새 재료·레시피 레벨 + 도구 단계 레벨 + 그 스킬 레벨로 강화하는 왕국 시설 단계. 시각은 그 레벨에 처음 도달한 때입니다.');
   console.log('');
   console.log('| 스킬 | 해금 횟수 | Lv50 | Lv65 | Lv80 | Lv95 | Lv99 | Lv50 이후 최장 간격 |');
   console.log('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
   for (const skill of playable) {
-    const unlocks = [...new Set([...Object.values(ResourceDB).filter(x => x.skill === skill && !x.dropOnly).map(x => x.reqLevel), ...toolTiers.slice(1).map(x => x.level)])].sort((a, b) => a - b);
+    const unlocks = [...new Set([...Object.values(ResourceDB).filter(x => x.skill === skill && !x.dropOnly).map(x => x.reqLevel), ...toolTiers.slice(1).map(x => x.level), ...(Object.values(FacilityDB).some(f => f!.skills[0] === skill) ? FACILITY_REQ_LEVELS : [])])].sort((a, b) => a - b);
     const at = (level: number) => r.levelTimes[skill][level] ?? null;
     const late = [...unlocks.filter(level => level >= 50), 99];
     let gap = 0;

@@ -145,11 +145,11 @@ describe('길드: 환전', () => {
         expect(ExchangeDB[r.id]?.some(ex => ex.tierGap === 1), r.id).toBe(true);
       }
     }
-    expect(ExchangeDB.world_branch).toEqual([{targetId: 'star_wood', tierGap: 1}, {targetId: 'moon_wood', tierGap: 2}, {targetId: 'magic_wood', tierGap: 3}]);
+    expect(ExchangeDB.world_branch).toEqual([{targetId: 'aurora_wood', tierGap: 1}, {targetId: 'star_wood', tierGap: 2}, {targetId: 'moon_wood', tierGap: 3}]);
     const s = initial(0);
     s.inventory.world_branch = 10;
-    expect(exchangeResource(s, 'world_branch', 'star_wood', 10)).toBe(true);
-    expect(s.inventory.star_wood).toBe(Math.floor(10 * Math.min(exchangeRate, EXCHANGE_VALUE_CAP * ResourceDB.world_branch.sell / ResourceDB.star_wood.sell)));
+    expect(exchangeResource(s, 'world_branch', 'aurora_wood', 10)).toBe(true);
+    expect(s.inventory.aurora_wood).toBe(Math.floor(10 * Math.min(exchangeRate, EXCHANGE_VALUE_CAP * ResourceDB.world_branch.sell / ResourceDB.aurora_wood.sell)));
   });
 });
 

@@ -556,6 +556,11 @@ function maxAllGoal(): Goal {
     id: 'max', label: '전 스킬 Lv99·시설 최대 강화', phase: '완주',
     done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL) && facilityIds.every(id => s.facilities[id] === FACILITY_MAX_LEVEL),
     step: (s, ctx) => {
+      // 다음 도구 재료(여러 결정에 걸쳐 만드는 중간 제작품 포함)는 아래 시설·동물 단계가 남는 보유품을 팔 때 같이 팔지 않게 먼저 예약한다.
+      for (const skill of playable) {
+        const tier = toolTiers[s.tools[skill] + 1];
+        if (tier && skillUnlocked(s, skill) && s.skills[skill].level >= tier.level) for (const id of Object.keys(tier.cost)) reserveTree(s, ctx, id);
+      }
       for (const skill of passiveSkills) {
         const tool = toolPlanFor(s, ctx, skill, false);
         if (tool) return tool;

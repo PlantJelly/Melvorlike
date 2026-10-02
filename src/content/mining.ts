@@ -13,7 +13,8 @@ export const veinBonusOre: Record<string, string> = {
   crystal: 'gold_ore',
   gold_ore: 'lapis',
   lapis: 'star_ore',
-  star_ore: 'sunstone',
+  star_ore: 'mithril_ore',
+  mithril_ore: 'sunstone',
   sunstone: 'sunstone',
 };
 

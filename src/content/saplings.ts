@@ -14,6 +14,7 @@ export const saplingOf: Record<string, string> = {
   moon_wood: 'sapling_moon',
   star_wood: 'sapling_star',
   world_branch: 'sapling_world',
+  aurora_wood: 'sapling_aurora',
 };
 
 // 수확량은 같은 티어 약초씨 수확물(3개)의 판매가와 원목 총 판매가가 같아지도록 정했다.
@@ -27,4 +28,6 @@ export const saplingHarvest: Record<string, {resourceId: string; count: number}>
   sapling_moon: {resourceId: 'moon_wood', count: 25},
   sapling_star: {resourceId: 'star_wood', count: 26},
   sapling_world: {resourceId: 'world_branch', count: 27},
+  // 오로라나무(D052)는 농사 단계가 Lv85까지라 세계수 묘목과 같은 칸에 두고, 수확 총 판매가를 세계수 묘목과 같게 했다.
+  sapling_aurora: {resourceId: 'aurora_wood', count: 34},
 };

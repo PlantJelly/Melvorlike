@@ -4,10 +4,13 @@ import type { SkillId } from './types';
 // 왕국 시설 강화(D048): 복원한 구역을 골드+재료로 단계별 강화하면 그 구역의 스킬 속도가 오른다.
 // 비용은 content_spec §1 "기존 건물 강화 공식"(legacy 영지 건물)을 12단계에 맞춰 쓴다 —
 // 골드 = baseGold × 1.3^현재단계, 재료 = 그 시설 산출물 라인에서 3단계마다 한 티어씩 올라가며
-// 수량 = baseAmount × 1.5^(현재단계 % 3). 단계 n으로 올리려면 첫 번째 스킬이 Lv(8n) 이상이어야 한다.
+// 수량 = baseAmount × 1.5^(현재단계 % 3). 단계 n으로 올리려면 첫 번째 스킬이 FACILITY_REQ_LEVELS[n-1] 이상이어야 한다.
 // 수치는 플레이테스트 전 임시값.
 export const FACILITY_MAX_LEVEL = 12;
 export const FACILITY_SPEED_PER_LEVEL = .03;
+// 1~8단계는 Lv(8n). 9~12단계는 Lv80 이후 빈 구간을 메우도록 76·90·94·98에 둔다(D052, 이전 72·80·88·96).
+export const FACILITY_REQ_LEVELS: readonly number[] = [8, 16, 24, 32, 40, 48, 56, 64, 76, 90, 94, 98];
+// 이전 규칙(Lv 8n). 이미 강화한 시설은 이 기준으로 검증해 기존 저장을 거부하지 않는다(D052).
 export const FACILITY_LEVEL_STEP = 8;
 export const FACILITY_BASE_GOLD = 60_000;
 export const FACILITY_BASE_AMOUNT = 20;
@@ -42,7 +45,7 @@ export function facilityCost(id: ProjectId, level: number) {
   const item = def.tiers[Math.min(3, Math.floor(level / 3))];
   return {
     level: level + 1,
-    reqLevel: FACILITY_LEVEL_STEP * (level + 1),
+    reqLevel: FACILITY_REQ_LEVELS[level],
     goldCost: Math.floor(FACILITY_BASE_GOLD * Math.pow(1.3, level)),
     cost: {[item]: Math.floor(FACILITY_BASE_AMOUNT * Math.pow(1.5, level % 3))},
   };
@@ -57,7 +60,8 @@ export const facilityForSkill: Record<SkillId, ProjectId> = {
   magic: 'fallen_tower', farming: 'abandoned_field', ranching: 'worn_out_barn',
 };
 
-// 상위 단계 재료·레시피의 시설 조건: Lv65 → 4단계, Lv80 → 6단계, Lv95 → 8단계.
+// 상위 단계 재료·레시피의 시설 조건: Lv65 → 4단계, Lv80 → 6단계, Lv95 → 8단계. Lv87 단계(D052)는
+// Lv80과 같은 6단계를 따른다 — 7단계 조건을 새로 걸면 이미 시설 6단계로 목장 Lv90 동물을 들인 저장이 손상 판정된다.
 export const facilityGates: readonly {reqLevel: number; facilityLevel: number}[] = [
   {reqLevel: 95, facilityLevel: 8},
   {reqLevel: 80, facilityLevel: 6},

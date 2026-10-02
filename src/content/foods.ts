@@ -29,4 +29,5 @@ export const FoodDB: Record<string, FoodDef> = {
   sturgeon_soup: {skills: ['woodworking', 'apothecary', 'sewing'], speedBonus: .15, durationMs: 1_800_000, description: '목공·조제·재봉 속도 +15%'},
   tuna_steak: {skills: ['logging', 'mining', 'fishing', 'foraging'], speedBonus: .15, durationMs: 1_800_000, description: '벌목·채광·낚시·채집 속도 +15%'},
   golden_carp_feast: {skills: [...playable], speedBonus: .12, durationMs: 3_600_000, description: '전 스킬 속도 +12%'},
+  marlin_grill: {skills: ['blacksmithing', 'cooking', 'magic', 'woodworking', 'apothecary', 'sewing'], speedBonus: .15, durationMs: 2_700_000, description: '제작 6종 속도 +15%'},
 };
