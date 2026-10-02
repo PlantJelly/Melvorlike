@@ -815,7 +815,7 @@ export function claimMilestone(s: Model, id: MilestoneId) {
   return true;
 }
 
-// 판매가의 2배(그냥 파는 것보다 낫게)에 판매가 장신구 보너스를 반영한다 — sell()과 같은 규칙.
+// 판매가의 QUEST_REWARD_MULTIPLIER배(그냥 파는 것보다 낫게)에 판매 보너스를 반영한다 — sell()과 같은 규칙.
 // 엔진과 화면(GuildView)이 항상 같은 값을 쓰도록 이 함수 하나로 계산한다.
 export function dailyQuestReward(s: Model, quest: DailyQuest) {
   return Math.floor(quest.amount * ResourceDB[quest.resourceId].sell * QUEST_REWARD_MULTIPLIER * (1 + saleBonus(s, quest.resourceId)));

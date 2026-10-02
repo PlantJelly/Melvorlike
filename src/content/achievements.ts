@@ -6,7 +6,7 @@ export const growthLevels = [10, 30, 50, 70, 99] as const;
 export const GROWTH_SALE_BONUS = 0.02;
 
 // 경제형: 누적 획득 골드가 이 값을 넘을 때마다 길드 환전 배율 +0.05(최대 1.5 → 1.65). 기준은 후반 수입(시간당
-// 수만 G)에 맞춰 상시 접속 약 2·10·80일에 하나씩 오도록 정했다(D051).
+// 수만 G)에 맞춰 며칠~두 달 간격으로 하나씩 오도록 정했다(D051, 시뮬레이션 상시 3·11·69일).
 export const economyThresholds = [1_000_000, 10_000_000, 100_000_000] as const;
 export const ECONOMY_EXCHANGE_BONUS = 0.05;
 
