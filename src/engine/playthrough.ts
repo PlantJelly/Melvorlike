@@ -6,14 +6,14 @@ import { ProjectDB, projectIds, type ProjectId } from '../content/projects';
 import { AnimalDB, barnUpgrades } from '../content/animals';
 import { COAL_CHANCE } from '../content/mining';
 import { CHANCE_SCALE } from '../content/chance';
-import { guildTiers, milestoneIds } from '../content/guild';
+import { ExchangeDB, guildTiers, milestoneIds } from '../content/guild';
 import { accessorySlots, accessoryTiers, enchantmentStones, type AccessorySlotId } from '../content/accessories';
 import { farmAutomation, plotUpgrades } from '../content/farm';
 import { FACILITY_MAX_LEVEL, facilityIds, facilityRequirement } from '../content/facilities';
 import type { SkillId } from '../content/types';
 import { experienceToNextLevel, MAX_SKILL_LEVEL } from './formulas';
 import {
-  advance, animalCount, purchasable, automateFarm, begin, clearPlot, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
+  advance, animalCount, purchasable, completeDailyQuest, dailyQuestReward, exchangeResource, exchangeYield, automateFarm, begin, clearPlot, clearQueuedAction, queueAction, buyAnimal, buyResource, claimMilestone, craftAccessory,
   deliverProjectMaterial, duration, expandBarn, expandFarm, farmRemainingMs, harvest, harvestOutput, initial, plant, ranchRemainingMs,
   ranchStarved, recipeFor, rerollAccessory, sell, skillUnlocked, startProjectWork, surveyProject, upgrade, upgradeAccessory,
   upgradeGuild, nextFacilityUpgrade, upgradeFacility, facilityGateMet, type Model,
@@ -42,6 +42,9 @@ export interface PlaythroughOptions {
   stopAfterGoal?: string;
   // 남는 골드로 원재료를 길드에서 사 채집 시간을 줄인다(D051 — 기획서의 "골드 → 시간" 따라잡기). 기본 true.
   catchUpBuying?: boolean;
+  // 일일 퀘스트 납품·환전 사용(D053). 기본 true. 비교 측정용.
+  dailyQuests?: boolean;
+  exchange?: boolean;
 }
 
 export interface GoalRecord {
@@ -78,6 +81,10 @@ export interface PlaythroughResult {
   stuck: string | null;
   // 원재료 구매에 쓴 골드 합계(D051).
   goldSpentBuying: number;
+  // 일일 퀘스트 완료 수와 그 보상 골드, 환전 횟수(D053).
+  questsCompleted: number;
+  questGold: number;
+  exchanges: number;
   final: Model;
 }
 
@@ -94,7 +101,12 @@ interface Context {
   random: () => number;
   scenario: PlaythroughScenario;
   catchUpBuying: boolean;
-  spent: {buying: number};
+  exchange: boolean;
+  // 판매만 하지 않을 재료(일일 퀘스트 재료). reserve와 달리 돈벌이 채집 후보에서 빼지 않는다(D053).
+  keep: Set<string>;
+  // 가장 낮은 스킬들이 지금 훈련에 쓰는 재료 트리(환전 원천에서 제외, 결정마다 한 번 계산).
+  needed?: Set<string>;
+  spent: {buying: number; quests: number; questGold: number; exchanges: number};
   // 따라잡기로 산 원재료 수량. 다음 결정에서 다른 목표가 남는 보유품을 팔 때 산 재료까지 헐값에 되팔지 않게 한다.
   bought: Record<string, number>;
 }
@@ -169,6 +181,19 @@ function acquire(s: Model, ctx: Context, id: string, qty: number, depth = 0): Pl
   if (depth > 12) return wait('재료 경로 과다');
   const r = ResourceDB[id];
   if (!skillUnlocked(s, r.skill)) return wait(`${skillNames[r.skill]} 미해금`);
+  // 하위 단계 재료가 모자라면 같은 스킬 상위 원재료 중 이번 계획에 쓰이지 않는 보유분을 먼저 환전한다(D053).
+  // 환전은 판매가 가치의 90% 이하라 손해지만, 어차피 남는 보유품으로 팔릴 재료를 채집 시간 대신 쓰는 것이다.
+  if (ctx.exchange && !r.recipe && s.unlockedFeatures.includes('guild')) {
+    for (const [source, targets] of Object.entries(ExchangeDB)) {
+      const ex = targets.find(e => e.targetId === id);
+      if (!ex || ex.tierGap > s.guild + 1 || ctx.reserve.has(source) || ctx.keep.has(source) || neededForTraining(s, ctx).has(source) || have(s, source) <= 0) continue;
+      const count = Math.min(have(s, source), Math.ceil(missing / exchangeYield(s, source, ex)));
+      if (exchangeResource(s, source, id, count)) {
+        ctx.spent.exchanges++;
+        return PROGRESS;
+      }
+    }
+  }
   // 골드가 넉넉하면 하위 단계 원재료를 사서 레벨에 비해 손해인 채집을 건너뛴다(판매가 ×5, D051).
   // 최고 단계 채집 재료는 게임 규칙상 살 수 없다(purchasable). 농사·목장 산출물은 사지 않는다 — 산 작물은
   // 밭 관리가 씨앗으로 심어 버려 제작이 시작되지 못한다(첫 씨앗·사료 구매는 needCrop·needAnimalProduct가 따로 한다).
@@ -301,6 +326,25 @@ function moneyResource(s: Model, ctx: Context) {
   return best;
 }
 
+// 만렙이 아닌 액티브 스킬이 지금 훈련에 쓰는 자원과 그 재료 전체. 환전으로 이 재료를 바꾸면 다음 결정에서 다시
+// 모아야 해서, 환전 원천에서 뺀다(D053).
+function neededForTraining(s: Model, ctx: Context) {
+  if (ctx.needed) return ctx.needed;
+  const needed = new Set<string>();
+  const add = (id: string) => {
+    if (needed.has(id)) return;
+    needed.add(id);
+    for (const m of Object.keys(recipeFor(s, id))) add(m);
+  };
+  for (const skill of playable) {
+    if (isPassive(skill) || !skillUnlocked(s, skill) || s.skills[skill].level >= MAX_SKILL_LEVEL) continue;
+    const id = trainingResource(s, skill);
+    if (id) add(id);
+  }
+  ctx.needed = needed;
+  return needed;
+}
+
 // 그 사료를 먹는 모든 동물이 한 주기에 먹는 양.
 function feedPerCycle(s: Model, feedId: string) {
   return Object.values(AnimalDB).filter(a => a.feedId === feedId).reduce((sum, a) => sum + a.feedAmount * animalCount(s, a.id), 0);
@@ -314,7 +358,7 @@ function keepAmount(s: Model, id: string) {
 
 function sellSurplus(s: Model, ctx: Context) {
   for (const [id, count] of Object.entries(s.inventory)) {
-    if (ctx.reserve.has(id)) continue;
+    if (ctx.reserve.has(id) || ctx.keep.has(id)) continue;
     // 산 재료는 이미 쓴 만큼만 기억에서 지운다(보유량이 산 양보다 적으면 나머지는 소비된 것).
     if (ctx.bought[id]) ctx.bought[id] = Math.min(ctx.bought[id], count);
     const extra = count - keepAmount(s, id) - (ctx.bought[id] ?? 0);
@@ -573,6 +617,13 @@ function maxAllGoal(): Goal {
         sellSurplus(s, ctx);
         if (s.gold >= a.buyGold && buyAnimal(s, a.id)) return PROGRESS;
       }
+      // 이미 만렙인 액티브 스킬(주로 채집)의 도구도 재료가 이미 있으면 올린다 — 그 스킬로 모으는 제작 재료가 빨라진다(D053).
+      // 재료를 모으러 가지는 않는다: 가장 낮은 스킬 훈련과 같은 중간 제작품을 두고 경쟁하면 둘 다 늦어진다.
+      for (const skill of playable) {
+        if (isPassive(skill) || s.skills[skill].level < MAX_SKILL_LEVEL) continue;
+        const tool = toolPlanFor(s, ctx, skill, false);
+        if (tool) return tool;
+      }
       const active = playable.filter(skill => !isPassive(skill) && s.skills[skill].level < MAX_SKILL_LEVEL)
         .sort((a, b) => s.skills[a].level - s.skills[b].level);
       if (!active.length) {
@@ -710,7 +761,7 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   let decisions = 0;
   let stuck: string | null = null;
   let nextSample = DAY;
-  const spent = {buying: 0};
+  const spent = {buying: 0, quests: 0, questGold: 0, exchanges: 0};
   const bought: Record<string, number> = {};
   // 레벨은 시간 정산뿐 아니라 결정 중의 수동 수확으로도 오르므로, 마지막으로 본 레벨과 비교해 기록한다.
   const seen = playable.map(skill => s.skills[skill].level);
@@ -732,7 +783,17 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   while (t < options.horizonMs) {
     decisions++;
     if (skillUnlocked(s, 'cooking') || s.unlockedFeatures.includes('guild')) for (const id of milestoneIds) claimMilestone(s, id);
-    const ctx: Context = {demand: {}, reserve: new Set(), random, scenario, catchUpBuying: options.catchUpBuying ?? true, spent, bought};
+    const ctx: Context = {demand: {}, reserve: new Set(), random, scenario, catchUpBuying: options.catchUpBuying ?? true, exchange: options.exchange ?? true, keep: new Set(), spent, bought};
+    // 일일 퀘스트(D053): 요구량이 모이면 납품하고, 아직 못 채운 퀘스트 재료는 남는 보유품 판매에서 뺀다.
+    // 지금 훈련에 쓰는 재료는 납품하지 않는다(납품하면 다시 모아야 해 훈련이 늦어진다).
+    if (options.dailyQuests ?? true) s.dailyQuests.quests.forEach((quest, index) => {
+      if (quest.done || neededForTraining(s, ctx).has(quest.resourceId)) return;
+      const reward = dailyQuestReward(s, quest);
+      if (have(s, quest.resourceId) >= quest.amount && completeDailyQuest(s, index, quest.resourceId)) {
+        spent.quests++;
+        spent.questGold += reward;
+      } else ctx.keep.add(quest.resourceId);
+    });
     let plan: Plan = wait('목표 없음');
     for (let guard = 0; guard < 500; guard++) {
       finishGoals();
@@ -778,5 +839,5 @@ export function simulatePlaythrough(scenario: PlaythroughScenario, options: Play
   }
   finishGoals();
   samples.push(snapshot(s, t));
-  return {scenario, goals: records, levelMarks, levelTimes, activeMs, idleMs, elapsedMs: t, samples, decisions, stuck, goldSpentBuying: spent.buying, final: s};
+  return {scenario, goals: records, levelMarks, levelTimes, activeMs, idleMs, elapsedMs: t, samples, decisions, stuck, goldSpentBuying: spent.buying, questsCompleted: spent.quests, questGold: spent.questGold, exchanges: spent.exchanges, final: s};
 }

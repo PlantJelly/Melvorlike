@@ -35,7 +35,7 @@ console.log('# 전체 진행 경로 시뮬레이션 보고서');
 console.log('');
 console.log(`- 새 저장에서 실제 게임 엔진 함수만 호출하는 플레이 정책(봇)으로 ${horizonDays}일을 진행한 측정값입니다(D044). 최적 플레이나 확정 밸런스가 아닙니다.`);
 console.log('- 목표 순서: 왕국 11구역 복원(구역이 연 스킬의 돌 도구 포함) → 장신구·도구 티어·밭/축사·동물·길드 → 전 스킬 Lv99.');
-console.log('- 정책 가정: 음식·비료·일일 퀘스트·환전 미사용. 원재료 구매: 첫 씨앗, 동물 사료(밭이 못 따라갈 때), 그리고 보유 골드가 200만 G를 넘으면 그 초과분으로 필요한 채집 원재료 중 그 스킬의 현재 최고 단계보다 낮은 것을 산다(D051 따라잡기, 산 재료는 되팔지 않음). 골드가 모자라면 목표에 쓰이지 않는 보유품을 팔고, 그래도 모자라면 시간당 판매가가 가장 높은 원재료를 채집해 판다. 목표가 밭·동물을 기다리는 동안에는 가장 낮은 채집 스킬을 올린다.');
+console.log('- 정책 가정: 음식·비료 미사용. 일일 퀘스트는 재료를 판매에서 빼 두었다가 다 모이면 납품하고(따로 채집하러 가지는 않음), 하위 단계 원재료가 모자라면 구매 전에 같은 스킬 상위 원재료의 남는 보유분을 환전한다. 만렙 액티브 스킬의 도구도 올린다(D053). 원재료 구매: 첫 씨앗, 동물 사료(밭이 못 따라갈 때), 그리고 보유 골드가 200만 G를 넘으면 그 초과분으로 필요한 채집 원재료 중 그 스킬의 현재 최고 단계보다 낮은 것을 산다(D051 따라잡기, 산 재료는 되팔지 않음). 골드가 모자라면 목표에 쓰이지 않는 보유품을 팔고, 그래도 모자라면 시간당 판매가가 가장 높은 원재료를 채집해 판다. 목표가 밭·동물을 기다리는 동안에는 가장 낮은 채집 스킬을 올린다.');
 console.log('- 자동 파종/수확을 설치하며(농사 Lv25), 필요한 작물이 어느 칸에도 없으면 필요 없는 작물 칸을 비우고 바꿔 심는다(D045).');
 console.log('- "1시간마다 확인"은 1시간 간격으로만 결정하며, 지금 작업이 먼저 끝나면 남는 시간을 채울 채집을 다음 작업으로 예약한다.');
 console.log('');
@@ -56,6 +56,8 @@ const rows: [string, (r: PlaythroughResult) => string][] = [
   [`${horizonDays}일 뒤 가장 낮은 스킬`, r => { const low = [...playable].sort((a, b) => r.final.skills[a].level - r.final.skills[b].level)[0]; return `${skillNames[low]} Lv${r.final.skills[low].level}`; }],
   [`${horizonDays}일 뒤 누적 획득 골드`, r => `${number(r.final.goldEarned)} G`],
   ['원재료 구매에 쓴 골드', r => `${number(r.goldSpentBuying)} G`],
+  ['일일 퀘스트 완료(보상)', r => `${number(r.questsCompleted)}회 (${number(r.questGold)} G)`],
+  ['환전 횟수', r => `${number(r.exchanges)}회`],
   [`${horizonDays}일 뒤 보유 골드`, r => `${number(r.final.gold)} G`],
   ['액티브 슬롯 유휴 비율', r => percent(r.idleMs, r.elapsedMs)],
   ['멈춤', r => r.stuck ?? '없음'],
@@ -135,3 +137,23 @@ for (const day of days) {
   });
   console.log(`| ${day} | ${cells.join(' | ')} |`);
 }
+
+// 시드 편차(D053): 봇의 무작위 선택(시드)만 바꿔도 결과가 크게 흔들리므로, 대표 지표를 시드 1~3으로 함께 보인다.
+// 위 보고서는 모두 시드 1 기준이다. 수치 비교는 평균과 범위를 함께 볼 것.
+const seeds = [1, 2, 3];
+const seeded = playthroughScenarios.map(scenario => seeds.map(seed => seed === 1
+  ? results[playthroughScenarios.indexOf(scenario)]
+  : simulatePlaythrough(scenario, {horizonMs: horizonDays * DAY, seed})));
+console.log('');
+console.log('## 시드 편차 (전 스킬 Lv99·시설 최대)');
+console.log('');
+console.log('- 봇의 무작위 선택 시드만 바꾼 실행입니다. 위 표는 시드 1 기준이므로, 수치 비교는 이 범위를 함께 보세요.');
+console.log('');
+console.log(`| 시나리오 | ${seeds.map(seed => `시드 ${seed}`).join(' | ')} | 평균 |`);
+console.log(`| --- | ${seeds.map(() => '---:').join(' | ')} | ---: |`);
+playthroughScenarios.forEach((scenario, i) => {
+  const times = seeded[i].map(r => lastOf(r, id => id === 'max'));
+  const done = times.filter((x): x is number => x !== null);
+  const mean = done.length === times.length ? done.reduce((a, b) => a + b, 0) / done.length : null;
+  console.log(`| ${scenario.name} | ${times.map(duration).join(' | ')} | ${duration(mean)} |`);
+});
