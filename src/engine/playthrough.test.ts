@@ -54,7 +54,7 @@ describe('전체 진행 경로 시뮬레이션 — 왕국 이후 성장 구간',
     expect(s.farmPlots).toHaveLength(3);
     expect(s.barnLevel).toBe(2);
     expect([s.ranchCounts.chicken, s.ranchCounts.sheep, s.ranchCounts.cow]).toEqual([3, 3, 3]);
-    expect(accessorySlots.every(slot => s.accessories[slot.id]?.tier === 3)).toBe(true);
+    expect(accessorySlots.every(slot => (s.accessories[slot.id]?.tier ?? -1) >= 3)).toBe(true); // 금 이상(후반 재질은 만렙 단계에서 올린다, D054)
     // 남은 목표는 마지막(전 스킬 Lv99)뿐이다.
     expect(result.goals.slice(doneIndex).map(goal => goal.id)).toEqual(['max']);
   });

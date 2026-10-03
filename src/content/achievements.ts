@@ -10,5 +10,5 @@ export const GROWTH_SALE_BONUS = 0.02;
 export const economyThresholds = [1_000_000, 10_000_000, 100_000_000] as const;
 export const ECONOMY_EXCHANGE_BONUS = 0.05;
 
-// 제작형: 장신구 리롤에서 처음으로 전설 희귀도를 얻으면 마법부여석 제작에 드는 농사 약초가 1개 줄어든다(최소 1).
+// 제작형: 장신구 리롤에서 처음으로 전설 이상(신화·고대·태초 포함, D054) 희귀도를 얻으면 마법부여석 제작에 드는 농사 약초가 1개 줄어든다(최소 1).
 export const LEGENDARY_RARITY = 4;

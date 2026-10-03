@@ -596,6 +596,8 @@ function gatingFacility(s: Model, skill: SkillId): ProjectId | null {
 // 다른 시설은 골드가 있을 때만 올리고, 모든 스킬이 만렙이면 남은 시설을 골드를 벌어 마저 올린다.
 // 패시브(농사·목장) 도구는 재료가 이미 있을 때 올린다(재료를 모으러 가지 않는다).
 function maxAllGoal(): Goal {
+  // 후반 장신구 리롤 횟수(슬롯:재질별, D054).
+  const lateRerolls: Record<string, number> = {};
   return {
     id: 'max', label: '전 스킬 Lv99·시설 최대 강화', phase: '완주',
     done: s => playable.every(skill => s.skills[skill].level >= MAX_SKILL_LEVEL) && facilityIds.every(id => s.facilities[id] === FACILITY_MAX_LEVEL),
@@ -605,12 +607,42 @@ function maxAllGoal(): Goal {
         const tier = toolTiers[s.tools[skill] + 1];
         if (tier && skillUnlocked(s, skill) && s.skills[skill].level >= tier.level) for (const id of Object.keys(tier.cost)) reserveTree(s, ctx, id);
       }
+      for (const {id: slot} of accessorySlots) {
+        const next = accessoryTiers[(s.accessories[slot]?.tier ?? 99) + 1];
+        if (next && s.skills.blacksmithing.level >= next.reqLevel) for (const id of Object.keys(next.cost)) reserveTree(s, ctx, id);
+      }
       for (const skill of passiveSkills) {
         const tool = toolPlanFor(s, ctx, skill, false);
         if (tool) return tool;
       }
       const affordable = affordableFacilityPlan(s, ctx);
       if (affordable) return affordable;
+      // 후반 장신구(D054): 대장작업 레벨이 되면 재질을 올리고, 마법 레벨이 되면 그 재질 부여석으로 최고 등급까지
+      // (재질마다 최대 REROLL_LIMIT번) 리롤한다. 금 재질까지는 앞선 장신구 목표가 처리한다.
+      for (const {id: slot} of accessorySlots) {
+        const accessory = s.accessories[slot];
+        if (!accessory) continue;
+        const next = accessoryTiers[accessory.tier + 1];
+        if (next && s.skills.blacksmithing.level >= next.reqLevel) {
+          const plan = acquireAll(s, ctx, Object.entries(next.cost));
+          if (plan && plan.kind !== 'wait') return plan;
+          if (!plan) {
+            const gold = ensureGold(s, ctx, next.goldCost);
+            if (gold) return gold;
+            if (upgradeAccessory(s, slot)) return PROGRESS;
+          }
+        }
+        const stone = enchantmentStones[accessory.tier];
+        const key = `${slot}:${accessory.tier}`;
+        if (accessory.tier < 4 || accessory.rarity === accessoryTiers[accessory.tier].maxRarity || (lateRerolls[key] ?? 0) >= REROLL_LIMIT
+          || s.skills.magic.level < ResourceDB[stone.resourceId].reqLevel) continue;
+        const plan = acquire(s, ctx, stone.resourceId, 1);
+        if (plan && plan.kind !== 'wait') return plan;
+        if (!plan && rerollAccessory(s, slot, stone.resourceId, ctx.random)) {
+          lateRerolls[key] = (lateRerolls[key] ?? 0) + 1;
+          return PROGRESS;
+        }
+      }
       // 후반 동물(D050)은 레벨·시설 조건이 되고 골드가 이미 있으면 축사 수용량까지 들인다.
       for (const a of Object.values(AnimalDB)) {
         if (animalCount(s, a.id) >= Math.max(1, s.barnLevel + 1) || s.skills.ranching.level < ResourceDB[a.productId].reqLevel || !facilityGateMet(s, a.productId)) continue;

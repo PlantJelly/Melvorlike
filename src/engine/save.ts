@@ -336,7 +336,7 @@ export function decodeSave(text: string): Model {
     }
   }
   // v29 이전 저장은 누적 골드를 알 수 없어 0에서 시작하고, 첫 전설 리롤 여부는 지금 장신구에서 추론한다.
-  const hasLegendary = Object.values(s.accessories).some(accessory => accessory?.rarity === LEGENDARY_RARITY);
+  const hasLegendary = Object.values(s.accessories).some(accessory => accessory !== null && accessory.rarity !== null && accessory.rarity >= LEGENDARY_RARITY);
   if (version >= 29) {
     if (!finite(raw.goldEarned) || typeof raw.legendaryRolled !== 'boolean' || (hasLegendary && !raw.legendaryRolled)) throw Error('업적 정보 오류');
     s.goldEarned = raw.goldEarned;

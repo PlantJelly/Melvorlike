@@ -1,11 +1,10 @@
 # Current handoff
 
-- Current goal: 사용자 지시 대기. 직전 요청 "리뷰하고 문제없으면 머지해줘"(2026-10-02) — 문서 정리·시뮬레이터 보강(D053)을 리뷰 PASS 후 main에 병합했다.
-- Branch: `main` @ `f190438`(fast-forward, 대상 `15dd938`에서). 원격 main 일치 확인. 병합한 작업 폴더·브랜치(`feature/sim-and-docs`)도 정리.
-- Checkpoint type: Stable. Known pre-checkpoint parent: `f190438`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`. Review PASS at `f190438`, CI NOT CONFIGURED.
-- Repository cleanup (done, not in this branch's diff): main에 병합된 작업 폴더 26개 제거, 로컬 브랜치 전부·원격 브랜치 36개 삭제(각각 main 조상 확인), 저장소 루트는 `main` 체크아웃. 남은 원격 브랜치는 `main`과 이 브랜치뿐.
-- Implemented: 문서 수정(AGENTS 프로젝트 프로필, README 저장 버전, implementation_status 미구현 목록 — 클라우드 저장은 미정 보류, content_spec 낡은 문구), 시뮬레이터 보강(D053: 일일 퀘스트 납품, 환전, 만렙 스킬 도구, 보고서에 퀘스트·환전 횟수와 시드 1~3 편차).
-- Verification: `npm test` 262/262, `npm run build` PASS, `npm run playthrough -- 365`(약 4분) 멈춤 없음·저장 검증 통과. 게임 코드·화면 변경 없음(시뮬레이터·보고서·문서만).
-- Result: 시드 1~3 전 스킬 Lv99 상시 121~141일(평균 133.0), 1시간 확인 209~267일(평균 234.5). 퀘스트·환전 사용 전후 차이는 잡음 범위.
-- Open (제안만): 장신구·마법부여석 후반 성장(기획 결정 대기), 도감·수집형 업적(기획 미정), 플레이테스트.
-- Exact next action: 사용자 지시 대기. 추천 다음 작업: 장신구·마법부여석 후반 성장 방향 결정. 새 작업은 main에서 새 브랜치·워크트리로 진행.
+- Current goal: 사용자 요청 "진행해줘"(2026-10-03) — 장신구 후반 성장 추천안 A(재질·등급·부여석 연장) 구현과 시뮬레이션 검증. 구현 완료, 리뷰·병합은 사용자 지시 대기.
+- Branch: `feature/accessory-late`(워크트리 `.worktrees/accessory`), main `a3b38bb`에서 분기. Known pre-checkpoint parent: `a3b38bb`. Locate the snapshot commit with `git log -1 -- HANDOFF.md`.
+- Checkpoint type: Stable.
+- Implemented (D054): 장신구 재질 청금(대장작업 Lv65)·별철(Lv80)·태양(Lv95), 등급 신화·고대·태초, 마법부여석 청금급·별철급·태양급(마법 Lv65·80·95, 마력 결정 사용), 옵션 최대치 신속 18%·지혜 27%·흥정 45%, 첫 전설 업적은 전설 이상 인정, 봇이 만렙 단계에서 후반 장신구 승급·리롤.
+- Verification: `npm test` 265/265, `npm run build` PASS, `npm run playthrough -- 365` 멈춤 없음·저장 검증 통과(docs/playthrough_report.md). 브라우저(포트 5293 수동 dev 서버, 종료함): 금 → 청금 승급 시 옵션·등급 유지, 후반 부여석 확률 표시, 콘솔 오류 없음.
+- Result: 시드 1~3 평균 전 스킬 Lv99 상시 133.0 → 125.5일, 1시간 확인 234.5 → 209.3일.
+- Open (제안만): 원하는 옵션까지 맞추는 실제 체감은 플레이테스트, 도감·수집형 업적은 기획 미정.
+- Exact next action: 사용자 지시 대기(리뷰·병합 요청 시 `feature/accessory-late` 리뷰).

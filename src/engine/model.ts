@@ -734,7 +734,7 @@ export function rerollAccessory(s: Model, slotId: AccessorySlotId, stoneId: stri
   s.inventory[stoneId]--;
   accessory.optionId = optionId;
   accessory.rarity = rarity;
-  if (rarity === LEGENDARY_RARITY) s.legendaryRolled = true;
+  if (rarity >= LEGENDARY_RARITY) s.legendaryRolled = true;
   s.notice = `${accessoryOptions[optionId].name} · ${accessoryOptions[optionId].description} +${Math.round(accessoryOptions[optionId].values[rarity] * 100)}%`;
   return true;
 }

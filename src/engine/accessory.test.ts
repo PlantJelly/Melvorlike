@@ -13,7 +13,7 @@ import {
   sell,
   upgradeAccessory,
 } from './model';
-import {decodeSave} from './save';
+import {decodeSave, encodeSave} from './save';
 
 describe('마법부여·장신구', () => {
   it('장신구를 슬롯당 한 번만 제작하고 비용을 정확히 차감한다', () => {
@@ -141,3 +141,46 @@ function sequence(...values: number[]) {
   let index = 0;
   return () => values[index++];
 }
+
+describe('장신구 후반 재질·등급(D054)', () => {
+  it('청금·별철·태양 재질은 대장작업 Lv65·80·95가 필요하고 등급 상한이 신화·고대·태초로 오른다', () => {
+    expect(accessoryTiers.slice(4).map(tier => [tier.name, tier.reqLevel, tier.maxRarity])).toEqual([['청금', 65, 5], ['별철', 80, 6], ['태양', 95, 7]]);
+    const s = initial(0);
+    s.gold = 1e9;
+    s.skills.blacksmithing.level = 64;
+    s.accessories.crown = {tier: 3, optionId: 'speed', rarity: 4};
+    s.inventory = {lapis_ingot: 5, moss_essence: 5};
+    expect(upgradeAccessory(s, 'crown')).toBe(false);
+    s.skills.blacksmithing.level = 65;
+    expect(upgradeAccessory(s, 'crown')).toBe(true);
+    expect(s.accessories.crown).toEqual({tier: 4, optionId: 'speed', rarity: 4}); // 승급해도 옵션·등급 유지
+  });
+
+  it('후반 부여석은 그 재질 이상에만 쓰이고, 재질 상한을 넘는 등급은 나오지 않는다', () => {
+    expect(rollAccessoryRarity(4, 6, 0.999)).toBe(5); // 청금 장신구에 태양급 부여석: 신화까지만
+    expect(rollAccessoryRarity(6, 6, 0.999)).toBe(7); // 태양 장신구에 태양급 부여석: 태초 가능
+    expect(rollAccessoryRarity(5, 4, 0.5)).toBeNull(); // 별철 장신구에 청금급 부여석은 사용 불가
+    const s = initial(0);
+    s.skills.blacksmithing.level = 99;
+    s.accessories.ring = {tier: 6, optionId: null, rarity: null};
+    s.inventory.enchant_stone_sun = 1;
+    expect(rerollAccessory(s, 'ring', 'enchant_stone_sun', () => 0.999)).toBe(true);
+    expect(s.accessories.ring?.rarity).toBe(7);
+    expect(s.legendaryRolled).toBe(true); // 전설 이상이면 첫 전설 업적 인정
+  });
+
+  it('신화 이상 장신구는 저장·복원되고, 재질 상한을 넘는 등급은 손상으로 거부한다', () => {
+    const s = initial(0);
+    s.skills.blacksmithing.level = 80;
+    s.accessories.necklace = {tier: 5, optionId: 'experience', rarity: 6};
+    s.legendaryRolled = true;
+    expect(decodeSave(encodeSave(s)).accessories.necklace).toEqual({tier: 5, optionId: 'experience', rarity: 6});
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.accessories.necklace.rarity = 7;
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow('장신구 정보 오류');
+    raw.accessories.necklace.rarity = 6;
+    raw.legendaryRolled = false; // 신화 장신구가 있으면 첫 전설 업적도 달성 상태여야 한다
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow('업적 정보 오류');
+  });
+});

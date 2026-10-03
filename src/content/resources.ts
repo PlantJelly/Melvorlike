@@ -85,6 +85,10 @@ export const ResourceDB: Record<string, ResourceDef> = Object.fromEntries([
     row('enchant_stone_copper', '구리급 마법부여석', 'magic', 10, 14000, 175, 259, '🔮', {mugwort: 2, mana_stone: 2, copper_ingot: 1}),
     row('enchant_stone_iron', '철급 마법부여석', 'magic', 30, 20000, 390, 468, '🔮', {magic_mugwort: 2, mana_stone: 3, iron_ingot: 1}),
     row('enchant_stone_gold', '금급 마법부여석', 'magic', 50, 30000, 960, 1179, '🔮', {mystic_herb: 2, mana_stone: 5, gold_ingot: 1}),
+    // 후반 부여석(D054): 같은 단계 약초 2 + 마나석 + 그 단계 마력 결정. 경험치·판매가는 D049·D051 공식(재료 포함 시간, 원가 ×1.1).
+    row('enchant_stone_lapis', '청금급 마법부여석', 'magic', 65, 34000, 1738, 2363, '🔮', {moonpetal: 2, mana_stone: 5, mana_crystal_high: 1}),
+    row('enchant_stone_star', '별철급 마법부여석', 'magic', 80, 38000, 2137, 3146, '🔮', {flame_herb: 2, mana_stone: 6, mana_crystal_great: 1}),
+    row('enchant_stone_sun', '태양급 마법부여석', 'magic', 95, 42000, 2754, 5330, '🔮', {world_leaf: 2, mana_stone: 6, mana_crystal_prime: 1}),
     row('wild_berry', '산딸기', 'foraging', 1, 3000, 25, 1, '🍓'),
     // 섬유(game_design §2.12 "재봉은 목장의 양털과 야외 채집의 섬유를 함께 소비") — 수치는 산딸기와 같다(D046).
     row('fiber', '섬유', 'foraging', 1, 3000, 25, 1, '🎋'), row('wild_mushroom', '들버섯', 'foraging', 10, 5000, 60, 3, '🍄'),
