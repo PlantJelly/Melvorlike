@@ -13,7 +13,7 @@ export function GuildView() {
   return <>
     <h1>길드</h1>
     <p class="muted">{tier().name} · 환전 가능 티어 차이 {depth()}단계까지</p>
-    <p class="intro-note">이미 해금한 원재료는 골드로 바로 구매할 수 있습니다. 상위 티어 재료가 남아돌면 하위 티어로 환전해 부족한 재료를 채우세요 — 환전은 항상 하위 티어로만 가능합니다.</p>
+    <p class="intro-note">해금한 원재료는 골드로 바로 살 수 있습니다(벌목·채광·낚시·채집 재료는 그 스킬의 현재 최고 단계보다 낮은 것만). 상위 티어 재료가 남아돌면 하위 티어로 환전해 부족한 재료를 채우세요 — 환전은 항상 하위 티어로만 가능합니다.</p>
     <section class="current">
       <div><span class="label">다음 등급</span><h2>{next() ? next()!.name : '현재 최고 등급입니다'}</h2></div>
       <Show when={next()}>

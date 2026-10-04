@@ -13,3 +13,13 @@ describe('생산과 저장', () => {
     it('초기 저장 호환 및 손상/미래 버전 거부', () => { const s = initial(0); expect(decodeSave(JSON.stringify({ ...s, version: 1 })).inventory).toEqual({}); expect(() => decodeSave('{')).toThrow(); expect(() => decodeSave(JSON.stringify({ ...s, version: SAVE_VERSION + 1 }))).toThrow(); expect(() => decodeSave(JSON.stringify({ ...s, inventory: { wood: -1 } }))).toThrow(); });
     it('판매로 재료가 음수가 되지 않는다', () => { const s = initial(0); s.inventory.wood = 3; expect(sell(s, 'wood', 4)).toBe(false); expect(sell(s, 'wood', -1)).toBe(false); expect(sell(s, 'wood', 2)).toBe(true); expect(s.gold).toBe(1002); expect(s.inventory.wood).toBe(1); });
 });
+
+describe('도구 제작 알림', () => {
+  it('도구를 만들면 완료 알림을 남긴다', () => {
+    const s = initial(0);
+    s.inventory = {wood: 5, brick: 3};
+    s.notice = '재료가 부족해 제작을 멈췄습니다.';
+    expect(upgrade(s, 'logging')).toBe(true);
+    expect(s.notice).toBe('돌 도끼 제작 완료 · 벌목 속도 +15%');
+  });
+});

@@ -17,6 +17,8 @@ export function InventoryView() {
           <strong>{fmt(state().inventory[r.id])}개</strong>
           <button onClick={() => sellItem(r.id, 1)}>1개 판매</button>
           <button disabled={state().inventory[r.id] < 10} onClick={() => sellItem(r.id, 10)}>10개 판매</button>
+          <button disabled={state().inventory[r.id] < 100} onClick={() => sellItem(r.id, 100)}>100개 판매</button>
+          <button onClick={() => sellItem(r.id, state().inventory[r.id])}>전부 판매</button>
           <FoodButtons id={r.id}/>
         </article>
       }</For>

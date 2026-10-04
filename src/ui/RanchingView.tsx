@@ -14,16 +14,16 @@ function minutes(ms: number) {
 
 const owned = (id: string) => Object.hasOwn(state().ranch, id);
 
+// 모든 화면 위에 붙는 요약이라 동물 종 수와 무관하게 한 줄로 보인다(플레이테스트: 후반 7종이 7줄을 차지하던 문제).
 export function RanchStatus() {
   const ownedIds = () => Object.keys(state().ranch);
+  const heads = () => ownedIds().reduce((sum, id) => sum + animalCount(state(), id), 0);
+  const starved = () => ownedIds().filter(id => ranchStarved(state(), id));
+  const nextMs = () => Math.min(...ownedIds().filter(id => !ranchStarved(state(), id)).map(id => ranchRemainingMs(state(), id)));
   return <section class="meal-status" aria-label="목장 상태">
     <Show when={ownedIds().length} fallback={<span>🐔 사육 중인 동물 없음 · 목장 탭에서 동물을 구매해보세요.</span>}>
-      <For each={ownedIds()}>{id => {
-        const a = AnimalDB[id];
-        const p = ResourceDB[a.productId];
-        const heads = () => animalCount(state(), id);
-        return <span>{a.icon} {a.name}{heads() > 1 ? ` ×${heads()}` : ''} {ranchStarved(state(), id) ? '사료 부족' : `진행 ${Math.floor(state().ranch[id] / p.baseDurationMs * 100)}%`}</span>;
-      }}</For>
+      <strong>{ownedIds().map(id => AnimalDB[id].icon).join('')} 동물 {ownedIds().length}종 {heads()}마리</strong>
+      <span>{Number.isFinite(nextMs()) ? `다음 산출 ${minutes(nextMs())}분 후` : '산출 대기'}{starved().length ? ` · 사료 부족 ${starved().map(id => AnimalDB[id].name).join('·')}` : ''}</span>
     </Show>
   </section>;
 }

@@ -49,7 +49,7 @@ export function ProductionView(props: {skill: SkillId}) {
     <Show when={props.skill === 'mining'}><p class="intro-note">광맥 발견 확률 {(veinChance(skill().level) / 100).toFixed(2)}% · 광맥 기운 {Math.floor(state().veinProgress / CHANCE_SCALE * 100)}% — 채굴할 때마다 쌓이고 100%가 되면 한 단계 위 광물과 마나석을 1개씩 더 얻습니다. 어떤 광물을 캐든 석탄이 {COAL_CHANCE / 100}% 확률로 함께 나오며(보유 {fmt(state().inventory.coal ?? 0)}), 구리·철 주괴의 연료로 쓰입니다.</p></Show>
     <Show when={props.skill === 'blacksmithing'}><p class="intro-note">대장간 설비: <strong>{forgeName(skill().level)}</strong>{skill().level < FURNACE_LEVEL ? ` — 대장작업 Lv${FURNACE_LEVEL}에 용광로로 확장됩니다.` : ' — 철 이상의 주괴를 제련할 수 있습니다.'}</p></Show>
     <Show when={props.skill === 'cooking'}><p class="intro-note">음식 효과는 한 종류만 적용됩니다. 같은 음식은 지속시간이 늘어나며, 접속을 종료해도 시간이 흐릅니다.</p></Show>
-    <label class="muted target-input">목표 수량 <input aria-label="목표 수량" type="number" min="1" step="1" placeholder="제한 없음" value={targetText()} onInput={e => setTargetText(e.currentTarget.value)}/> 개 — 채우면 멈추고, 예약한 다음 작업이 있으면 이어서 시작합니다.</label>
+    <label class="muted target-input">목표 수량 <input aria-label="목표 수량" type="number" min="1" step="1" placeholder="제한 없음" value={targetText()} onInput={e => setTargetText(e.currentTarget.value)}/> 개 — 모든 생산 화면에 공통으로 적용됩니다. 채우면 멈추고, 예약한 다음 작업이 있으면 이어서 시작합니다.</label>
     <div class="cards">
       <For each={Object.values(ResourceDB).filter(r => r.skill === props.skill && !r.dropOnly).sort((a, b) => a.reqLevel - b.reqLevel)}>{r =>
         <article>

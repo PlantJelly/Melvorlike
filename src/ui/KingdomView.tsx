@@ -117,9 +117,9 @@ function FacilityPanel(props: {id: ProjectId}) {
   </div>;
 }
 
-function ProjectLane(props: {title: string; description: string; phases: ProjectPhase[]}) {
+function ProjectLane(props: {title: string; description: string; phases: ProjectPhase[]; class?: string}) {
   const ids = () => projectIds.filter(id => props.phases.includes(state().projects[id].phase));
-  return <section class="project-lane">
+  return <section class={`project-lane ${props.class ?? ''}`}>
     <div class="lane-heading"><div><h2>{props.title}</h2><p>{props.description}</p></div><span>{ids().length}</span></div>
     <Show when={ids().length > 0} fallback={<p class="empty-lane">현재 해당하는 구역이 없습니다.</p>}>
       <For each={ids()}>{id => <ProjectCard id={id}/>}</For>
@@ -134,8 +134,11 @@ export function KingdomView() {
       <div class="restoration-score"><strong>{kingdomRestoration(state())}</strong><span>복원도</span></div>
     </section>
     <div class="kingdom-board">
-      <ProjectLane title="폐허 회수" description="현장을 조사하고 쓸 수 있는 자재를 회수합니다." phases={clearingPhases}/>
-      <ProjectLane title="복원" description="필요한 자재를 납품하고 공사를 마칩니다." phases={restorationPhases}/>
+      {/* 모든 구역을 복원하면 빈 칸은 숨긴다. 좁은 화면에서는 진행 중인 복원 칸을 위로 올린다(index.css). */}
+      <Show when={!projectIds.every(id => state().projects[id].phase === 'complete')}>
+        <ProjectLane title="폐허 회수" description="현장을 조사하고 쓸 수 있는 자재를 회수합니다." phases={clearingPhases}/>
+        <ProjectLane title="복원" description="필요한 자재를 납품하고 공사를 마칩니다." phases={restorationPhases} class="restoration-lane"/>
+      </Show>
       <ProjectLane title="완료 구역" description="복원해 다시 기능하는 왕국의 시설입니다." phases={['complete']}/>
     </div>
   </>;

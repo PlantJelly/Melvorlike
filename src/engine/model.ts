@@ -1,4 +1,4 @@
-import { ResourceDB, toolTiers, playable, cropYield, passiveSkills, skillNames } from '../content/resources';
+import { ResourceDB, toolTiers, playable, cropYield, passiveSkills, skillNames, toolNames } from '../content/resources';
 import { AnimalDB, barnUpgrades } from '../content/animals';
 import { FoodDB } from '../content/foods';
 import { EXCHANGE_VALUE_CAP, ExchangeDB, exchangeRate, guildTiers, milestoneById, type ExchangeDef, type MilestoneId } from '../content/guild';
@@ -671,6 +671,7 @@ export function upgrade(s: Model, skill: SkillId) {
   if (!skillUnlocked(s, skill) || !featureUnlocked(s, 'tools') || !tier || s.skills[skill].level < tier.level || !afford(s, tier.cost)) return false;
   spend(s, tier.cost);
   s.tools[skill]++;
+  s.notice = `${tier.name} ${toolNames[skill]} 제작 완료 · ${skillNames[skill]} 속도 +${Math.round(tier.bonus * 100)}%`;
   return true;
 }
 

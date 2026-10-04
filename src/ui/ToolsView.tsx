@@ -1,7 +1,7 @@
 import { For, Show } from 'solid-js';
 import { playable, skillNames, toolNames, toolTiers } from '../content/resources';
 import { state } from '../state/gameState';
-import { afford } from '../engine/model';
+import { afford, skillUnlocked } from '../engine/model';
 import { craftTool } from '../engine/actions';
 import { costText, fmt } from './ProductionView';
 
@@ -10,7 +10,7 @@ export function ToolsView() {
     <h1>도구 제작</h1>
     <p class="muted">도구는 제작 즉시 적용되며, 각 기술에 영구적으로 남습니다.</p>
     <div class="cards">
-      <For each={playable}>{id => {
+      <For each={playable.filter(id => skillUnlocked(state(), id))}>{id => {
         const next = () => toolTiers[state().tools[id] + 1];
         return <article>
           <h2>{skillNames[id]} · {toolNames[id]}</h2>
