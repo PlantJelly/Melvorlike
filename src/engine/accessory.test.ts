@@ -184,3 +184,20 @@ describe('장신구 후반 재질·등급(D054)', () => {
     expect(() => decodeSave(JSON.stringify(raw))).toThrow('업적 정보 오류');
   });
 });
+
+describe('장신구 저장 검증(D055)', () => {
+  it('음수 재질·음수 등급은 손상으로 거부한다', () => {
+    const s = initial(0);
+    s.skills.blacksmithing.level = 50;
+    s.accessories.crown = {tier: 3, optionId: 'speed', rarity: 2};
+    const raw = JSON.parse(encodeSave(s));
+    delete raw.checksum;
+    raw.accessories.crown.rarity = -1;
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow('장신구 정보 오류');
+    raw.accessories.crown.rarity = 2;
+    raw.accessories.crown.tier = -1;
+    expect(() => decodeSave(JSON.stringify(raw))).toThrow('장신구 정보 오류');
+    raw.accessories.crown.tier = 3;
+    expect(decodeSave(JSON.stringify(raw)).accessories.crown).toEqual({tier: 3, optionId: 'speed', rarity: 2});
+  });
+});

@@ -256,7 +256,7 @@ export function decodeSave(text: string): Model {
       const accessory = raw.accessories[slotId];
       if (accessory === null) continue;
       if (!s.unlockedFeatures.includes('equipment')) throw Error('장신구 정보 오류');
-      if (!object(accessory) || !finite(accessory.tier) || !Number.isInteger(accessory.tier) || accessory.tier >= accessoryTiers.length) throw Error('장신구 정보 오류');
+      if (!object(accessory) || !finite(accessory.tier) || !Number.isInteger(accessory.tier) || accessory.tier < 0 || accessory.tier >= accessoryTiers.length) throw Error('장신구 정보 오류');
       if (s.skills.blacksmithing.level < accessoryTiers[accessory.tier].reqLevel) throw Error('장신구 정보 오류');
       const optionId = accessory.optionId;
       const rarity = accessory.rarity;
@@ -265,7 +265,7 @@ export function decodeSave(text: string): Model {
         s.accessories[slotId] = {tier: accessory.tier, optionId: null, rarity: null};
         continue;
       }
-      if (typeof optionId !== 'string' || !accessoryOptionIds.includes(optionId as AccessoryOptionId) || !finite(rarity) || !Number.isInteger(rarity) || rarity > accessoryTiers[accessory.tier].maxRarity) throw Error('장신구 정보 오류');
+      if (typeof optionId !== 'string' || !accessoryOptionIds.includes(optionId as AccessoryOptionId) || !finite(rarity) || !Number.isInteger(rarity) || rarity < 0 || rarity > accessoryTiers[accessory.tier].maxRarity) throw Error('장신구 정보 오류');
       s.accessories[slotId] = {tier: accessory.tier, optionId: optionId as AccessoryOptionId, rarity};
     }
   }
